@@ -17,7 +17,7 @@ The project is divided into three main components:
 
 *   **[Backend (`backend/`)](./backend/README.md):** A Node.js/Express server that handles data storage (in-memory for MVP), pairing logic, and API requests.
 *   **[Google TV App (`google-tv-app/`)](./google-tv-app/README.md):** An Android app for Google TV that displays a pairing code and renders table data received from the backend via a WebView.
-*   **[Mobile App (`mobile-app/`)](./mobile-app/README.md):** A React Native app that allows users to pair with a TV, edit table data, and send it to the backend.
+*   **[Mobile App (`mobile-app/DynamicInfoBoardMobile/`)](./mobile-app/DynamicInfoBoardMobile/README.md):** A React Native app that allows users to pair with a TV, edit table data, and send it to the backend. (Note: The main mobile app code is within the `DynamicInfoBoardMobile` subdirectory).
 
 ## Core Technologies
 
@@ -44,7 +44,7 @@ The project is divided into three main components:
     *   Follow the instructions in the `README.md` file within each component's directory:
         *   [Backend Setup](./backend/README.md)
         *   [Google TV App Setup](./google-tv-app/README.md)
-        *   [Mobile App Setup](./mobile-app/README.md) (this will point to `DynamicInfoBoardMobile/README.md`)
+        *   [Mobile App Setup](./mobile-app/DynamicInfoBoardMobile/README.md)
 
     *   **General Workflow:**
         1.  Start the backend server.

@@ -3,7 +3,7 @@ const app = express();
 const port = 3000;
 
 // In-memory store for displays
-// Structure: { displayId: { tableData: {...} } }
+// Structure: { displayId: { tableData: {...}, lastSeen: timestamp } }
 const displays = {
   "display123": { // Hardcoded example for initial testing
     tableData: {
@@ -12,7 +12,8 @@ const displays = {
         ["Alice", 30, "New York"],
         ["Bob", 24, "San Francisco"]
       ]
-    }
+    },
+    lastSeen: Date.now()
   }
 };
 
@@ -20,19 +21,105 @@ app.use(express.json()); // Middleware to parse JSON bodies
 
 // GET /display/{displayId} - Retrieve table data for a display
 app.get('/display/:displayId', (req, res) => {
-  const { displayId } = req.params;
-  const displayData = displays[displayId];
+  try {
+    const { displayId } = req.params;
 
-  if (displayData) {
-    res.json(displayData.tableData);
-  } else {
-    // If displayId not found, return a default empty table structure
-    // This helps the TV app to not break if it polls for a new/uninitialized displayId
-    res.status(404).json({
-      headers: ["Status"],
-      rows: [["Display Not Found or No Data Yet"]]
-    });
+    if (!displays[displayId]) {
+      // First time this displayId is seen, or it's an unknown one.
+      // Initialize it with default "waiting" data.
+      // The TV app will show this until the mobile app sends actual data.
+      displays[displayId] = {
+        tableData: {
+          headers: ["Status"],
+          rows: [["Waiting for data from mobile app..."]]
+        },
+        lastSeen: Date.now()
+      };
+      console.log(`New displayId ${displayId} registered from TV app poll. Returning waiting data.`);
+      return res.json(displays[displayId].tableData);
+    }
+
+    // DisplayId is known, update lastSeen and return its data
+    displays[displayId].lastSeen = Date.now();
+    res.json(displays[displayId].tableData);
+
+  } catch (error) {
+    console.error(`Error in GET /display/${req.params.displayId}:`, error);
+    res.status(500).json({ message: "Internal server error." });
   }
+});
+
+// POST /pair - Validate a displayId for pairing by the mobile app
+app.post('/pair', (req, res) => {
+  try {
+    const { displayId } = req.body;
+    if (!displayId) {
+      return res.status(400).json({ message: "displayId is required for pairing." });
+    }
+
+    // The mobile app uses this to check if the displayId shown on the TV is valid.
+    // A displayId is considered valid if the TV app has already polled the backend with it,
+    // causing it to be registered in the `displays` object.
+    if (displays[displayId]) {
+      // Optionally, check if lastSeen is recent, but for MVP, existence is enough.
+      console.log(`Pairing validation successful for displayId: ${displayId}`);
+      res.json({ message: `Successfully connected to display ${displayId}. You can now send data.` });
+    } else {
+      // This means the TV with this displayId hasn't contacted the backend yet,
+      // or the user entered an incorrect displayId on the mobile app.
+      console.warn(`Pairing validation failed for displayId: ${displayId}. Not found or TV not active.`);
+      res.status(404).json({ message: `Display ID "${displayId}" not found. Please check the code on your TV and ensure it's connected to the internet.` });
+    }
+  } catch (error) {
+    console.error("Error in POST /pair:", error);
+    res.status(500).json({ message: "Internal server error during pairing." });
+  }
+});
+
+// PUT /display/{displayId} - Update table data for a display
+app.put('/display/:displayId', (req, res) => {
+  try {
+    const { displayId } = req.params;
+    const { tableData } = req.body;
+
+    if (!tableData) {
+      return res.status(400).json({ message: "tableData is required in the request body." });
+    }
+    if (!tableData.headers || !Array.isArray(tableData.headers)) {
+      return res.status(400).json({ message: "tableData must include 'headers' as an array." });
+    }
+    if (!tableData.rows || !Array.isArray(tableData.rows)) {
+      return res.status(400).json({ message: "tableData must include 'rows' as an array." });
+    }
+    // Basic validation for rows structure (array of arrays)
+    if (tableData.rows.some(row => !Array.isArray(row))) {
+        return res.status(400).json({ message: "Each item in 'rows' must be an array." });
+    }
+
+
+    if (!displays[displayId]) {
+      // This case should ideally not be hit if pairing flow is correct,
+      // as /pair would have validated displayId and GET /display/:displayId would have created it.
+      // However, as a fallback, create it.
+      console.warn(`Display ${displayId} not previously known during PUT. Creating new entry.`);
+      displays[displayId] = { tableData: null, lastSeen: Date.now() };
+    }
+
+    displays[displayId].tableData = tableData;
+    displays[displayId].lastSeen = Date.now(); // Update lastSeen on data update too
+    console.log(`Data updated for display ${displayId}:`, JSON.stringify(tableData, null, 2));
+    res.json({ message: `Data for display ${displayId} updated successfully.` });
+
+  } catch (error) {
+    console.error(`Error in PUT /display/${req.params.displayId}:`, error);
+    res.status(500).json({ message: "Internal server error while updating data." });
+  }
+});
+
+// Global error handler for any unhandled errors
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ message: "An unexpected error occurred." });
 });
 
 app.listen(port, () => {
@@ -45,58 +132,3 @@ app.listen(port, () => {
 // src/services/displayService.js: Business logic for display management and pairing. (Logic is in server.js for MVP)
 // src/store/memoryStore.js: Implementation of the in-memory store. (Logic is in server.js for MVP)
 // For MVP, keeping it simpler in server.js. Will refactor if complexity grows.
-
-// POST /pair - Simulate pairing
-// For MVP, this just checks if a displayId is provided in the body.
-// In a real app, it might validate the code, associate it with a user, etc.
-app.post('/pair', (req, res) => {
-  const { displayId } = req.body;
-  if (!displayId) {
-    return res.status(400).json({ message: "displayId is required for pairing." });
-  }
-
-  // For MVP, we don't strictly need to do anything with the displayId here,
-  // as the TV app will generate its own and start polling.
-  // This endpoint is more for the mobile app to "confirm" a displayId exists or is valid.
-  // We can check if it's in our "displays" store as a basic validation.
-  if (displays[displayId]) {
-    res.json({ message: `Pairing successful with display ${displayId}. Display already known.` });
-  } else {
-    // If the displayId is not known, we could choose to:
-    // 1. Reject pairing: res.status(404).json({ message: "Display ID not found." });
-    // 2. Or, accept it and perhaps pre-initialize it:
-    //    displays[displayId] = { tableData: { headers: ["Info"], rows: [["Awaiting data from mobile app..."]] }};
-    //    res.json({ message: `Pairing successful with new display ${displayId}. Awaiting initial data.` });
-    // For now, let's go with option 2, as the TV app will create its own ID and start polling.
-    // The mobile app uses /pair to "connect" to an ID shown on TV.
-    // So, if the TV shows an ID, it should ideally be known to the backend via the TV's first poll,
-    // or the TV should register itself.
-    // Let's assume the TV has already made itself known or will soon.
-    // A simple success for now if displayId is provided.
-    console.log(`Pairing request for displayId: ${displayId}`);
-    res.json({ message: `Pairing request for ${displayId} acknowledged. Ensure TV is active with this ID.` });
-  }
-});
-
-// PUT /display/{displayId} - Update table data for a display
-app.put('/display/:displayId', (req, res) => {
-  const { displayId } = req.params;
-  const { tableData } = req.body;
-
-  if (!tableData) {
-    return res.status(400).json({ message: "tableData is required in the request body." });
-  }
-  if (!tableData.headers || !tableData.rows) {
-    return res.status(400).json({ message: "tableData must include 'headers' and 'rows'."});
-  }
-
-  if (!displays[displayId]) {
-    console.log(`Display ${displayId} not previously known. Creating new entry.`);
-    // Optionally, you could choose to only allow updates to existing displays.
-    // For this MVP, we'll allow creating/updating.
-  }
-
-  displays[displayId] = { tableData: tableData };
-  console.log(`Data updated for display ${displayId}:`, JSON.stringify(tableData, null, 2));
-  res.json({ message: `Data for display ${displayId} updated successfully.` });
-});

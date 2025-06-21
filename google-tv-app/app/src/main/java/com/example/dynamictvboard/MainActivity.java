@@ -5,14 +5,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import org.json.JSONObject;
-import org.json.JSONArray;
 
 import java.io.IOException;
 import java.util.Random; // Will be used for pairing code generation later
@@ -122,31 +120,54 @@ public class MainActivity extends Activity {
         httpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                Log.e(TAG, "Failed to fetch data: ", e);
+                Log.e(TAG, "Failed to fetch data (network issue): ", e);
                 runOnUiThread(() -> {
-                    // Update WebView with error message
-                    String errorJson = "{\"headers\":[\"Error\"],\"rows\":[[\"Failed to connect to backend: " + e.getMessage().replace("'", "\\'") + "\"]]}";
-                    callJavaScript("AndroidTVInterface.setTableData", errorJson);
-                    callJavaScript("AndroidTVInterface.setStatus", "Error fetching data. Retrying soon...");
+                    String userFriendlyMessage = "Network error. Retrying...";
+                    String detailedStatus = "Error fetching data: " + e.getMessage();
+
+                    String errorJsonTable = "{\"headers\":[\"Status\"],\"rows\":[[\"" + userFriendlyMessage.replace("'", "\\'") + "\"]]}";
+                    callJavaScript("AndroidTVInterface.setTableData", errorJsonTable);
+                    callJavaScript("AndroidTVInterface.setStatus", detailedStatus.replace("'", "\\'"));
                 });
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful() && response.body() != null) {
-                    final String jsonData = response.body().string();
-                    Log.d(TAG, "Data fetched successfully: " + jsonData);
+                final String responseBodyString = response.body() != null ? response.body().string() : "";
+
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "Data fetched successfully: " + responseBodyString);
                     runOnUiThread(() -> {
-                        callJavaScript("AndroidTVInterface.setTableData", jsonData);
+                        callJavaScript("AndroidTVInterface.setTableData", responseBodyString);
                         callJavaScript("AndroidTVInterface.setStatus", "Data updated successfully for " + currentDisplayId);
                     });
                 } else {
-                    Log.e(TAG, "Failed to fetch data, server responded with: " + response.code());
-                    final String errorDetail = response.body() != null ? response.body().string() : "Unknown error";
+                    Log.e(TAG, "Failed to fetch data, server responded with: " + response.code() + ", body: " + responseBodyString);
                     runOnUiThread(() -> {
-                        String errorJson = "{\"headers\":[\"Error\"],\"rows\":[[\"Backend error: " + response.code() + " - " + errorDetail.replace("'", "\\'") + "\"]]}";
-                        callJavaScript("AndroidTVInterface.setTableData", errorJson);
-                        callJavaScript("AndroidTVInterface.setStatus", "Error from backend: " + response.code());
+                        String userFriendlyMessage = "Error from server. Retrying...";
+                        String detailedStatus = "Backend error: " + response.code();
+
+                        try {
+                            // Try to parse the backend's JSON error message
+                            JSONObject jsonError = new JSONObject(responseBodyString);
+                            if (jsonError.has("message")) {
+                                userFriendlyMessage = jsonError.getString("message");
+                                detailedStatus += " - " + userFriendlyMessage;
+                            } else {
+                                // Fallback if "message" field is not in the JSON
+                                detailedStatus += " - (No specific message field)";
+                            }
+                        } catch (Exception parseException) {
+                            Log.w(TAG, "Could not parse error response body as JSON: " + responseBodyString, parseException);
+                            detailedStatus += " - (Could not parse error response)";
+                            if (!responseBodyString.isEmpty() && responseBodyString.length() < 100) { // Avoid overly long non-JSON details in table
+                                userFriendlyMessage = "Server error: " + response.code();
+                            }
+                        }
+
+                        String errorJsonTable = "{\"headers\":[\"Status\"],\"rows\":[[\"" + userFriendlyMessage.replace("'", "\\'") + "\"]]}";
+                        callJavaScript("AndroidTVInterface.setTableData", errorJsonTable);
+                        callJavaScript("AndroidTVInterface.setStatus", detailedStatus.replace("'", "\\'"));
                     });
                 }
             }
@@ -198,26 +219,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        // If page is already loaded (e.g. returning to app), ensure polling starts
-        // The onPageFinished callback handles the initial start if the page loads fresh
-        if (webView.getUrl() != null && !pollingHandler.hasCallbacks(pollingRunnable)) {
-             // A bit of delay to ensure WebView JS interface is ready if resuming quickly
-            // pollingHandler.postDelayed(this::startPolling, 500);
-            // For now, let onPageFinished handle the initial start. If issues arise with resume,
-            // this is a place to consider. For now, let's assume onPageFinished will trigger.
-            // If we want to be more robust on resume:
-            // if (webView.getProgress() == 100) { // Check if page is fully loaded
-            //     startPolling();
-            // }
-        }
-         // For now, let's simplify and rely on onPageFinished for the first start,
-         // and onResume/onPause for stopping/restarting to avoid complexity unless needed.
-         // If polling was stopped in onPause, restart it.
-         // This might cause an immediate fetch if onPageFinished also triggers.
-         // A more robust solution would use a flag to see if initial load fetch occurred.
-         // Let's keep it simple: if polling was active, it will restart here.
-         // The `startPolling` method itself removes previous callbacks, so it's safe to call.
-         startPolling(); // Restart polling when the activity is resumed
+        // Restart polling when the activity is resumed.
+        // startPolling() ensures that any previous polling callbacks are removed before posting a new one,
+        // preventing multiple polling loops.
+        // This also handles the case where the app is paused and then resumed.
+        startPolling();
     }
 
     @Override
