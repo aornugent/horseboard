@@ -99,11 +99,12 @@ Other standard React Native files and directories (`android/`, `ios/`, `node_mod
     *   Shows a basic table structure with `TextInput` fields for headers and cells.
     *   "Send Data to TV" button.
 *   **Logic:**
-    *   Initializes with sample table data.
-    *   Allows users to modify the content of headers and cells.
-    *   The "Send Data to TV" button calls the `PUT /display/{displayId}` backend endpoint, sending the current `tableData` state.
+    *   Initializes with sample table data for the full dataset (`fullTableData`).
+    *   Allows users to modify headers and cells in the full dataset.
+    *   Includes pagination controls (`Previous`, `Next`) to select a specific page of data (a slice of `fullTableData`) to be sent to the TV.
+    *   The "Send Page X to TV" button (dynamically labeled with the current page) calls the `PUT /display/{displayId}` backend endpoint. It sends only the data for the currently selected page (`tableData`).
     *   Displays alerts for success or failure of the data push.
-    *   The button is enabled when changes are made to the table.
+    *   The "Send Page X to TV" button is enabled when changes are made to the table data or when the selected page for TV display changes.
 
 ## Backend Interaction
 *   **Pairing:** `POST /pair` (from `PairingScreen.js`)

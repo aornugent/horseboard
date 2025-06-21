@@ -34,7 +34,6 @@ const TableEditorScreen = ({ route }) => {
 
   useEffect(() => {
     setFullTableData(initialTableData);
-    // Alert.alert("Table Editor", `Editing for Display ID: ${displayId}`);
   }, [displayId]);
 
   // Update the displayed slice (tableData) whenever fullTableData or currentPage changes
@@ -192,7 +191,6 @@ const TableEditorScreen = ({ route }) => {
                 style={[styles.tableHeader, styles.cellInput, styles.headerInput]}
                 value={header}
                 onChangeText={(text) => handleHeaderChange(index, text)}
-                // pointerEvents="none" // Keep editable for headers
               />
               <Text style={styles.sortIndicator}>
                 {sortConfig.key === index ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}

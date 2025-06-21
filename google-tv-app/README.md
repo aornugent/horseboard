@@ -94,11 +94,11 @@ google-tv-app/
       ]
     }
     ```
-    Or, if the display ID is not found or has no data:
+    Or, if the TV app is polling with a new `displayId` for the first time (or an existing one awaiting data):
     ```json
     {
       "headers": ["Status"],
-      "rows": [["Display Not Found or No Data Yet"]]
+      "rows": [["Waiting for data from mobile app..."]]
     }
     ```
 

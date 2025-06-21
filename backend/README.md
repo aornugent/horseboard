@@ -61,48 +61,118 @@ The `AGENTS.md` file suggests a more elaborate structure (`src/api/routes.js`, e
 
 ## API Endpoints
 
+All request and response bodies are in JSON format.
+
 ### 1. `POST /pair`
-*   **Request Body:** `{ "displayId": "123456" }` (JSON)
-*   **Functionality:** Acknowledges a pairing attempt from the mobile app. For MVP, it mainly serves to confirm the mobile app is trying to connect to a specific `displayId`. It doesn't strictly create a persistent pairing state beyond logging.
-*   **Response:** Success or error message (JSON). Example: `{ "message": "Pairing request for 123456 acknowledged..." }`
+*   **Purpose:** Used by the mobile app to validate a `displayId` shown on the TV.
+*   **Request Body:**
+    ```json
+    { "displayId": "123456" }
+    ```
+*   **Functionality:** Checks if the `displayId` is known to the backend (i.e., if the TV app with this ID has already made a `GET /display/:displayId` request).
+*   **Responses:**
+    *   **200 OK (Success):**
+        ```json
+        { "message": "Successfully connected to display 123456. You can now send data." }
+        ```
+    *   **400 Bad Request (Missing `displayId`):**
+        ```json
+        { "message": "displayId is required for pairing." }
+        ```
+    *   **404 Not Found (Unknown `displayId`):**
+        ```json
+        { "message": "Display ID \"123456\" not found. Please check the code on your TV and ensure it's connected to the internet." }
+        ```
+    *   **500 Internal Server Error:**
+        ```json
+        { "message": "Internal server error during pairing." }
+        ```
 
 ### 2. `PUT /display/{displayId}`
-*   **URL Parameter:** `displayId` (e.g., `123456`)
-*   **Request Body:** `{ "tableData": { "headers": ["H1"], "rows": [["C1"]] } }` (JSON)
-*   **Functionality:** Overwrites or creates the `tableData` for the given `displayId` in the in-memory store.
-*   **Response:** Success or error message (JSON). Example: `{ "message": "Data for display 123456 updated successfully." }`
+*   **Purpose:** Used by the mobile app to send new or updated table data to a specific display.
+*   **URL Parameter:** `displayId` (e.g., `123456`) - The ID of the target display.
+*   **Request Body:**
+    ```json
+    {
+      "tableData": {
+        "headers": ["Column 1", "Column 2"],
+        "rows": [
+          ["Data A1", "Data B1"],
+          ["Data A2", "Data B2"]
+        ]
+      }
+    }
+    ```
+*   **Functionality:** Stores or updates the `tableData` for the specified `displayId` in the in-memory store. Also updates the `lastSeen` timestamp for this display. If the `displayId` is not known, it will be created.
+*   **Responses:**
+    *   **200 OK (Success):**
+        ```json
+        { "message": "Data for display 123456 updated successfully." }
+        ```
+    *   **400 Bad Request (Invalid Data):**
+        *   `{ "message": "tableData is required in the request body." }`
+        *   `{ "message": "tableData must include 'headers' as an array." }`
+        *   `{ "message": "tableData must include 'rows' as an array." }`
+        *   `{ "message": "Each item in 'rows' must be an array." }`
+    *   **500 Internal Server Error:**
+        ```json
+        { "message": "Internal server error while updating data." }
+        ```
 
 ### 3. `GET /display/{displayId}`
-*   **URL Parameter:** `displayId` (e.g., `123456`)
-*   **Functionality:** Retrieves the current `tableData` for the given `displayId`. If the `displayId` is not found, it returns a default structure indicating "Display Not Found".
-*   **Response:** The `tableData` JSON object or a default/error structure.
-    *   **Success Example:** `{ "headers": ["Name", "Age"], "rows": [["Alice", 30]] }`
-    *   **Not Found Example:** `{ "headers": ["Status"], "rows": [["Display Not Found or No Data Yet"]] }`
+*   **Purpose:** Used by the Google TV app to poll for table data.
+*   **URL Parameter:** `displayId` (e.g., `123456`) - The ID generated and displayed by the TV app.
+*   **Functionality:**
+    *   Retrieves the current `tableData` for the given `displayId`.
+    *   If the `displayId` is polled for the first time, it is registered in the backend with default "Waiting for data..." content, and this content is returned.
+    *   Updates the `lastSeen` timestamp for the display on each call.
+*   **Responses:**
+    *   **200 OK (Existing Display with Data):**
+        ```json
+        {
+          "headers": ["Name", "Age"],
+          "rows": [["Alice", 30]]
+        }
+        ```
+    *   **200 OK (New Display ID or Display Awaiting Data):**
+        ```json
+        {
+          "headers": ["Status"],
+          "rows": [["Waiting for data from mobile app..."]]
+        }
+        ```
+    *   **500 Internal Server Error:**
+        ```json
+        { "message": "Internal server error." }
+        ```
 
 ## In-Memory Data Store (in `server.js`)
 
-A simple JavaScript object (`displays`) in `server.js` is used to store display data for the MVP.
+A simple JavaScript object (`displays`) in `server.js` is used to store display data and their last active time for the MVP.
 
-**Example Structure within `server.js`:**
+**Structure of the `displays` object:**
 ```javascript
 const displays = {
   // "displayId" (e.g., a 6-digit code generated by TV app) is the key
   "123456": { // Example displayId
     tableData: {
-      headers: ["Default Header"],
-      rows: [["Default Cell"]]
-    }
+      headers: ["Header1", "Header2"],
+      rows: [["Row1Cell1", "Row1Cell2"]]
+    },
+    lastSeen: 1678886400000 // Timestamp of the last interaction
   },
-  "display123": { // Hardcoded example for initial backend testing
+  // Hardcoded example for initial backend testing:
+  "display123": {
     tableData: {
       headers: ["Name", "Age", "City"],
       rows: [
         ["Alice", 30, "New York"],
         ["Bob", 24, "San Francisco"]
       ]
-    }
+    },
+    lastSeen: Date.now() // Timestamp
   }
-  // More displays can be added dynamically by PUT requests
+  // More displays can be added dynamically by GET (from TV) or PUT (from mobile) requests.
 };
 ```
 
