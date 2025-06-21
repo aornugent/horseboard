@@ -11,103 +11,104 @@ This backend server, built with Node.js and Express.js, acts as the intermediary
 
 ### Prerequisites
 *   **Node.js:** Ensure Node.js (LTS version recommended) is installed. Download from [nodejs.org](https://nodejs.org/).
-*   **npm or Yarn:** A JavaScript package manager. npm is included with Node.js.
+*   **npm:** A JavaScript package manager, included with Node.js.
 
 ### Project Setup
-1.  **Clone the repository (if not done already):**
+1.  **Navigate to the backend directory:**
     ```bash
-    git clone <repository-url>
-    cd <repository-url>/backend
+    cd backend
     ```
 2.  **Install Dependencies:**
     ```bash
     npm install
-    # or
-    yarn install
     ```
-    Key dependencies to be listed in `package.json`:
+    Key dependencies (as per `package.json`):
     *   `express`: Web framework.
-    *   `cors`: To enable Cross-Origin Resource Sharing (if TV/mobile app run on different origins during dev).
-    *   `nodemon` (dev dependency): For automatically restarting the server during development.
+    *   `cors` (if you added it for different origin testing, though not strictly in current `package.json` unless `npm install express` added it as a sub-dependency or if it was there before). The current `package.json` lists `express` as the primary direct dependency installed by the agent.
 
 ### Running the Server
-*   **Development Mode (with auto-restart):**
+*   **Development Mode (with auto-restart if nodemon is installed and configured):**
+    The current `package.json` includes `nodemon` as a dev dependency and a `dev` script:
     ```bash
     npm run dev
     ```
-    (Requires a `dev` script in `package.json`, e.g., `"dev": "nodemon server.js"`)
-*   **Production Mode (or basic start):**
+*   **Basic Start:**
     ```bash
     npm start
     ```
-    (Requires a `start` script in `package.json`, e.g., `"start": "node server.js"`)
+    (Uses the `start` script: `"start": "node server.js"`)
 
-The server will typically run on `http://localhost:3000` (or a configured port).
+The server will run on `http://localhost:3000` by default.
 
-## Project Structure
+## Project Structure (Current MVP)
 
 ```
 backend/
-├── src/
+├── src/                # Placeholder, not strictly used in current simple server.js
 │   ├── api/
-│   │   └── routes.js       # Defines API routes (e.g., /pair, /display/:displayId)
+│   │   └── .gitkeep
 │   ├── services/
-│   │   └── displayService.js # Logic for managing display data and pairing
+│   │   └── .gitkeep
 │   └── store/
-│       └── memoryStore.js  # In-memory data store implementation
-├── .env.example        # Example environment variables (e.g., PORT)
+│       └── .gitkeep
 ├── .gitignore
 ├── package.json
-├── server.js           # Main server entry point, Express app setup
+├── package-lock.json
+├── server.js           # Main server entry point, Express app setup, and all API logic for MVP
 └── README.md
 ```
+The `AGENTS.md` file suggests a more elaborate structure (`src/api/routes.js`, etc.), but for the current MVP, all logic resides in `server.js`.
 
 ## API Endpoints
 
-Described in detail in the main `TECHNICAL_SPECIFICATION.md`.
-
 ### 1. `POST /pair`
-*   **Request Body:** `{ "code": "123456" }`
-*   **Functionality:** Validates the pairing code (`displayId`). For MVP, this might involve checking if the code format is valid and initializing a placeholder for it in the in-memory store if it's the first time it's seen.
-*   **Response:** Success or error message.
+*   **Request Body:** `{ "displayId": "123456" }` (JSON)
+*   **Functionality:** Acknowledges a pairing attempt from the mobile app. For MVP, it mainly serves to confirm the mobile app is trying to connect to a specific `displayId`. It doesn't strictly create a persistent pairing state beyond logging.
+*   **Response:** Success or error message (JSON). Example: `{ "message": "Pairing request for 123456 acknowledged..." }`
 
 ### 2. `PUT /display/{displayId}`
-*   **Request Body:** `{ "tableData": { ... } }`
-*   **Functionality:** Overwrites the `tableData` for the given `displayId` in the in-memory store. Updates `lastUpdated` timestamp.
-*   **Response:** Success or error message.
+*   **URL Parameter:** `displayId` (e.g., `123456`)
+*   **Request Body:** `{ "tableData": { "headers": ["H1"], "rows": [["C1"]] } }` (JSON)
+*   **Functionality:** Overwrites or creates the `tableData` for the given `displayId` in the in-memory store.
+*   **Response:** Success or error message (JSON). Example: `{ "message": "Data for display 123456 updated successfully." }`
 
 ### 3. `GET /display/{displayId}`
-*   **Functionality:** Retrieves the current `tableData` for the given `displayId`.
-*   **Response:** The `tableData` JSON object or an error if not found.
+*   **URL Parameter:** `displayId` (e.g., `123456`)
+*   **Functionality:** Retrieves the current `tableData` for the given `displayId`. If the `displayId` is not found, it returns a default structure indicating "Display Not Found".
+*   **Response:** The `tableData` JSON object or a default/error structure.
+    *   **Success Example:** `{ "headers": ["Name", "Age"], "rows": [["Alice", 30]] }`
+    *   **Not Found Example:** `{ "headers": ["Status"], "rows": [["Display Not Found or No Data Yet"]] }`
 
-## In-Memory Data Store (`src/store/memoryStore.js`)
+## In-Memory Data Store (in `server.js`)
 
-A simple JavaScript object will be used to store display data for the MVP.
+A simple JavaScript object (`displays`) in `server.js` is used to store display data for the MVP.
 
-**Example Structure:**
+**Example Structure within `server.js`:**
 ```javascript
 const displays = {
-  // "displayId" is the key
-  "123456": {
-    pairedMobileId: null, // Can be updated upon successful pairing
-    lastUpdated: "2023-10-28T12:00:00Z",
+  // "displayId" (e.g., a 6-digit code generated by TV app) is the key
+  "123456": { // Example displayId
     tableData: {
       headers: ["Default Header"],
       rows: [["Default Cell"]]
     }
+  },
+  "display123": { // Hardcoded example for initial backend testing
+    tableData: {
+      headers: ["Name", "Age", "City"],
+      rows: [
+        ["Alice", 30, "New York"],
+        ["Bob", 24, "San Francisco"]
+      ]
+    }
   }
+  // More displays can be added dynamically by PUT requests
 };
-
-// Functions to interact with this store:
-// getDisplay(displayId)
-// updateDisplay(displayId, data)
-// initDisplay(displayId) // Potentially used by /pair
 ```
 
 ## Future Enhancements (Post-MVP)
-*   **Database Integration:** Replace in-memory store with a persistent database (e.g., Firestore, Vercel KV, PostgreSQL, MongoDB).
-*   **Real-time Communication:** Implement WebSockets (e.g., using Socket.io) for instant updates to the TV client, eliminating polling.
-*   **Authentication & Authorization:** More robust security for pairing and data modification.
-*   **Scalability:** Refactor for serverless deployment or containerization.
+*   **Database Integration:** Replace in-memory store with a persistent database.
+*   **Real-time Communication:** Implement WebSockets for instant updates to the TV.
+*   **Refactor to `src/` structure:** Move API logic, services, and store management to separate files under `src/` as complexity grows.
 
-This README will be updated as development progresses.
+This README reflects the current state of the MVP.

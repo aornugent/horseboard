@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Table Display</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        table { border-collapse: collapse; width: 90%; box-shadow: 0 0 10px rgba(0,0,0,0.1); background-color: #fff; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        #pairingCodeContainer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 24px;
+            border-radius: 5px;
+        }
+         #statusContainer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 18px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="pairingCodeContainer">Pairing Code: <span id="pairingCode">LOADING...</span></div>
+    <div id="statusContainer">Status: <span id="statusText">Initializing...</span></div>
+    <table id="dataTable">
+        <thead>
+            <tr><th>Loading...</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Please wait while data is being fetched.</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        // Sample data for initial display test if needed
+        const sampleData = {
+            headers: ["Header1", "Header2"],
+            rows: [
+                ["SampleData1", "SampleData2"],
+                ["SampleData3", "SampleData4"]
+            ]
+        };
+
+        function displayTable(data) {
+            const table = document.getElementById('dataTable');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+
+            // Clear existing table content
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            // Populate headers
+            if (data && data.headers && data.headers.length > 0) {
+                const headerRow = document.createElement('tr');
+                data.headers.forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+            } else {
+                const headerRow = document.createElement('tr');
+                const th = document.createElement('th');
+                th.textContent = "No headers";
+                headerRow.appendChild(th);
+                thead.appendChild(headerRow);
+            }
+
+            // Populate rows
+            if (data && data.rows && data.rows.length > 0) {
+                data.rows.forEach(rowData => {
+                    const row = document.createElement('tr');
+                    rowData.forEach(cellData => {
+                        const td = document.createElement('td');
+                        td.textContent = cellData;
+                        row.appendChild(td);
+                    });
+                    tbody.appendChild(row);
+                });
+            } else {
+                 const row = document.createElement('tr');
+                 const td = document.createElement('td');
+                 td.textContent = "No data available.";
+                 if (data && data.headers && data.headers.length > 0) {
+                    td.colSpan = data.headers.length;
+                 }
+                 row.appendChild(td);
+                 tbody.appendChild(row);
+            }
+        }
+
+        function updatePairingCode(code) {
+            const pairingCodeEl = document.getElementById('pairingCode');
+            if (pairingCodeEl) {
+                pairingCodeEl.textContent = code;
+            }
+        }
+
+        function updateStatus(status) {
+            const statusTextEl = document.getElementById('statusText');
+            if (statusTextEl) {
+                statusTextEl.textContent = status;
+            }
+        }
+
+        // For direct testing in a browser:
+        // window.onload = () => {
+        //     displayTable(sampleData);
+        //     updatePairingCode("TEST123");
+        //     updateStatus("Direct browser test.");
+        // };
+
+        // AndroidTVInterface is used by the native Android code to call JavaScript functions
+        window.AndroidTVInterface = {
+            setTableData: function(jsonData) {
+                try {
+                    const data = JSON.parse(jsonData);
+                    displayTable(data);
+                    updateStatus("Table data updated successfully.");
+                } catch (e) {
+                    console.error("Error parsing JSON data: ", e);
+                    displayTable({ headers: ["Error"], rows: [["Could not parse data."]] });
+                    updateStatus("Error parsing data from backend.");
+                }
+            },
+            setPairingCode: function(code) {
+                updatePairingCode(code);
+            },
+            setStatus: function(statusMessage) {
+                updateStatus(statusMessage);
+            }
+        };
+    </script>
+</body>
+</html>
