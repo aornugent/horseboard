@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Button, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
 
 // Use 10.0.2.2 for localhost when running in Android emulator connecting to a server on the host machine.
@@ -6,53 +6,66 @@ import { View, Text, Button, StyleSheet, ScrollView, TextInput, Alert } from 're
 // Users should change this IP based on their development setup.
 import { TouchableOpacity } from 'react-native-gesture-handler'; // Added for tappable headers
 const BACKEND_URL = 'http://10.0.2.2:3000';
+const ROWS_PER_PAGE = 10; // Define rows per page for TV display
 
 const TableEditorScreen = ({ route }) => {
   const { displayId } = route.params;
-  const [tableData, setTableData] = useState({ headers: [], rows: [] });
+  // tableData now stores the SLICE for TV, fullTableData stores the complete data for mobile editing
+  const [fullTableData, setFullTableData] = useState({ headers: [], rows: [] });
+  const [tableData, setTableData] = useState({ headers: [], rows: [] }); // This will be the slice for the TV
   const [isLoading, setIsLoading] = useState(false);
   const [isModified, setIsModified] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Sample initial data structure - this would typically be fetched or start empty
+  // Let's make it larger to test pagination
   const initialTableData = {
-    headers: ["Column 1", "Column 2", "Column 3"],
-    rows: [
-      ["Row1Cell1", "Row1Cell2", "Row1Cell3"],
-      ["Row2Cell1", "Row2Cell2", "Row2Cell3"],
-    ]
+    headers: ["ID", "Name", "Value"],
+    rows: Array.from({ length: 25 }, (_, i) => [`${i + 1}`, `Item ${i + 1}`, `Value ${Math.floor(Math.random() * 1000)}`])
   };
 
+  const sliceTableData = useCallback((page, data, rowsPerPage) => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const slicedRows = data.rows.slice(start, end);
+    return { headers: data.headers, rows: slicedRows };
+  }, []);
+
   useEffect(() => {
-    // In a real app, you might fetch initial data for the displayId here
-    // For MVP Task 2.6, we'll start with a hardcoded structure and allow modification
-    setTableData(initialTableData);
+    setFullTableData(initialTableData);
     // Alert.alert("Table Editor", `Editing for Display ID: ${displayId}`);
   }, [displayId]);
 
-  const handleSendDataToTV = async () => {
-    if (!isModified && !Object.keys(tableData).length === 0) { // Allow sending initial data even if not "modified" by user yet
-        // Alert.alert("No Changes", "You haven't made any changes to send.");
-        // return;
-        // For MVP, let's allow sending the initial data or any data present.
-        // The isModified flag is more for UI feedback on the button.
+  // Update the displayed slice (tableData) whenever fullTableData or currentPage changes
+  useEffect(() => {
+    if (fullTableData.headers.length > 0 || fullTableData.rows.length > 0) {
+      const newSlice = sliceTableData(currentPage, fullTableData, ROWS_PER_PAGE);
+      setTableData(newSlice);
+      setIsModified(true); // Mark as modified when page changes, so "Send to TV" is enabled
     }
+  }, [fullTableData, currentPage, sliceTableData]);
+
+
+  const handleSendDataToTV = async () => {
+    // isModified check is still relevant if user wants to send specific page without other data changes
     setIsLoading(true);
     try {
-      console.log(`Attempting to send data to TV: ${BACKEND_URL}/display/${displayId}`, tableData);
+      // We send the `tableData` which is already the current page's slice
+      console.log(`Attempting to send data to TV (Page ${currentPage}): ${BACKEND_URL}/display/${displayId}`, tableData);
       const response = await fetch(`${BACKEND_URL}/display/${displayId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ tableData: tableData }), // Ensure data is nested under tableData key as expected by backend
+        body: JSON.stringify({ tableData: tableData }),
       });
 
       const responseData = await response.json();
 
       if (response.ok) {
-        Alert.alert('Data Sent', responseData.message || 'Table data sent to TV successfully.');
-        setIsModified(false); // Reset modification status
+        Alert.alert('Data Sent', responseData.message || `Page ${currentPage} data sent to TV successfully.`);
+        setIsModified(false); // Reset modification status after successful send
       } else {
         Alert.alert('Send Failed', responseData.message || 'Could not send data to the TV. Check server response.');
       }
@@ -64,11 +77,11 @@ const TableEditorScreen = ({ route }) => {
     }
   };
 
-  // Basic handler for cell edit - very simplified for now
   const handleCellChange = (rowIndex, cellIndex, text) => {
-    const newRows = [...tableData.rows];
-    newRows[rowIndex][cellIndex] = text;
-    setTableData({ ...tableData, rows: newRows });
+    // IMPORTANT: All modifications should happen to fullTableData
+    const newFullRows = [...fullTableData.rows];
+    newFullRows[rowIndex][cellIndex] = text;
+    setFullTableData({ ...fullTableData, rows: newFullRows });
     setIsModified(true);
   };
 
@@ -78,10 +91,12 @@ const TableEditorScreen = ({ route }) => {
       direction = 'descending';
     }
     setSortConfig({ key: columnIndex, direction });
-    setTableData(prevData => {
+
+    // Sort fullTableData
+    setFullTableData(prevData => {
       const sortedRows = [...prevData.rows].sort((a, b) => {
-        const valA = a[columnIndex] || ""; // handle undefined or null
-        const valB = b[columnIndex] || ""; // handle undefined or null
+        const valA = a[columnIndex] || "";
+        const valB = b[columnIndex] || "";
         if (valA < valB) {
           return direction === 'ascending' ? -1 : 1;
         }
@@ -95,16 +110,17 @@ const TableEditorScreen = ({ route }) => {
     setIsModified(true);
   };
 
-  // Basic handler for header edit - very simplified
   const handleHeaderChange = (headerIndex, text) => {
-    const newHeaders = [...tableData.headers];
+    // IMPORTANT: All modifications should happen to fullTableData
+    const newHeaders = [...fullTableData.headers];
     newHeaders[headerIndex] = text;
-    setTableData({ ...tableData, headers: newHeaders });
+    setFullTableData({ ...fullTableData, headers: newHeaders });
     setIsModified(true);
   };
 
   const handleAddRow = () => {
-    setTableData(prevData => {
+    // Add to fullTableData
+    setFullTableData(prevData => {
       const numCells = prevData.headers.length > 0 ? prevData.headers.length : (prevData.rows[0]?.length || 1);
       const newRow = Array(numCells).fill("");
       return {
@@ -116,17 +132,16 @@ const TableEditorScreen = ({ route }) => {
   };
 
   const handleAddColumn = () => {
-    setTableData(prevData => {
+    // Add to fullTableData
+    setFullTableData(prevData => {
       const newHeaderName = `Col ${prevData.headers.length + 1}`;
       const newHeaders = [...prevData.headers, newHeaderName];
 
       let newRows;
       if (prevData.rows.length === 0) {
-        // If there are no rows, and we add a column, create one row with one cell for this new column.
-        // Or, if there were headers, create a row matching the new number of headers.
          newRows = [Array(newHeaders.length).fill("")];
       } else {
-        newRows = prevData.rows.map(row => [...row, ""]); // Add an empty cell to each existing row
+        newRows = prevData.rows.map(row => [...row, ""]);
       }
 
       return {
@@ -137,9 +152,27 @@ const TableEditorScreen = ({ route }) => {
     setIsModified(true);
   };
 
+  const totalRows = fullTableData.rows.length;
+  const totalPages = Math.ceil(totalRows / ROWS_PER_PAGE);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
+
+  // For mobile display, we still show all rows from fullTableData
+  const mobileDisplayData = fullTableData;
+
+  const startRowForDisplay = (currentPage - 1) * ROWS_PER_PAGE + 1;
+  const endRowForDisplay = Math.min(currentPage * ROWS_PER_PAGE, totalRows);
+
+
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Table Editor</Text>
+      <Text style={styles.title}>Table Editor (Mobile)</Text>
       <Text style={styles.displayIdText}>Display ID: {displayId}</Text>
 
       <View style={styles.controlsContainer}>
@@ -147,17 +180,19 @@ const TableEditorScreen = ({ route }) => {
         <Button title="Add Column" onPress={handleAddColumn} />
       </View>
 
+      {/* Mobile app still views/edits the full table */}
+      <Text style={styles.subTitle}>Full Data (Editing View)</Text>
       <View style={styles.table}>
         {/* Headers */}
         <View style={styles.tableRow}>
-          {tableData.headers.map((header, index) => (
+          {mobileDisplayData.headers.map((header, index) => (
             <TouchableOpacity key={`header-touch-${index}`} style={styles.tableHeaderTouchable} onPress={() => handleSortColumn(index)}>
               <TextInput
                 key={`header-input-${index}`}
                 style={[styles.tableHeader, styles.cellInput, styles.headerInput]}
                 value={header}
                 onChangeText={(text) => handleHeaderChange(index, text)}
-                pointerEvents="none" // Make TextInput not intercept touch when inside TouchableOpacity for sorting
+                // pointerEvents="none" // Keep editable for headers
               />
               <Text style={styles.sortIndicator}>
                 {sortConfig.key === index ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
@@ -165,8 +200,8 @@ const TableEditorScreen = ({ route }) => {
             </TouchableOpacity>
           ))}
         </View>
-        {/* Rows */}
-        {tableData.rows.map((row, rowIndex) => (
+        {/* Rows - Mobile app still shows all rows for editing */}
+        {mobileDisplayData.rows.map((row, rowIndex) => (
           <View key={`row-${rowIndex}`} style={styles.tableRow}>
             {row.map((cell, cellIndex) => (
               <TextInput
@@ -180,14 +215,26 @@ const TableEditorScreen = ({ route }) => {
         ))}
       </View>
 
+      <View style={styles.paginationContainer}>
+        <Text style={styles.subTitle}>TV Display Pagination</Text>
+        <View style={styles.paginationControls}>
+            <Button title="Previous" onPress={handlePreviousPage} disabled={currentPage === 1} />
+            <Text style={styles.pageInfo}>
+                Page {currentPage} of {totalPages} (Rows {totalRows > 0 ? startRowForDisplay : 0}-{endRowForDisplay} of {totalRows})
+            </Text>
+            <Button title="Next" onPress={handleNextPage} disabled={currentPage === totalPages || totalRows === 0} />
+        </View>
+      </View>
+
+
       <Button
-        title={isLoading ? 'Sending...' : 'Send Data to TV'}
+        title={isLoading ? 'Sending...' : `Send Page ${currentPage} to TV`}
         onPress={handleSendDataToTV}
-        disabled={isLoading || !isModified} // Only enable if modified
+        disabled={isLoading || !isModified}
       />
-      {/* <Text style={styles.note}>
-        Note: This is a very basic editor for MVP. Features like adding/removing rows/columns, sorting, etc., are for future phases.
-      </Text> */}
+      <Text style={styles.note}>
+        Mobile editor shows all data. Use pagination controls above to select the page sent to the TV.
+      </Text>
     </ScrollView>
   );
 };
