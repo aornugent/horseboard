@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 // Use 10.0.2.2 for localhost when running in Android emulator connecting to a server on the host machine.
 // For iOS simulator, it would be http://localhost:3000
 // Users should change this IP based on their development setup.
-const BACKEND_URL = 'http://10.0.2.2:3000';
+import { BACKEND_URL } from '../src/config';
 
 const PairingScreen = ({ navigation }) => {
   const [pairingCode, setPairingCode] = useState('');
@@ -29,14 +30,26 @@ const PairingScreen = ({ navigation }) => {
       const responseData = await response.json();
 
       if (response.ok) {
-        Alert.alert('Pairing Successful', responseData.message || `Successfully paired with display ${pairingCode}.`);
+        Toast.show({
+          type: 'success',
+          text1: 'Pairing Successful',
+          text2: responseData.message || `Successfully paired with display ${pairingCode}.`,
+        });
         navigation.navigate('TableEditor', { displayId: pairingCode });
       } else {
-        Alert.alert('Pairing Failed', responseData.message || 'Could not pair with the display. Check the code or server.');
+        Toast.show({
+          type: 'error',
+          text1: 'Pairing Failed',
+          text2: responseData.message || 'Could not pair with the display. Check the code or server.',
+        });
       }
     } catch (error) {
       console.error("Pairing error:", error);
-      Alert.alert('Pairing Error', error.message || 'An error occurred while trying to pair. Check your network connection and backend server.');
+      Toast.show({
+        type: 'error',
+        text1: 'Pairing Error',
+        text2: error.message || 'An error occurred. Check network and server.',
+      });
     } finally {
       setIsLoading(false);
     }
