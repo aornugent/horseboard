@@ -1,56 +1,74 @@
-# Agent Instructions and Guidelines
+# Agent Guidelines
 
-This document provides instructions and guidelines for AI agents interacting with this codebase.
+Instructions for AI agents working on this codebase.
 
-## General Principles
+## Project Overview
 
-1.  **Understand the Goal:** The primary goal is to build a "Dynamic Information Board" system as outlined in `TECHNICAL_SPECIFICATION.md` and the initial product vision. The MVP focuses on the core loop: mobile table editing reflecting on a Google TV.
-2.  **Follow the Plan:** Adhere to the steps outlined in `IMPLEMENTATION_PLAN.md`. If changes are needed, update the plan first.
-3.  **Incremental Development:** Implement features incrementally. Test and verify each part where possible.
-4.  **Clarity and Simplicity (MVP Focus):** For the MVP, prioritize the simplest solutions that meet the requirements. Avoid over-engineering.
-5.  **Modularity:** Keep components (`google-tv-app`, `mobile-app`, `backend`) decoupled as much as possible, interacting through defined APIs.
-6.  **READMEs are Key:** Ensure `README.md` files in each component's directory are kept up-to-date with setup, build, and run instructions.
+This is a web-first Dynamic Information Board system. The core loop: mobile table editing that reflects instantly on a TV display.
 
-## Component-Specific Notes
+**Architecture:**
+- Single Node.js server serves everything
+- TV display and mobile controller are both web apps
+- Real-time updates via Server-Sent Events (SSE)
+- SQLite for persistence
 
-### Backend (`backend/`)
-*   **Technology:** Node.js with Express.js.
-*   **Data Store (MVP):** In-memory JavaScript object. See `backend/server.js` for the initial structure and `TECHNICAL_SPECIFICATION.md` for details.
-*   **API Endpoints:** Implement endpoints as specified in `TECHNICAL_SPECIFICATION.md`.
-*   **Dependency Management:** Uses `package.json`. If `npm install` issues persist with the automated tools, note this for manual intervention. Ensure `.gitignore` correctly excludes `node_modules`.
-*   **Code Structure:** Aim to separate concerns:
-    *   `server.js`: Express app setup, middleware, starting the server.
-    *   `src/api/routes.js`: Define API routes and link to service handlers.
-    *   `src/services/displayService.js`: Business logic for display management and pairing.
-    *   `src/store/memoryStore.js`: Implementation of the in-memory store.
+## Key Principles
 
-### Mobile App (`mobile-app/`)
-*   **Technology:** React Native.
-*   **Focus:** Pairing, table editing, and controlling TV display pagination.
-*   **State Management:** For MVP, simple React state (`useState`, `useReducer`) or React Context is likely sufficient.
-*   **Project Initialization:** The current scaffold is basic. A full React Native project would be initialized using `npx react-native init`.
-*   **UI:** Keep UI functional and straightforward for MVP.
+1. **Simplicity first** - Vanilla JS where possible, minimal dependencies
+2. **Single codebase** - Everything runs from one `npm start`
+3. **Web standards** - Use native browser APIs (SSE, localStorage, fetch)
+4. **Follow the plan** - See `IMPLEMENTATION_PLAN.md` for phases and tasks
 
-### Google TV App (`google-tv-app/`)
-*   **Technology:** Android (Kotlin/Java) with WebView for table rendering.
-*   **Focus:** Displaying pairing code and rendering table data from the backend via WebView.
-*   **WebView Content:** The table will be rendered using local HTML (`assets/table_display.html`), CSS, and JavaScript. Data is passed from native Android code to the WebView's JavaScript.
-*   **Polling:** The TV app will poll the backend `GET /display/{displayId}` endpoint.
+## Project Structure
 
-## Coding Conventions (General)
+```
+horseboard/
+├── server/           # Node.js backend
+│   ├── index.js      # Express entry point
+│   ├── api/          # Route handlers + SSE
+│   ├── services/     # Business logic
+│   └── db/           # SQLite layer
+├── client/
+│   ├── display/      # TV web app
+│   └── controller/   # Mobile PWA
+└── package.json
+```
 
-*   **Comments:** Add comments to explain complex logic or non-obvious decisions.
-*   **Naming:** Use clear and descriptive names for variables, functions, and files.
-*   **Error Handling:** Implement basic error handling, especially for API interactions.
-*   **Commit Messages:** Follow standard conventions: short subject line (max 50 chars), blank line, then a more detailed body if necessary.
+## Component Guidelines
 
-## Tooling & Environment
+### Backend (`server/`)
 
-*   Be aware of the limitations or specific behaviors of the provided tools (e.g., `run_in_bash_session` behavior with `cd` or `npm install`). Adapt strategies if necessary (like using `--prefix` for npm, though that also failed in one instance).
-*   If a tool consistently fails, report it or try to find a workaround if possible, clearly documenting the issue.
+- **Express.js** for routing and middleware
+- **SQLite** via `better-sqlite3` for persistence
+- **SSE** for real-time updates (not WebSockets)
+- Keep route handlers thin, business logic in `services/`
+- Use environment variables for configuration
 
-## Future Work (Post-MVP)
+### TV Display (`client/display/`)
 
-*   Remember the future considerations outlined in `TECHNICAL_SPECIFICATION.md` (e.g., persistent database, real-time updates, authentication). MVP code should be clean enough to facilitate these future enhancements but not prematurely implement them.
+- Single HTML file with embedded or linked CSS/JS
+- No build step - runs directly in browser
+- Connects to SSE endpoint for live updates
+- Must handle connection loss gracefully
 
-This document can be updated by agents if new conventions or important guidelines emerge.
+### Mobile Controller (`client/controller/`)
+
+- PWA with manifest.json for installability
+- No framework required (vanilla JS is fine)
+- Debounce API calls on edits
+- Store displayId in localStorage after pairing
+
+## Coding Conventions
+
+- Clear, descriptive names
+- Comments for non-obvious logic
+- Handle errors gracefully with user feedback
+- Use async/await for asynchronous code
+- Standard commit message format
+
+## Documentation
+
+- `TECHNICAL_SPECIFICATION.md` - API contracts, data formats
+- `IMPLEMENTATION_PLAN.md` - Phased development tasks
+
+Update these documents when making significant changes.

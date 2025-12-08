@@ -1,189 +1,330 @@
 # Implementation Plan
 
-## Phase 1: Pilot Readiness (Critical Fixes)
+## Overview
 
-This phase addresses the "Required Changes Before Pilot" to make the application stable enough for a friendly user pilot.
+This plan outlines the implementation of the Dynamic Information Board MVP using a web-first architecture.
 
-### 1. Backend: Implement Persistent Storage
-    - **Goal:** Replace the in-memory `displays` object with a persistent data store to prevent data loss on server restart.
-    - **Action:**
-        - Choose a serverless database (e.g., Firebase Firestore or Supabase). For this plan, we'll assume **Firebase Firestore**.
-        - Set up a Firebase project and configure Firestore.
-        - Create `backend/src/store/firestore.js` (or similar name).
-        - This module will contain all logic for interacting with Firestore:
-            - `initializeDb()`: Connect to Firestore.
-            - `getDisplay(displayId)`: Fetch display data.
-            - `createDisplay(displayId, initialData)`: Create a new display document.
-            - `updateDisplayData(displayId, newData)`: Update display data.
-            - `getDisplayByPairCode(pairCode)`: Fetch display by pair code (requires creating an index in Firestore).
-            - `updateDisplayPairCode(displayId, pairCode)`: Update pair code.
-        - Modify `backend/server.js` (and later `displayService.js`) to use these Firestore functions instead of the in-memory `displays` object.
-        - Ensure environment variables are used for Firebase credentials.
+### Project Structure
 
-### 2. Configuration: Centralize and Externalize
-    - **Goal:** Remove all hardcoded URLs and magic strings.
-    - **Action:**
-        - **Backend:**
-            - Create a `.env` file in the `backend` directory.
-            - Add `PORT`, Firebase configuration keys (from Firebase setup), and any other sensitive/configurable values.
-            - Use a library like `dotenv` to load these variables in `server.js`.
-            - Add `.env` to `backend/.gitignore`.
-        - **Mobile App:**
-            - Create `mobile-app/src/config.js`.
-            - Define and export `BACKEND_URL`.
-            - `export const BACKEND_URL = 'http://<YOUR_LOCAL_IP_OR_HOSTNAME>:3000'; // Update as needed`
-            - Update `mobile-app/DynamicInfoBoardMobile/screens/PairingScreen.js` and `mobile-app/DynamicInfoBoardMobile/screens/TableEditorScreen.js` to import `BACKEND_URL` from `src/config.js`.
-            - Provide clear instructions in a README or comments on how to set the `BACKEND_URL` for local development.
+```
+horseboard/
+├── server/
+│   ├── index.js           # Express server entry point
+│   ├── api/
+│   │   ├── routes.js      # API route definitions
+│   │   └── sse.js         # Server-Sent Events handler
+│   ├── services/
+│   │   └── display.js     # Business logic
+│   └── db/
+│       └── sqlite.js      # SQLite database layer
+├── client/
+│   ├── display/           # TV display web app
+│   │   ├── index.html
+│   │   ├── style.css
+│   │   └── app.js
+│   └── controller/        # Mobile controller PWA
+│       ├── index.html
+│       ├── style.css
+│       ├── app.js
+│       └── manifest.json  # PWA manifest
+├── package.json
+└── README.md
+```
 
-### 3. Backend: Basic Structural Refactor
-    - **Goal:** Break up `server.js` into a standard Express structure for better maintainability.
-    - **Action:**
-        - Create the following directories in `backend/src/`: `api`, `services`, `store` (if not already created in step 1).
-        - **`backend/src/api/routes.js`:**
-            - Move all Express route definitions (`app.post('/pair'`, `app.post('/display/:displayId'`, `app.get('/display/:displayId'`, `app.get('/pair-status/:pairCode')`) here.
-            - This file will export an Express router.
-            - `server.js` will import and use this router (`app.use('/api', apiRoutes);`).
-        - **`backend/src/services/displayService.js`:**
-            - Move the business logic related to pairing and data updates here.
-            - Functions like `handlePairingRequest`, `handleDisplayDataUpdate`, `getDisplayData`, `getPairingStatus`.
-            - These functions will use the `firestore.js` module for data persistence.
-            - Route handlers in `routes.js` will call functions from `displayService.js`.
-        - **`backend/src/store/firestore.js`:** (As defined in step 1)
-            - Contains all Firestore interaction logic.
-        - **`backend/server.js` (main file):**
-            - Will be significantly slimmed down.
-            - Responsibilities:
-                - Initialize Express app.
-                - Load environment variables.
-                - Initialize Firebase/DB connection (calling `initializeDb()` from `firestore.js`).
-                - Mount the API routes.
-                - Start the HTTP server.
+---
 
-### 4. State Management: Refactor the Mobile Editor (TableEditorScreen.js)
-    - **Goal:** Simplify `TableEditorScreen.js` by separating data logic from UI rendering.
-    - **Action:**
-        - Choose a state management library. **Zustand** is recommended for its simplicity.
-        - Install Zustand: `npm install zustand` or `yarn add zustand` in the `mobile-app/DynamicInfoBoardMobile` directory.
-        - Create `mobile-app/src/store/tableStore.js` (or similar).
-        - Define a Zustand store to manage:
-            - `originalData`: The full dataset fetched from the backend.
-            - `filteredData`: Data currently displayed in the table (after sorting/pagination).
-            - `columns`: Table column definitions.
-            - `currentPage`, `rowsPerPage`.
-            - `sortColumn`, `sortDirection`.
-            - `isLoading`, `error`.
-        - Actions in the store:
-            - `fetchInitialData(displayId)`: Fetches data from the backend and updates the store.
-            - `setData(newData)`: Directly sets table data (e.g., after an edit).
-            - `updateCell(rowIndex, columnId, value)`: Updates a specific cell. This action will also trigger a backend update.
-            - `setSort(columnId)`: Handles sorting logic.
-            - `setPage(pageNumber)`: Handles pagination.
-            - `syncDataToBackend()`: Pushes the current `originalData` to the backend.
-        - Refactor `mobile-app/DynamicInfoBoardMobile/screens/TableEditorScreen.js`:
-            - Remove most `useState` hooks related to table data, pagination, and sorting.
-            - Use the Zustand store (`useStore(state => state.data)`, `useStore(state => state.actions.updateCell)`).
-            - UI components will now primarily read from the store and call store actions.
-            - Logic for API calls (fetch, update) should be encapsulated within store actions.
+## Phase 1: Project Setup
 
-### 5. Error Handling: Make it Graceful
-    - **Goal:** Improve user experience by handling errors more gracefully.
-    - **Action:**
-        - **TV App (`google-tv-app/app/src/main/java/com/example/dynamictvapp/MainActivity.java`):**
-            - In `fetchAndDisplayData` and `checkPairingStatus`:
-                - `onFailure`: Instead of just logging, update the WebView to show a user-friendly full-screen error message (e.g., "Cannot connect to server. Retrying in X seconds...", "Invalid Display ID"). This can be done by loading a specific HTML string or a local error HTML file into the WebView.
-                - `onResponse`: If the response is not OK, or if data is malformed, also display a clear error message in the WebView.
-                - Implement a simple retry mechanism with backoff for network errors.
-        - **Mobile App:**
-            - For non-critical errors (e.g., a failed data sync that can be retried, minor validation issues), use a less intrusive feedback mechanism than `Alert`.
-            - Consider implementing a Toast/Snackbar component (many React Native libraries offer this, or a simple custom one can be built).
-            - `Alert` can still be used for critical errors that require user immediate attention (e.g., pairing failed, session expired).
-            - Ensure API call error handling in the new Zustand store actions updates an `error` state in the store, which the UI can then react to.
+### 1.1 Initialize Project Structure
 
-## Phase 2: V1.0 Application (Core Features for Launch)
+**Tasks:**
+- [ ] Create directory structure
+- [ ] Initialize `package.json` with dependencies
+- [ ] Set up Express server
+- [ ] Configure static file serving
 
-This phase addresses the "Engineering Requirements for a Viable V1.0 Application."
+**Dependencies:**
+```json
+{
+  "dependencies": {
+    "express": "^4.18.2",
+    "better-sqlite3": "^9.0.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
+```
 
-### 6. Real-Time Communication
-    - **Goal:** Replace polling with a real-time solution for instant data updates on the TV.
-    - **Action (Option 1: Leveraging Firestore Real-time):**
-        - **Backend:** No significant change needed if Firestore is used, as updates are already pushed to it.
-        - **TV App (`google-tv-app/app/src/main/java/com/example/dynamictvapp/MainActivity.java`):**
-            - Modify `fetchAndDisplayData` to use Firestore's real-time listeners (`addSnapshotListener`).
-            - When data changes in Firestore for the current `displayId`, the listener will be triggered, and the WebView will be updated automatically.
-            - Handle listener detachment when the activity is destroyed or display ID changes.
-    - **Action (Option 2: WebSockets with Socket.io):**
-        - **Backend:**
-            - Add `socket.io` to the backend.
-            - Initialize Socket.io server and attach it to the HTTP server.
-            - When data is updated via `displayService.js` (e.g., `updateDisplayData`), after successfully saving to Firestore, emit a WebSocket event to a room corresponding to the `displayId` (e.g., `io.to(displayId).emit('dataUpdate', newData)`).
-        - **TV App (`google-tv-app/app/src/main/java/com/example/dynamictvapp/MainActivity.java`):**
-            - Add a WebSocket client library for Java/Android.
-            - Connect to the backend Socket.io server.
-            - Join a room based on its `displayId` (`socket.emit('joinRoom', displayId)`).
-            - Listen for `dataUpdate` events. On receiving an event, update the WebView with the new data.
-            - Handle WebSocket connection/disconnection and errors.
-        - **Mobile App:** (Optional for this feature, but could be used for bi-directional real-time if needed later)
-            - Could also connect to Socket.io to receive real-time confirmations or updates if necessary.
+**Files to create:**
+- `server/index.js` - Express app initialization
+- `package.json` - Project configuration
 
-### 7. User Authentication and Authorization
-    - **Goal:** Secure the application, allowing users to sign up, log in, and manage only their own displays.
-    - **Action:**
-        - **Choose an Authentication Provider:** Firebase Authentication is a strong candidate, integrating well with Firestore.
-        - **Backend:**
-            - Integrate Firebase Admin SDK for verifying user tokens.
-            - Protect API endpoints: Create middleware that checks for a valid Firebase ID token in the `Authorization` header.
-            - Modify Firestore rules to enforce per-user data access (e.g., a user can only read/write display documents where `userId === auth.uid`).
-            - Update `displayService.js` and Firestore queries:
-                - When creating a display, associate it with the authenticated `userId`.
-                - All operations on displays must check that the `userId` from the token matches the `userId` associated with the display in Firestore.
-        - **Mobile App:**
-            - Add Firebase SDK for client-side authentication.
-            - Implement Sign Up, Log In, and Log Out screens/flows.
-            - Store the user's ID token securely and send it with API requests.
-            - Manage application state based on authentication status (e.g., redirect to login if not authenticated).
-            - User's displays list should be filtered based on their `userId`.
+### 1.2 Database Layer
 
-### 8. Automated Testing
-    - **Goal:** Create a safety net to ensure code quality and prevent regressions.
-    - **Action:**
-        - **Backend (Jest):**
-            - Install Jest and related packages (`jest`, `supertest` for API testing).
-            - Write unit tests for `displayService.js` functions. Mock Firestore interactions.
-            - Write integration tests for API routes in `routes.js` using `supertest` to simulate HTTP requests and verify responses.
-            - Aim for good coverage of business logic and critical API endpoints.
-        - **Mobile App (React Native Testing Library):**
-            - Install `@testing-library/react-native` and Jest (usually comes with React Native).
-            - Write component tests for key UI components (e.g., `TableEditorScreen`, `PairingScreen`, custom input components).
-            - Test rendering, user interactions (button presses, text input), and state changes (mocking the Zustand store where necessary).
+**Tasks:**
+- [ ] Create SQLite database schema
+- [ ] Implement CRUD operations for displays
+- [ ] Add auto-initialization on startup
 
-### 9. CI/CD Pipeline
-    - **Goal:** Automate testing, building, and deployment.
-    - **Action (GitHub Actions):**
-        - Create workflow files in `.github/workflows/`.
-        - **Backend CI/CD:**
-            - Workflow triggered on push/merge to `main` (or `develop` branch).
-            - Steps:
-                - Checkout code.
-                - Set up Node.js.
-                - Install backend dependencies (`npm ci`).
-                - Run backend tests (`npm test`).
-                - (Optional) Build a Docker container.
-                - Deploy to a hosting service (e.g., Google Cloud Run, AWS Elastic Beanstalk, Heroku). Store secrets (API keys, DB credentials) securely in GitHub Actions secrets.
-        - **Mobile App CI:**
-            - Workflow triggered on push/merge to `main`.
-            - Steps:
-                - Checkout code.
-                - Set up Node.js and Java (for Android builds).
-                - Install mobile app dependencies (`npm ci` in `mobile-app/DynamicInfoBoardMobile`).
-                - Run mobile app tests (`npm test` in `mobile-app/DynamicInfoBoardMobile`).
-                - (Optional) Build the Android APK/AAB and iOS app (requires more complex setup, especially for iOS, potentially using services like EAS Build or App Center).
+**Schema:**
+```sql
+CREATE TABLE displays (
+  id TEXT PRIMARY KEY,
+  pair_code TEXT UNIQUE,
+  table_data TEXT,  -- JSON string
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-## General Principles During Implementation
+**Files to create:**
+- `server/db/sqlite.js` - Database operations
 
-- **Incremental Changes:** Apply these changes step-by-step. Test thoroughly after each major refactor or feature addition.
-- **Version Control:** Use Git for version control. Create feature branches for each significant piece of work (e.g., `feature/firestore-backend`, `refactor/mobile-state-management`).
-- **Code Reviews:** (If applicable) Have code reviewed before merging to the main branch.
-- **Documentation:** Update READMEs and add code comments where necessary, especially for new configurations, setup steps, or complex logic.
-- **"Boy Scout Rule":** Leave the code cleaner than you found it. Address small issues and improve clarity as you work.
+---
 
-This plan provides a structured approach to evolving the MVP into a more robust and feature-rich application. Priorities might shift based on user feedback and business needs, but this forms a solid technical roadmap.
+## Phase 2: Backend API
+
+### 2.1 Core API Endpoints
+
+**Tasks:**
+- [ ] `POST /api/displays` - Create new display (generates ID + pair code)
+- [ ] `POST /api/pair` - Pair controller with display using code
+- [ ] `GET /api/displays/:id` - Get display data
+- [ ] `PUT /api/displays/:id` - Update table data
+- [ ] `DELETE /api/displays/:id` - Remove display
+
+**Files to create:**
+- `server/api/routes.js` - Route definitions
+- `server/services/display.js` - Business logic
+
+### 2.2 Server-Sent Events (SSE)
+
+**Tasks:**
+- [ ] `GET /api/displays/:id/events` - SSE endpoint for real-time updates
+- [ ] Implement client connection tracking
+- [ ] Broadcast updates when data changes
+
+**How SSE works:**
+```
+TV connects to /api/displays/ABC123/events
+  ↓
+Server keeps connection open
+  ↓
+Mobile updates data via PUT /api/displays/ABC123
+  ↓
+Server broadcasts to all SSE clients for ABC123
+  ↓
+TV receives update instantly
+```
+
+**Files to create:**
+- `server/api/sse.js` - SSE connection manager
+
+---
+
+## Phase 3: TV Display (Web App)
+
+### 3.1 Pairing Screen
+
+**Tasks:**
+- [ ] Create minimal HTML/CSS layout
+- [ ] On load: call `POST /api/displays` to get pair code
+- [ ] Display 6-digit code prominently
+- [ ] Store display ID in localStorage
+
+**UI:**
+```
+┌─────────────────────────────────┐
+│                                 │
+│     Enter this code on your     │
+│           mobile device         │
+│                                 │
+│          ┌─────────┐            │
+│          │ 847291  │            │
+│          └─────────┘            │
+│                                 │
+│     yourapp.com                 │
+│                                 │
+└─────────────────────────────────┘
+```
+
+### 3.2 Table Display Screen
+
+**Tasks:**
+- [ ] Connect to SSE endpoint after pairing
+- [ ] Render table from JSON data
+- [ ] Handle empty state gracefully
+- [ ] Auto-scale table to fit screen
+- [ ] Support pagination display (show "Page X of Y")
+
+**Files to create:**
+- `client/display/index.html`
+- `client/display/style.css`
+- `client/display/app.js`
+
+---
+
+## Phase 4: Mobile Controller (PWA)
+
+### 4.1 Pairing Screen
+
+**Tasks:**
+- [ ] Create code input UI (6 digit boxes)
+- [ ] Call `POST /api/pair` with entered code
+- [ ] Store display ID on successful pair
+- [ ] Navigate to editor on success
+
+**UI:**
+```
+┌─────────────────────┐
+│                     │
+│  Enter the code     │
+│  shown on your TV   │
+│                     │
+│  ┌─┬─┬─┬─┬─┬─┐      │
+│  │8│4│7│2│9│1│      │
+│  └─┴─┴─┴─┴─┴─┘      │
+│                     │
+│  [ Connect ]        │
+│                     │
+└─────────────────────┘
+```
+
+### 4.2 Table Editor
+
+**Tasks:**
+- [ ] Fetch current table data on load
+- [ ] Render editable table grid
+- [ ] Tap cell to edit (inline or modal)
+- [ ] Add row button (bottom)
+- [ ] Add column button (right side)
+- [ ] Delete row/column (swipe or long-press)
+- [ ] Column header tap to sort (A-Z / Z-A toggle)
+- [ ] Save changes → `PUT /api/displays/:id`
+
+**UI:**
+```
+┌─────────────────────────────┐
+│  ← Your Board        [Save] │
+├─────────────────────────────┤
+│  Task    │ Owner  │ Status  │
+├──────────┼────────┼─────────┤
+│  Buy milk│ Alice  │ To Do   │
+│  Walk dog│ Bob    │ Done    │
+│  [+ Add Row]                │
+├─────────────────────────────┤
+│  Page 1 of 3   < 1 2 3 >    │
+└─────────────────────────────┘
+```
+
+### 4.3 TV Pagination Control
+
+**Tasks:**
+- [ ] Show "TV View" toggle/section
+- [ ] Allow selecting which rows to display on TV
+- [ ] Send display slice with update
+
+**Files to create:**
+- `client/controller/index.html`
+- `client/controller/style.css`
+- `client/controller/app.js`
+- `client/controller/manifest.json`
+
+---
+
+## Phase 5: PWA Features
+
+### 5.1 Make Controller Installable
+
+**Tasks:**
+- [ ] Create `manifest.json` with app metadata
+- [ ] Add service worker for basic caching
+- [ ] Add "Add to Home Screen" prompt
+- [ ] Configure app icons
+
+**manifest.json:**
+```json
+{
+  "name": "Board Controller",
+  "short_name": "Board",
+  "start_url": "/controller/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a90d9",
+  "icons": [...]
+}
+```
+
+---
+
+## Phase 6: Polish & Error Handling
+
+### 6.1 Error States
+
+**Tasks:**
+- [ ] TV: "Connection lost" overlay with retry
+- [ ] TV: "Waiting for data" state
+- [ ] Mobile: Network error toast notifications
+- [ ] Mobile: Invalid pairing code feedback
+- [ ] Mobile: Sync status indicator
+
+### 6.2 UX Improvements
+
+**Tasks:**
+- [ ] TV: Smooth transitions between states
+- [ ] TV: Auto-reconnect SSE on disconnect
+- [ ] Mobile: Optimistic UI updates
+- [ ] Mobile: Pull-to-refresh
+- [ ] Mobile: Debounce saves (don't save on every keystroke)
+
+---
+
+## Implementation Order
+
+| Step | Task | Complexity |
+|------|------|------------|
+| 1 | Project setup + Express server | Low |
+| 2 | SQLite database layer | Low |
+| 3 | API routes (CRUD) | Medium |
+| 4 | SSE implementation | Medium |
+| 5 | TV display - pairing screen | Low |
+| 6 | TV display - table rendering | Medium |
+| 7 | Mobile - pairing screen | Low |
+| 8 | Mobile - table editor | High |
+| 9 | Mobile - sorting & pagination | Medium |
+| 10 | PWA manifest + service worker | Low |
+| 11 | Error handling & polish | Medium |
+
+---
+
+## Testing Checklist
+
+### Manual Testing Flow
+
+1. [ ] Open `localhost:3000/display` in browser (simulating TV)
+2. [ ] Verify 6-digit code appears
+3. [ ] Open `localhost:3000/controller` on phone/second browser
+4. [ ] Enter pairing code
+5. [ ] Verify pairing succeeds and editor loads
+6. [ ] Add a row of data
+7. [ ] Verify TV updates in real-time (no refresh)
+8. [ ] Edit a cell
+9. [ ] Verify TV updates
+10. [ ] Test sorting by clicking column header
+11. [ ] Refresh TV page - verify data persists
+12. [ ] Restart server - verify data persists (SQLite)
+
+---
+
+## Success Criteria
+
+MVP is complete when:
+
+- [ ] TV shows pairing code on first load
+- [ ] Mobile can pair using the code
+- [ ] Mobile can edit table data (add/edit/delete rows)
+- [ ] TV updates in real-time when mobile saves
+- [ ] Data persists across server restarts
+- [ ] Works on actual TV browser + mobile phone browser
