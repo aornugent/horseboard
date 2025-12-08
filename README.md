@@ -1,63 +1,122 @@
-# Dynamic Information Board MVP
+# Dynamic Information Board
 
-This project is a Minimum Viable Product (MVP) for a dynamic information board system. It consists of a backend service, a Google TV app for display, and a React Native mobile app for controlling the content shown on the TV.
+A web-based system that transforms any large screen into a remotely-managed information board for displaying tabular data.
 
-## Project Overview
+## Overview
 
-The system allows a user to:
-1.  View a unique pairing code on the Google TV app.
-2.  Enter this code into the mobile app to "pair" with the TV.
-3.  Edit tabular data on the mobile app.
-4.  Send this data to the backend.
-5.  The Google TV app polls the backend and displays the updated table data.
+Edit a table on your phone. See it instantly on your TV.
 
-## Components
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Mobile Web    │────▶│     Backend     │◀────│    TV Web App   │
+│      (PWA)      │     │  (Node/Express) │ SSE │  (Browser Tab)  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+     Controller              API + SSE              Display
+```
 
-The project is divided into three main components:
+### How It Works
 
-*   **[Backend (`backend/`)](./backend/README.md):** A Node.js/Express server that handles data storage (in-memory for MVP), pairing logic, and API requests.
-*   **[Google TV App (`google-tv-app/`)](./google-tv-app/README.md):** An Android app for Google TV that displays a pairing code and renders table data received from the backend via a WebView.
-*   **[Mobile App (`mobile-app/DynamicInfoBoardMobile/`)](./mobile-app/DynamicInfoBoardMobile/README.md):** A React Native app that allows users to pair with a TV, edit table data, and send it to the backend. (Note: The main mobile app code is within the `DynamicInfoBoardMobile` subdirectory).
+1. Open the display URL on your TV (in any browser)
+2. A 6-digit pairing code appears on screen
+3. Open the controller URL on your phone
+4. Enter the code to connect
+5. Edit your table - changes appear on the TV in real-time
 
-## Core Technologies
+## Technology Stack
 
-*   **Backend:** Node.js, Express.js
-*   **Google TV App:** Java, Android SDK, WebView, OkHttp
-*   **Mobile App:** React Native, JavaScript/JSX
+| Component | Technology |
+|-----------|------------|
+| Backend | Node.js, Express, SQLite |
+| TV Display | HTML, CSS, JavaScript |
+| Mobile Controller | Progressive Web App (PWA) |
+| Real-time Updates | Server-Sent Events (SSE) |
+
+## Project Structure
+
+```
+horseboard/
+├── server/
+│   ├── index.js           # Express server entry point
+│   ├── api/
+│   │   ├── routes.js      # API route definitions
+│   │   └── sse.js         # Server-Sent Events handler
+│   ├── services/
+│   │   └── display.js     # Business logic
+│   └── db/
+│       └── sqlite.js      # Database layer
+├── client/
+│   ├── display/           # TV display web app
+│   └── controller/        # Mobile controller PWA
+├── package.json
+└── README.md
+```
 
 ## Getting Started
 
-1.  **Prerequisites:**
-    *   Node.js (for backend and React Native)
-    *   Android Studio (for Google TV app development and Android emulator)
-    *   React Native development environment (see React Native documentation for setup)
-    *   A physical Google TV device or a Google TV emulator.
-    *   An Android emulator/device or iOS simulator/device for the mobile app.
+### Prerequisites
 
-2.  **Clone the repository:**
-    ```bash
-    git clone <your-repository-url>
-    cd <your-repository-url>
-    ```
+- Node.js (v18 or later)
+- A TV with a web browser (Chrome recommended)
+- A smartphone
 
-3.  **Setup and run each component:**
-    *   Follow the instructions in the `README.md` file within each component's directory:
-        *   [Backend Setup](./backend/README.md)
-        *   [Google TV App Setup](./google-tv-app/README.md)
-        *   [Mobile App Setup](./mobile-app/DynamicInfoBoardMobile/README.md)
+### Installation
 
-    *   **General Workflow:**
-        1.  Start the backend server.
-        2.  Run the Google TV app. Note the pairing code.
-        3.  Run the mobile app. Enter the pairing code from the TV to connect.
-        4.  Edit data in the mobile app and send it to the TV. The TV display should update shortly.
+```bash
+# Clone the repository
+git clone <repository-url>
+cd horseboard
 
-## Notes for Development
+# Install dependencies
+npm install
 
-*   **Backend URL Configuration:** The Google TV app and Mobile app need to be configured with the correct IP address and port of your running backend server. For emulators/simulators connecting to a backend on the same machine:
-    *   Android Emulator usually uses `10.0.2.2` to refer to the host machine's localhost.
-    *   iOS Simulator can usually use `localhost`.
-    *   Physical devices need the actual network IP of the machine running the backend.
-*   The default backend port is `3000`.
+# Start the server
+npm start
+```
 
-See `IMPLEMENTATION_PLAN.md` for the task breakdown and `TECHNICAL_SPECIFICATION.md` for more detailed specifications.
+### Usage
+
+1. **Start the server:**
+   ```bash
+   npm start
+   ```
+   Server runs at `http://localhost:3000`
+
+2. **On your TV:**
+   - Open `http://<your-server-ip>:3000/display` in a browser
+   - Note the 6-digit code shown
+
+3. **On your phone:**
+   - Open `http://<your-server-ip>:3000/controller`
+   - Enter the pairing code
+   - Start editing your table
+
+### Network Setup
+
+- **Local development:** Use your machine's local IP (e.g., `192.168.1.100`)
+- **Production:** Deploy to a public URL
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/displays` | Create new display session |
+| POST | `/api/pair` | Pair controller with display |
+| GET | `/api/displays/:id` | Get display data |
+| PUT | `/api/displays/:id` | Update table data |
+| GET | `/api/displays/:id/events` | SSE stream for real-time updates |
+
+## Documentation
+
+- [Technical Specification](./TECHNICAL_SPECIFICATION.md) - Detailed system design
+- [Implementation Plan](./IMPLEMENTATION_PLAN.md) - Development phases and tasks
+
+## Development
+
+```bash
+# Run with auto-reload
+npm run dev
+```
+
+## License
+
+MIT
