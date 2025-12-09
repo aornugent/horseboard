@@ -134,15 +134,15 @@ TV receives update instantly
 
 ---
 
-## Phase 3: TV Display (Web App)
+## Phase 3: TV Display (Web App) ✅ COMPLETE
 
 ### 3.1 Pairing Screen
 
 **Tasks:**
-- [ ] Create minimal HTML/CSS layout
-- [ ] On load: call `POST /api/displays` to get pair code
-- [ ] Display 6-digit code prominently
-- [ ] Store display ID in localStorage
+- [x] Create minimal HTML/CSS layout
+- [x] On load: call `POST /api/displays` to get pair code
+- [x] Display 6-digit code prominently
+- [x] Store display ID in localStorage
 
 **UI:**
 ```
@@ -163,13 +163,13 @@ TV receives update instantly
 ### 3.2 Table Display Screen
 
 **Tasks:**
-- [ ] Connect to SSE endpoint after pairing
-- [ ] Render table from JSON data
-- [ ] Handle empty state gracefully
-- [ ] Auto-scale table to fit screen
-- [ ] Support pagination display (show "Page X of Y")
+- [x] Connect to SSE endpoint after pairing
+- [x] Render table from JSON data
+- [x] Handle empty state gracefully
+- [x] Auto-scale table to fit screen
+- [x] Support pagination display (show "Page X of Y")
 
-**Files to create:**
+**Files created:**
 - `client/display/index.html`
 - `client/display/style.css`
 - `client/display/app.js`
@@ -299,8 +299,8 @@ TV receives update instantly
 | 2 | SQLite database layer | Low | ✅ Done |
 | 3 | API routes (CRUD) | Medium | ✅ Done |
 | 4 | SSE implementation | Medium | ✅ Done |
-| 5 | TV display - pairing screen | Low | Pending |
-| 6 | TV display - table rendering | Medium | Pending |
+| 5 | TV display - pairing screen | Low | ✅ Done |
+| 6 | TV display - table rendering | Medium | ✅ Done |
 | 7 | Mobile - pairing screen | Low | Pending |
 | 8 | Mobile - table editor | High | Pending |
 | 9 | Mobile - sorting & pagination | Medium | Pending |

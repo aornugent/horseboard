@@ -28,7 +28,7 @@ Edit a table on your phone. See it instantly on your TV.
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | Project setup, database layer |
 | Phase 2 | ✅ Complete | Backend API with full test coverage |
-| Phase 3 | 🔲 Pending | TV Display web app |
+| Phase 3 | ✅ Complete | TV Display web app |
 | Phase 4 | 🔲 Pending | Mobile Controller PWA |
 | Phase 5 | 🔲 Pending | PWA features |
 | Phase 6 | 🔲 Pending | Polish & error handling |
@@ -57,7 +57,7 @@ horseboard/
 │   └── db/
 │       └── sqlite.js      # Database layer
 ├── client/
-│   ├── display/           # TV display web app (pending)
+│   ├── display/           # TV display web app
 │   └── controller/        # Mobile controller PWA (pending)
 ├── tests/
 │   ├── unit/              # Unit tests
