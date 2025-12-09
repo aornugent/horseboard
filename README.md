@@ -147,11 +147,12 @@ npm test
 ```
 
 **Test Coverage:**
-- 41 tests across unit and integration suites
+- 49 tests across unit and integration suites
 - Database layer: 15 tests
 - Display API: 12 tests
 - Pairing API: 7 tests
 - SSE API: 7 tests
+- Display client: 8 tests
 
 ## Documentation
 
