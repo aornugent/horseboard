@@ -42,6 +42,49 @@ horseboard/
 └── package.json
 ```
 
+## Development Best Practices
+
+These practices emerged from building Phase 1-2 and lead to better outcomes.
+
+### Start Simple, Add Complexity Later
+
+- **Prefer built-in tools** - Use `node:test` before reaching for Vitest/Jest
+- **Minimal dependencies** - We needed only `supertest` for testing, not a full framework
+- **Question every addition** - If Node.js can do it natively, don't add a package
+
+### Build Tests Alongside Code
+
+- **Write tests as you implement** - Not before (pure TDD is slow), not after (coverage gaps)
+- **Run tests frequently** - After each new function, catch issues early
+- **Fix failing tests immediately** - Don't accumulate test debt
+
+### Keep Documentation in Sync
+
+- **Update docs after implementation** - Specs drift from reality; reconcile regularly
+- **Document what you actually built** - Not what you planned to build
+- **Record deviations** - If implementation differs from spec, update the spec
+
+### Review Spec vs Implementation
+
+After completing a phase:
+1. Re-read the technical specification
+2. List discrepancies (missing endpoints, different formats, etc.)
+3. Decide: fix the code or update the spec?
+4. Add discovered issues to "Future Considerations"
+
+### Separate MVP from Future Work
+
+- **Don't gold-plate** - Ship working code, note improvements for later
+- **Use a backlog** - `TECHNICAL_SPECIFICATION.md` Section 8 tracks post-MVP items
+- **Prioritize ruthlessly** - Security/stability issues > nice-to-haves
+
+### Commit Workflow
+
+1. Implement a coherent chunk (one feature, one fix)
+2. Run tests to verify
+3. Write descriptive commit message (what + why)
+4. Push frequently - don't accumulate large uncommitted changes
+
 ## Component Guidelines
 
 ### Backend (`server/`)
@@ -114,9 +157,12 @@ describe('Feature', () => {
 
 ## Documentation
 
-- `TECHNICAL_SPECIFICATION.md` - API contracts, data formats
-- `IMPLEMENTATION_PLAN.md` - Phased development tasks
-- `TEST_SUITE.md` - Testing strategy and examples
+| File | Purpose |
+|------|---------|
+| `TECHNICAL_SPECIFICATION.md` | API contracts, data formats, future considerations |
+| `IMPLEMENTATION_PLAN.md` | Phased tasks with completion status |
+| `TEST_SUITE.md` | Testing strategy and patterns |
+| `AGENTS.md` | This file - development guidelines |
 
 Update these documents when making significant changes.
 
