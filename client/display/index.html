@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Display Board</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Pairing Screen -->
+  <div id="pairing-screen" class="screen">
+    <div class="pairing-content">
+      <h1>Enter this code on your mobile device</h1>
+      <div id="pair-code" class="pair-code">------</div>
+      <p class="instructions">Go to <span id="controller-url"></span> on your phone</p>
+    </div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="screen hidden">
+    <div class="loading-content">
+      <h1>Connecting...</h1>
+      <p>Please wait</p>
+    </div>
+  </div>
+
+  <!-- Empty State Screen -->
+  <div id="empty-screen" class="screen hidden">
+    <div class="empty-content">
+      <h1>Waiting for data...</h1>
+      <p>Add some content using your mobile device</p>
+    </div>
+  </div>
+
+  <!-- Table Display Screen -->
+  <div id="table-screen" class="screen hidden">
+    <div class="table-container">
+      <table id="data-table">
+        <thead id="table-head"></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div id="pagination" class="pagination hidden">
+      <span id="page-info"></span>
+    </div>
+  </div>
+
+  <!-- Error Overlay -->
+  <div id="error-overlay" class="overlay hidden">
+    <div class="error-content">
+      <h2>Connection Lost</h2>
+      <p>Attempting to reconnect...</p>
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

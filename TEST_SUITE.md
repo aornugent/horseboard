@@ -39,10 +39,12 @@ tests/
 │   └── db/
 │       └── sqlite.test.js      # Database layer tests (15 tests)
 └── integration/
-    └── api/
-        ├── displays.test.js    # Display CRUD tests (12 tests)
-        ├── pairing.test.js     # Pairing flow tests (7 tests)
-        └── sse.test.js         # SSE streaming tests (7 tests)
+    ├── api/
+    │   ├── displays.test.js    # Display CRUD tests (12 tests)
+    │   ├── pairing.test.js     # Pairing flow tests (7 tests)
+    │   └── sse.test.js         # SSE streaming tests (7 tests)
+    └── client/
+        └── display.test.js     # Display client tests (8 tests)
 ```
 
 ## Test Coverage
@@ -89,6 +91,19 @@ tests/
 | Initial data | Sends current state on connection |
 | Broadcasts | Sends updates to connected clients |
 | SSEManager | Tracks connections, broadcasts to multiple clients |
+
+### Integration Tests: Display Client (8 tests)
+
+| Test | Description |
+|------|-------------|
+| Static HTML | Serves index.html at /display |
+| Static CSS | Serves style.css with display styles |
+| Static JS | Serves app.js with client logic |
+| Full workflow | Create display → SSE → receive updates |
+| Persistence | Display data survives reconnection |
+| Invalid ID | Handles missing display gracefully |
+| Pairing | Mobile pairs with display using code |
+| End-to-end | Full pairing and real-time update flow |
 
 ## Writing Tests
 
@@ -152,18 +167,17 @@ describe('API', () => {
 ## Test Results
 
 ```
-# tests 41
-# suites 18
-# pass 41
+# tests 49
+# suites 22
+# pass 49
 # fail 0
-# duration_ms ~2800
+# duration_ms ~4000
 ```
 
-## Future Tests (Phase 3+)
+## Future Tests (Phase 4+)
 
-When implementing client apps, add:
+When implementing the mobile controller, add:
 
-- **Client unit tests** - DOM rendering, event handlers
-- **E2E tests** - Full pairing and editing flows with Playwright
-
-These can be added when the client code is implemented.
+- **Controller client tests** - Static file serving, pairing flow
+- **Table editor tests** - Cell editing, row/column operations
+- **E2E tests** - Full editing workflows with Playwright (optional)
