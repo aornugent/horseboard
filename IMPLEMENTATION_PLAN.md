@@ -27,46 +27,50 @@ horseboard/
 │       ├── style.css
 │       ├── app.js
 │       └── manifest.json  # PWA manifest
+├── tests/
+│   ├── unit/              # Unit tests
+│   └── integration/       # Integration tests
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## Phase 1: Project Setup
+## Phase 1: Project Setup ✅ COMPLETE
 
 ### 1.1 Initialize Project Structure
 
 **Tasks:**
-- [ ] Create directory structure
-- [ ] Initialize `package.json` with dependencies
-- [ ] Set up Express server
-- [ ] Configure static file serving
+- [x] Create directory structure
+- [x] Initialize `package.json` with dependencies
+- [x] Set up Express server
+- [x] Configure static file serving
 
 **Dependencies:**
 ```json
 {
   "dependencies": {
     "express": "^4.18.2",
-    "better-sqlite3": "^9.0.0",
+    "better-sqlite3": "^11.0.0",
     "cors": "^2.8.5"
   },
   "devDependencies": {
-    "nodemon": "^3.0.0"
+    "supertest": "^7.0.0"
   }
 }
 ```
 
-**Files to create:**
+**Files created:**
 - `server/index.js` - Express app initialization
 - `package.json` - Project configuration
 
 ### 1.2 Database Layer
 
 **Tasks:**
-- [ ] Create SQLite database schema
-- [ ] Implement CRUD operations for displays
-- [ ] Add auto-initialization on startup
+- [x] Create SQLite database schema
+- [x] Implement CRUD operations for displays
+- [x] Add auto-initialization on startup
+- [x] Add unit tests (15 tests)
 
 **Schema:**
 ```sql
@@ -79,32 +83,37 @@ CREATE TABLE displays (
 );
 ```
 
-**Files to create:**
+**Files created:**
 - `server/db/sqlite.js` - Database operations
+- `tests/unit/db/sqlite.test.js` - Database unit tests
 
 ---
 
-## Phase 2: Backend API
+## Phase 2: Backend API ✅ COMPLETE
 
 ### 2.1 Core API Endpoints
 
 **Tasks:**
-- [ ] `POST /api/displays` - Create new display (generates ID + pair code)
-- [ ] `POST /api/pair` - Pair controller with display using code
-- [ ] `GET /api/displays/:id` - Get display data
-- [ ] `PUT /api/displays/:id` - Update table data
-- [ ] `DELETE /api/displays/:id` - Remove display
+- [x] `POST /api/displays` - Create new display (generates ID + pair code)
+- [x] `POST /api/pair` - Pair controller with display using code
+- [x] `GET /api/displays/:id` - Get display data
+- [x] `PUT /api/displays/:id` - Update table data
+- [x] `DELETE /api/displays/:id` - Remove display
+- [x] Add integration tests (19 tests)
 
-**Files to create:**
+**Files created:**
 - `server/api/routes.js` - Route definitions
 - `server/services/display.js` - Business logic
+- `tests/integration/api/displays.test.js` - Display API tests
+- `tests/integration/api/pairing.test.js` - Pairing API tests
 
 ### 2.2 Server-Sent Events (SSE)
 
 **Tasks:**
-- [ ] `GET /api/displays/:id/events` - SSE endpoint for real-time updates
-- [ ] Implement client connection tracking
-- [ ] Broadcast updates when data changes
+- [x] `GET /api/displays/:id/events` - SSE endpoint for real-time updates
+- [x] Implement client connection tracking
+- [x] Broadcast updates when data changes
+- [x] Add integration tests (7 tests)
 
 **How SSE works:**
 ```
@@ -119,8 +128,9 @@ Server broadcasts to all SSE clients for ABC123
 TV receives update instantly
 ```
 
-**Files to create:**
+**Files created:**
 - `server/api/sse.js` - SSE connection manager
+- `tests/integration/api/sse.test.js` - SSE tests
 
 ---
 
@@ -283,23 +293,36 @@ TV receives update instantly
 
 ## Implementation Order
 
-| Step | Task | Complexity |
-|------|------|------------|
-| 1 | Project setup + Express server | Low |
-| 2 | SQLite database layer | Low |
-| 3 | API routes (CRUD) | Medium |
-| 4 | SSE implementation | Medium |
-| 5 | TV display - pairing screen | Low |
-| 6 | TV display - table rendering | Medium |
-| 7 | Mobile - pairing screen | Low |
-| 8 | Mobile - table editor | High |
-| 9 | Mobile - sorting & pagination | Medium |
-| 10 | PWA manifest + service worker | Low |
-| 11 | Error handling & polish | Medium |
+| Step | Task | Complexity | Status |
+|------|------|------------|--------|
+| 1 | Project setup + Express server | Low | ✅ Done |
+| 2 | SQLite database layer | Low | ✅ Done |
+| 3 | API routes (CRUD) | Medium | ✅ Done |
+| 4 | SSE implementation | Medium | ✅ Done |
+| 5 | TV display - pairing screen | Low | Pending |
+| 6 | TV display - table rendering | Medium | Pending |
+| 7 | Mobile - pairing screen | Low | Pending |
+| 8 | Mobile - table editor | High | Pending |
+| 9 | Mobile - sorting & pagination | Medium | Pending |
+| 10 | PWA manifest + service worker | Low | Pending |
+| 11 | Error handling & polish | Medium | Pending |
 
 ---
 
-## Testing Checklist
+## Testing
+
+### Automated Tests (41 tests, all passing)
+
+```bash
+npm test
+```
+
+| Suite | Tests | Description |
+|-------|-------|-------------|
+| SQLite Database | 15 | CRUD operations, schema, uniqueness |
+| Display API | 12 | Create, read, update, delete endpoints |
+| Pairing API | 7 | Code validation, pairing flow |
+| SSE API | 7 | Streaming, broadcasting, connection handling |
 
 ### Manual Testing Flow
 
