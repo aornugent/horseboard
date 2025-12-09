@@ -50,47 +50,22 @@ Create a new display session.
 
 *Request:* None (empty body)
 
-*Response:*
+*Response (201):*
 ```json
 {
-  "id": "d_abc123",
+  "id": "d_abc123def456",
   "pairCode": "847291"
-}
-```
-
-#### `POST /api/pair`
-Pair a mobile controller with a display using the 6-digit code.
-
-*Request:*
-```json
-{
-  "code": "847291"
-}
-```
-
-*Response (Success):*
-```json
-{
-  "success": true,
-  "displayId": "d_abc123"
-}
-```
-
-*Response (Failure - 404):*
-```json
-{
-  "success": false,
-  "error": "Invalid pairing code"
 }
 ```
 
 #### `GET /api/displays/:id`
 Retrieve current display data.
 
-*Response:*
+*Response (200):*
 ```json
 {
-  "id": "d_abc123",
+  "id": "d_abc123def456",
+  "pairCode": "847291",
   "tableData": {
     "headers": ["Task", "Owner", "Status"],
     "rows": [
@@ -102,7 +77,15 @@ Retrieve current display data.
       "rowCount": 10
     }
   },
-  "updatedAt": "2024-01-15T10:30:00Z"
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+*Response (404):*
+```json
+{
+  "error": "Display not found"
 }
 ```
 
@@ -127,28 +110,153 @@ Update table data for a display.
 }
 ```
 
-*Response:*
+*Response (200):*
 ```json
 {
   "success": true,
-  "updatedAt": "2024-01-15T10:35:00Z"
+  "updatedAt": "2024-01-15T10:35:00.000Z"
+}
+```
+
+*Response (400 - validation error):*
+```json
+{
+  "success": false,
+  "error": "Invalid table data format"
+}
+```
+
+*Response (404):*
+```json
+{
+  "success": false,
+  "error": "Display not found"
+}
+```
+
+#### `DELETE /api/displays/:id`
+Remove a display.
+
+*Response (200):*
+```json
+{
+  "success": true
+}
+```
+
+*Response (404):*
+```json
+{
+  "error": "Display not found"
+}
+```
+
+#### `POST /api/pair`
+Pair a mobile controller with a display using the 6-digit code.
+
+*Request:*
+```json
+{
+  "code": "847291"
+}
+```
+
+*Validation:*
+- `code` must be a string
+- `code` must be exactly 6 digits (regex: `/^\d{6}$/`)
+
+*Response (200 - Success):*
+```json
+{
+  "success": true,
+  "displayId": "d_abc123def456"
+}
+```
+
+*Response (400 - validation error):*
+```json
+{
+  "success": false,
+  "error": "Code must be 6 digits"
+}
+```
+
+*Response (404 - invalid code):*
+```json
+{
+  "success": false,
+  "error": "Invalid pairing code"
 }
 ```
 
 #### `GET /api/displays/:id/events`
 Server-Sent Events endpoint for real-time updates.
 
+*Headers:*
+```
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+X-Accel-Buffering: no
+```
+
 *Response:* SSE stream
 
 ```
-event: update
-data: {"tableData": {...}, "updatedAt": "..."}
+data: {"tableData": {...}, "updatedAt": "2024-01-15T10:30:00.000Z"}
 
-event: update
-data: {"tableData": {...}, "updatedAt": "..."}
+: keepalive
+
+data: {"tableData": {...}, "updatedAt": "2024-01-15T10:35:00.000Z"}
 ```
 
-### 3.2 TV Display (Web App)
+*Behavior:*
+- Sends current state immediately on connection
+- Sends keepalive comment (`: keepalive\n\n`) every 30 seconds
+- Broadcasts updates when `PUT /api/displays/:id` is called
+- Connection stays open until client disconnects
+
+*Response (404):*
+```json
+{
+  "error": "Display not found"
+}
+```
+
+#### `GET /health`
+Health check endpoint.
+
+*Response (200):*
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### 3.2 Input Validation
+
+#### Table Data Validation
+
+The `tableData` object must satisfy:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `headers` | `string[]` | Yes | Column headers (can be empty) |
+| `rows` | `string[][]` | Yes | Row data (can be empty) |
+| `displaySettings` | `object` | No | TV display settings |
+
+Each row must be an array. Non-array rows are rejected.
+
+#### Pair Code Validation
+
+| Rule | Description |
+|------|-------------|
+| Type | Must be a string |
+| Length | Exactly 6 characters |
+| Format | Digits only (0-9) |
+
+### 3.3 TV Display (Web App)
 
 **URL:** `/display` or `/display/`
 
@@ -167,7 +275,7 @@ data: {"tableData": {...}, "updatedAt": "..."}
 - **Connected (no data):** "Waiting for data..." message
 - **Connected (with data):** Full-screen table display
 
-### 3.3 Mobile Controller (PWA)
+### 3.4 Mobile Controller (PWA)
 
 **URL:** `/controller` or `/controller/`
 
@@ -215,14 +323,20 @@ data: {"tableData": {...}, "updatedAt": "..."}
 }
 ```
 
-### SSE Event Format
+### SSE Message Format
 
-```json
-{
-  "type": "update",
-  "tableData": { ... },
-  "updatedAt": "2024-01-15T10:30:00Z"
-}
+Messages are sent as unnamed events with JSON data:
+
+```
+data: {"tableData": {...}, "updatedAt": "2024-01-15T10:30:00.000Z"}
+
+```
+
+Keepalive comments are sent every 30 seconds:
+
+```
+: keepalive
+
 ```
 
 ## 5. Data Flow
@@ -271,9 +385,50 @@ data: {"tableData": {...}, "updatedAt": "..."}
 - For local development: use machine's local IP
 - For production: deploy to public URL
 
-## 7. Future Considerations
+## 7. Error Handling
+
+### HTTP Status Codes
+
+| Code | Usage |
+|------|-------|
+| 200 | Successful GET, PUT, DELETE |
+| 201 | Successful POST (resource created) |
+| 400 | Validation error (bad input) |
+| 404 | Resource not found |
+| 500 | Server error |
+
+### Error Response Format
+
+```json
+{
+  "error": "Human-readable error message"
+}
+```
+
+Or for operations with success flag:
+
+```json
+{
+  "success": false,
+  "error": "Human-readable error message"
+}
+```
+
+## 8. Future Considerations
 
 These are out of scope for MVP but inform design decisions:
+
+### Post-MVP Improvements
+
+| Item | Priority | Description |
+|------|----------|-------------|
+| Pair code expiration | Medium | Add `expires_at` column, auto-cleanup after 24h |
+| Rate limiting | Medium | Prevent abuse on public endpoints |
+| tableData size limit | Medium | Cap at ~1MB to prevent memory issues |
+| Display cleanup | Low | Remove displays inactive for 30+ days |
+| Pair code collision | Low | Replace recursive generation with loop |
+
+### Future Features
 
 - **User authentication:** Add login, associate displays with user accounts
 - **Multiple displays:** One user manages multiple TV displays
@@ -281,3 +436,4 @@ These are out of scope for MVP but inform design decisions:
 - **Offline editing:** Queue changes when offline, sync when reconnected
 - **Themes:** Customizable table styling and colors
 - **Sharing:** Generate shareable links for view-only access
+- **SSE authentication:** Validate display ownership before allowing subscription

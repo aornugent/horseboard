@@ -22,6 +22,17 @@ Edit a table on your phone. See it instantly on your TV.
 4. Enter the code to connect
 5. Edit your table - changes appear on the TV in real-time
 
+## Current Status
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Complete | Project setup, database layer |
+| Phase 2 | ✅ Complete | Backend API with full test coverage |
+| Phase 3 | 🔲 Pending | TV Display web app |
+| Phase 4 | 🔲 Pending | Mobile Controller PWA |
+| Phase 5 | 🔲 Pending | PWA features |
+| Phase 6 | 🔲 Pending | Polish & error handling |
+
 ## Technology Stack
 
 | Component | Technology |
@@ -30,6 +41,7 @@ Edit a table on your phone. See it instantly on your TV.
 | TV Display | HTML, CSS, JavaScript |
 | Mobile Controller | Progressive Web App (PWA) |
 | Real-time Updates | Server-Sent Events (SSE) |
+| Testing | Node.js test runner, Supertest |
 
 ## Project Structure
 
@@ -45,8 +57,11 @@ horseboard/
 │   └── db/
 │       └── sqlite.js      # Database layer
 ├── client/
-│   ├── display/           # TV display web app
-│   └── controller/        # Mobile controller PWA
+│   ├── display/           # TV display web app (pending)
+│   └── controller/        # Mobile controller PWA (pending)
+├── tests/
+│   ├── unit/              # Unit tests
+│   └── integration/       # API integration tests
 ├── package.json
 └── README.md
 ```
@@ -68,6 +83,9 @@ cd horseboard
 
 # Install dependencies
 npm install
+
+# Run tests
+npm test
 
 # Start the server
 npm start
@@ -103,19 +121,44 @@ npm start
 | POST | `/api/pair` | Pair controller with display |
 | GET | `/api/displays/:id` | Get display data |
 | PUT | `/api/displays/:id` | Update table data |
+| DELETE | `/api/displays/:id` | Delete a display |
 | GET | `/api/displays/:id/events` | SSE stream for real-time updates |
-
-## Documentation
-
-- [Technical Specification](./TECHNICAL_SPECIFICATION.md) - Detailed system design
-- [Implementation Plan](./IMPLEMENTATION_PLAN.md) - Development phases and tasks
+| GET | `/health` | Health check endpoint |
 
 ## Development
 
 ```bash
 # Run with auto-reload
 npm run dev
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
 ```
+
+## Testing
+
+The project uses Node.js built-in test runner with Supertest for API testing.
+
+```bash
+npm test
+```
+
+**Test Coverage:**
+- 41 tests across unit and integration suites
+- Database layer: 15 tests
+- Display API: 12 tests
+- Pairing API: 7 tests
+- SSE API: 7 tests
+
+## Documentation
+
+- [Technical Specification](./TECHNICAL_SPECIFICATION.md) - Detailed system design
+- [Implementation Plan](./IMPLEMENTATION_PLAN.md) - Development phases and tasks
+- [Test Suite](./TEST_SUITE.md) - Testing strategy and examples
+- [Agent Guidelines](./AGENTS.md) - Guidelines for AI agents
 
 ## License
 
