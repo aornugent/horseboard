@@ -739,5 +739,69 @@ async function init() {
   showScreen('pairing');
 }
 
+// ===================
+// PWA Install Prompt
+// ===================
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent default browser prompt
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // Show custom install banner
+  const banner = document.getElementById('install-banner');
+  if (banner) {
+    banner.classList.remove('hidden');
+  }
+});
+
+function setupInstallPrompt() {
+  const banner = document.getElementById('install-banner');
+  const installBtn = document.getElementById('install-btn');
+  const dismissBtn = document.getElementById('dismiss-install');
+
+  if (!banner || !installBtn || !dismissBtn) return;
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+
+    // Show browser install prompt
+    deferredPrompt.prompt();
+
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('Install prompt outcome:', outcome);
+
+    // Clear prompt reference
+    deferredPrompt = null;
+    banner.classList.add('hidden');
+  });
+
+  dismissBtn.addEventListener('click', () => {
+    banner.classList.add('hidden');
+    // Store dismissal preference
+    localStorage.setItem('horseboard_install_dismissed', 'true');
+  });
+
+  // Check if already dismissed
+  if (localStorage.getItem('horseboard_install_dismissed')) {
+    banner.classList.add('hidden');
+  }
+}
+
+// Handle app installed event
+window.addEventListener('appinstalled', () => {
+  console.log('App installed');
+  const banner = document.getElementById('install-banner');
+  if (banner) {
+    banner.classList.add('hidden');
+  }
+  deferredPrompt = null;
+});
+
 // Start application
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  setupInstallPrompt();
+});

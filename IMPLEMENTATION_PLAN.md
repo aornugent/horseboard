@@ -176,15 +176,15 @@ TV receives update instantly
 
 ---
 
-## Phase 4: Mobile Controller (PWA)
+## Phase 4: Mobile Controller (PWA) ✅ COMPLETE
 
 ### 4.1 Pairing Screen
 
 **Tasks:**
-- [ ] Create code input UI (6 digit boxes)
-- [ ] Call `POST /api/pair` with entered code
-- [ ] Store display ID on successful pair
-- [ ] Navigate to editor on success
+- [x] Create code input UI (6 digit boxes)
+- [x] Call `POST /api/pair` with entered code
+- [x] Store display ID on successful pair
+- [x] Navigate to editor on success
 
 **UI:**
 ```
@@ -205,14 +205,14 @@ TV receives update instantly
 ### 4.2 Table Editor
 
 **Tasks:**
-- [ ] Fetch current table data on load
-- [ ] Render editable table grid
-- [ ] Tap cell to edit (inline or modal)
-- [ ] Add row button (bottom)
-- [ ] Add column button (right side)
-- [ ] Delete row/column (swipe or long-press)
-- [ ] Column header tap to sort (A-Z / Z-A toggle)
-- [ ] Save changes → `PUT /api/displays/:id`
+- [x] Fetch current table data on load
+- [x] Render editable table grid
+- [x] Tap cell to edit (inline or modal)
+- [x] Add row button (bottom)
+- [x] Add column button (right side)
+- [x] Delete row/column (delete buttons with confirmation)
+- [x] Column header double-click to sort (A-Z / Z-A toggle)
+- [x] Save changes → `PUT /api/displays/:id`
 
 **UI:**
 ```
@@ -232,11 +232,11 @@ TV receives update instantly
 ### 4.3 TV Pagination Control
 
 **Tasks:**
-- [ ] Show "TV View" toggle/section
-- [ ] Allow selecting which rows to display on TV
-- [ ] Send display slice with update
+- [x] Show "TV View" toggle/section
+- [x] Allow selecting which rows to display on TV
+- [x] Send display slice with update
 
-**Files to create:**
+**Files created:**
 - `client/controller/index.html`
 - `client/controller/style.css`
 - `client/controller/app.js`
@@ -244,28 +244,25 @@ TV receives update instantly
 
 ---
 
-## Phase 5: PWA Features
+## Phase 5: PWA Features ✅ COMPLETE
 
 ### 5.1 Make Controller Installable
 
 **Tasks:**
-- [ ] Create `manifest.json` with app metadata
-- [ ] Add service worker for basic caching
-- [ ] Add "Add to Home Screen" prompt
-- [ ] Configure app icons
+- [x] Create `manifest.json` with app metadata
+- [x] Add service worker for basic caching
+- [x] Add "Add to Home Screen" prompt
+- [x] Configure app icons (SVG-based, multiple sizes)
 
-**manifest.json:**
-```json
-{
-  "name": "Board Controller",
-  "short_name": "Board",
-  "start_url": "/controller/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4a90d9",
-  "icons": [...]
-}
-```
+**Files created:**
+- `client/controller/sw.js` - Service worker with cache-first strategy
+- Updated `manifest.json` with proper PWA configuration
+- Updated `app.js` with install prompt handling
+
+**Features:**
+- Offline support for static assets
+- Custom install banner with dismiss option
+- Network-first with cache fallback for API calls
 
 ---
 
@@ -301,17 +298,17 @@ TV receives update instantly
 | 4 | SSE implementation | Medium | ✅ Done |
 | 5 | TV display - pairing screen | Low | ✅ Done |
 | 6 | TV display - table rendering | Medium | ✅ Done |
-| 7 | Mobile - pairing screen | Low | Pending |
-| 8 | Mobile - table editor | High | Pending |
-| 9 | Mobile - sorting & pagination | Medium | Pending |
-| 10 | PWA manifest + service worker | Low | Pending |
+| 7 | Mobile - pairing screen | Low | ✅ Done |
+| 8 | Mobile - table editor | High | ✅ Done |
+| 9 | Mobile - sorting & pagination | Medium | ✅ Done |
+| 10 | PWA manifest + service worker | Low | ✅ Done |
 | 11 | Error handling & polish | Medium | Pending |
 
 ---
 
 ## Testing
 
-### Automated Tests (41 tests, all passing)
+### Automated Tests (68 tests, all passing)
 
 ```bash
 npm test
@@ -323,6 +320,8 @@ npm test
 | Display API | 12 | Create, read, update, delete endpoints |
 | Pairing API | 7 | Code validation, pairing flow |
 | SSE API | 7 | Streaming, broadcasting, connection handling |
+| Controller Client | 19 | Pairing, editing, sorting, session persistence |
+| Display Client | 8 | Static files, SSE workflow, pairing integration |
 
 ### Manual Testing Flow
 
