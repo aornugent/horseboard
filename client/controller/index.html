@@ -107,6 +107,21 @@
   <!-- Toast Notification -->
   <div id="toast" class="toast hidden"></div>
 
+  <!-- Install Prompt Banner -->
+  <div id="install-banner" class="install-banner hidden">
+    <span>Install Board Controller for quick access</span>
+    <button id="install-btn" class="btn btn-small btn-primary">Install</button>
+    <button id="dismiss-install" class="btn btn-icon">&times;</button>
+  </div>
+
   <script src="app.js"></script>
+  <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/controller/sw.js')
+        .then((reg) => console.log('Service worker registered:', reg.scope))
+        .catch((err) => console.log('Service worker registration failed:', err));
+    }
+  </script>
 </body>
 </html>
