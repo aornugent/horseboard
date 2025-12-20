@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4a90d9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Board Controller</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Pairing Screen -->
+  <div id="pairing-screen" class="screen">
+    <div class="pairing-content">
+      <h1>Enter the code shown on your TV</h1>
+      <div class="code-inputs" id="code-inputs">
+        <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="code-digit" data-index="0" autocomplete="off">
+        <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="code-digit" data-index="1" autocomplete="off">
+        <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="code-digit" data-index="2" autocomplete="off">
+        <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="code-digit" data-index="3" autocomplete="off">
+        <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="code-digit" data-index="4" autocomplete="off">
+        <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="code-digit" data-index="5" autocomplete="off">
+      </div>
+      <p id="pairing-error" class="error hidden">Invalid code. Please try again.</p>
+      <button id="connect-btn" class="btn btn-primary" disabled>Connect</button>
+    </div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="screen hidden">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p>Connecting...</p>
+    </div>
+  </div>
+
+  <!-- Editor Screen -->
+  <div id="editor-screen" class="screen hidden">
+    <header class="editor-header">
+      <button id="back-btn" class="btn btn-icon" title="Disconnect">
+        <span class="icon">&#x2190;</span>
+      </button>
+      <h1>Your Board</h1>
+      <button id="save-btn" class="btn btn-primary btn-small">Save</button>
+    </header>
+
+    <main class="editor-main">
+      <!-- Table Editor -->
+      <div class="table-wrapper">
+        <table id="editor-table">
+          <thead id="editor-head"></thead>
+          <tbody id="editor-body"></tbody>
+        </table>
+        <button id="add-column-btn" class="btn btn-add btn-add-column" title="Add column">+</button>
+      </div>
+      <button id="add-row-btn" class="btn btn-add btn-add-row">+ Add Row</button>
+
+      <!-- TV View Settings -->
+      <div class="tv-settings">
+        <h2>TV Display Settings</h2>
+        <div class="setting-row">
+          <label for="start-row">Start from row:</label>
+          <input type="number" id="start-row" min="1" value="1">
+        </div>
+        <div class="setting-row">
+          <label for="row-count">Rows to show:</label>
+          <input type="number" id="row-count" min="1" value="10">
+        </div>
+      </div>
+    </main>
+
+    <!-- Status bar -->
+    <footer class="editor-footer">
+      <span id="status-text">Ready</span>
+    </footer>
+  </div>
+
+  <!-- Cell Edit Modal -->
+  <div id="cell-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Edit Cell</h2>
+        <button id="modal-close" class="btn btn-icon">&times;</button>
+      </div>
+      <textarea id="cell-input" rows="3"></textarea>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn">Cancel</button>
+        <button id="modal-save" class="btn btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <h2 id="delete-title">Delete Row?</h2>
+      <p id="delete-message">This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="delete-cancel" class="btn">Cancel</button>
+        <button id="delete-confirm" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
