@@ -5,12 +5,28 @@
  * - Creating/restoring display sessions
  * - Showing pairing code
  * - SSE connection for real-time updates
- * - Table rendering
+ * - Feed grid rendering with domain model
  */
 
 const STORAGE_KEY = 'horseboard_display_id';
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
+
+// Horses per page based on zoom level
+const HORSES_PER_PAGE = {
+  1: 10,
+  2: 7,
+  3: 5
+};
+
+// Fraction display mapping
+const FRACTIONS = {
+  0.25: '¼',
+  0.33: '⅓',
+  0.5: '½',
+  0.66: '⅔',
+  0.75: '¾'
+};
 
 // State
 let displayId = null;
@@ -28,10 +44,10 @@ const screens = {
 const elements = {
   pairCode: document.getElementById('pair-code'),
   controllerUrl: document.getElementById('controller-url'),
-  tableHead: document.getElementById('table-head'),
-  tableBody: document.getElementById('table-body'),
+  feedGrid: document.getElementById('feed-grid'),
   pagination: document.getElementById('pagination'),
   pageInfo: document.getElementById('page-info'),
+  timeMode: document.getElementById('time-mode'),
   errorOverlay: document.getElementById('error-overlay')
 };
 
@@ -174,7 +190,7 @@ function handleUpdate(data) {
   const tableData = data.tableData;
 
   // No data yet - show empty state
-  if (!tableData || !tableData.headers || tableData.headers.length === 0) {
+  if (!tableData || !tableData.horses || tableData.horses.length === 0) {
     // Only show empty screen if we've been paired (have data at least once)
     // Otherwise stay on pairing screen
     if (screens.pairing.classList.contains('hidden')) {
@@ -183,56 +199,188 @@ function handleUpdate(data) {
     return;
   }
 
-  // Render table
-  renderTable(tableData);
+  // Render feed grid
+  renderFeedGrid(tableData);
   showScreen('table');
 }
 
 /**
- * Render table data to the DOM
+ * Format a numeric value for display
+ * Converts common fractions to symbols, shows unit for other decimals
  */
-function renderTable(tableData) {
-  const { headers, rows, displaySettings } = tableData;
-
-  // Render headers
-  elements.tableHead.innerHTML = '';
-  const headerRow = document.createElement('tr');
-  headers.forEach(header => {
-    const th = document.createElement('th');
-    th.textContent = header;
-    headerRow.appendChild(th);
-  });
-  elements.tableHead.appendChild(headerRow);
-
-  // Determine which rows to display
-  let displayRows = rows || [];
-  let startRow = 0;
-  let totalRows = displayRows.length;
-
-  if (displaySettings && typeof displaySettings.startRow === 'number') {
-    startRow = displaySettings.startRow;
-    const rowCount = displaySettings.rowCount || displayRows.length;
-    displayRows = displayRows.slice(startRow, startRow + rowCount);
+function formatValue(value, unit) {
+  if (value === null || value === undefined || value === 0) {
+    return '';
   }
 
-  // Render rows
-  elements.tableBody.innerHTML = '';
-  displayRows.forEach(row => {
-    const tr = document.createElement('tr');
-    // Ensure row has same number of cells as headers
-    for (let i = 0; i < headers.length; i++) {
-      const td = document.createElement('td');
-      td.textContent = row[i] !== undefined ? row[i] : '';
-      tr.appendChild(td);
+  // Check for exact fraction matches
+  if (FRACTIONS[value]) {
+    return FRACTIONS[value];
+  }
+
+  // Check for whole + fraction (e.g., 1.5 → 1½)
+  const whole = Math.floor(value);
+  const decimal = Math.round((value - whole) * 100) / 100;
+
+  if (whole > 0 && FRACTIONS[decimal]) {
+    return `${whole}${FRACTIONS[decimal]}`;
+  }
+
+  // For other values, show with unit if not a whole number
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return `${value}`;
+}
+
+/**
+ * Determine current time mode (AM/PM) based on settings
+ */
+function getActiveTimeMode(settings) {
+  if (!settings) return 'am';
+
+  const { timeMode, overrideUntil, timezone } = settings;
+
+  // Check if override is still active
+  if (timeMode !== 'AUTO' && overrideUntil) {
+    if (Date.now() < overrideUntil) {
+      return timeMode.toLowerCase();
     }
-    elements.tableBody.appendChild(tr);
+  }
+
+  // Auto-detect based on timezone
+  if (timeMode === 'AUTO') {
+    const tz = timezone || 'UTC';
+    const now = new Date();
+    const hour = parseInt(now.toLocaleString('en-US', {
+      timeZone: tz,
+      hour: 'numeric',
+      hour12: false
+    }));
+
+    // 04:00 - 11:59 = AM, 12:00 - 03:59 = PM
+    return (hour >= 4 && hour < 12) ? 'am' : 'pm';
+  }
+
+  return timeMode.toLowerCase();
+}
+
+/**
+ * Filter feeds to only those with at least one non-zero value
+ */
+function getActiveFeeds(feeds, horses, diet, timeMode) {
+  return feeds.filter(feed => {
+    return horses.some(horse => {
+      const horseDiet = diet[horse.id];
+      if (!horseDiet) return false;
+      const feedDiet = horseDiet[feed.id];
+      if (!feedDiet) return false;
+      return feedDiet[timeMode] > 0;
+    });
+  });
+}
+
+/**
+ * Render the feed grid to the DOM
+ */
+function renderFeedGrid(tableData) {
+  const { settings, feeds, horses, diet } = tableData;
+
+  // Get current time mode
+  const timeMode = getActiveTimeMode(settings);
+
+  // Update time indicator
+  if (elements.timeMode) {
+    elements.timeMode.textContent = timeMode.toUpperCase();
+  }
+
+  // Get pagination settings
+  const zoomLevel = settings?.zoomLevel || 2;
+  const currentPage = settings?.currentPage || 0;
+  const horsesPerPage = HORSES_PER_PAGE[zoomLevel] || 7;
+
+  // Calculate which horses to show
+  const totalHorses = horses.length;
+  const totalPages = Math.ceil(totalHorses / horsesPerPage);
+  const startIdx = currentPage * horsesPerPage;
+  const displayHorses = horses.slice(startIdx, startIdx + horsesPerPage);
+
+  // Filter feeds to only active ones (with non-zero values)
+  const activeFeeds = getActiveFeeds(feeds, displayHorses, diet, timeMode);
+
+  // Sort feeds by rank
+  activeFeeds.sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+  // Build the grid
+  const grid = elements.feedGrid;
+  grid.innerHTML = '';
+
+  // Set grid columns: 1 for feed name + 1 for each horse
+  grid.style.gridTemplateColumns = `minmax(120px, 1fr) repeat(${displayHorses.length}, 1fr)`;
+
+  // --- HEADER ROW: Feed label + horse names ---
+  const feedHeader = document.createElement('div');
+  feedHeader.className = 'grid-cell header feed-label';
+  feedHeader.textContent = 'Feed';
+  grid.appendChild(feedHeader);
+
+  displayHorses.forEach(horse => {
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell header horse-name';
+    cell.textContent = horse.name;
+    grid.appendChild(cell);
   });
 
-  // Show pagination if applicable
-  if (displaySettings && displaySettings.rowCount && totalRows > displaySettings.rowCount) {
-    const currentPage = Math.floor(startRow / displaySettings.rowCount) + 1;
-    const totalPages = Math.ceil(totalRows / displaySettings.rowCount);
-    elements.pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+  // --- FEED ROWS ---
+  activeFeeds.forEach(feed => {
+    // Feed name cell
+    const nameCell = document.createElement('div');
+    nameCell.className = 'grid-cell feed-name';
+    nameCell.innerHTML = `<span class="name">${feed.name}</span><span class="unit">${feed.unit}</span>`;
+    grid.appendChild(nameCell);
+
+    // Diet values for each horse
+    displayHorses.forEach(horse => {
+      const valueCell = document.createElement('div');
+      valueCell.className = 'grid-cell value';
+
+      const horseDiet = diet[horse.id];
+      const feedDiet = horseDiet?.[feed.id];
+      const value = feedDiet?.[timeMode];
+
+      valueCell.textContent = formatValue(value, feed.unit);
+
+      // Add empty class for styling if no value
+      if (!value) {
+        valueCell.classList.add('empty');
+      }
+
+      grid.appendChild(valueCell);
+    });
+  });
+
+  // --- NOTES ROW ---
+  const hasNotes = displayHorses.some(h => h.note);
+  if (hasNotes) {
+    // Notes label
+    const notesLabel = document.createElement('div');
+    notesLabel.className = 'grid-cell footer notes-label';
+    notesLabel.textContent = 'Notes';
+    grid.appendChild(notesLabel);
+
+    // Notes for each horse
+    displayHorses.forEach(horse => {
+      const noteCell = document.createElement('div');
+      noteCell.className = 'grid-cell footer note';
+      noteCell.textContent = horse.note || '';
+      grid.appendChild(noteCell);
+    });
+  }
+
+  // Update pagination display
+  if (totalPages > 1) {
+    elements.pageInfo.textContent = `Page ${currentPage + 1} of ${totalPages}`;
     elements.pagination.classList.remove('hidden');
   } else {
     elements.pagination.classList.add('hidden');
