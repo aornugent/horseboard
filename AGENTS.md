@@ -7,8 +7,8 @@ Instructions for AI agents working on this codebase.
 - **What:** Horse feed management system (edit feeding schedules on phone, display on stable TV)
 - **Domain:** Horses (columns) × Feeds (rows) = Quantities (AM/PM values)
 - **Stack:** Node.js, Express, SQLite, SSE, vanilla JS
-- **Status:** See `IMPLEMENTATION_PLAN.md` for current phase
-- **API:** See `TECHNICAL_SPECIFICATION.md` for endpoints and data formats
+- **Tasks:** See `IMPLEMENTATION_PLAN.md` for pending work
+- **Reference:** See `TECHNICAL_SPECIFICATION.md` for API and data formats
 
 ## Domain Model
 
@@ -124,7 +124,7 @@ Feeds are sorted by popularity (usage count across all horses). When implementin
 
 ### Time Mode
 
-- AUTO: 04:00-11:59 = AM, 12:00-03:59 = PM
+- AUTO: 04:00-11:59 = AM, 12:00-03:59 = PM (in display's configured timezone)
 - Override: User forces AM/PM, expires after 1 hour
 - Server broadcasts state change, TV updates immediately
 
@@ -151,9 +151,8 @@ npm test              # Run tests
 
 ## Documentation Map
 
-| File | Read For |
+| File | Contents |
 |------|----------|
-| `README.md` | Project overview, setup, current status |
-| `TECHNICAL_SPECIFICATION.md` | API contracts, data formats, business logic |
-| `IMPLEMENTATION_PLAN.md` | Phased tasks, what's done, what's next |
-| `TEST_SUITE.md` | Test structure and patterns |
+| `README.md` | Project overview, setup |
+| `TECHNICAL_SPECIFICATION.md` | API, data formats, business logic |
+| `IMPLEMENTATION_PLAN.md` | Pending tasks |
