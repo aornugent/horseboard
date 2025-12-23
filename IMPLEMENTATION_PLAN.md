@@ -2,13 +2,18 @@
 
 ## Current State
 
-The core infrastructure is complete:
+Phase 1 is complete:
 - Express server with SQLite persistence
 - Display CRUD API with pairing
 - SSE for real-time updates
+- Domain data model (feeds, horses, diet)
+- Feed ranking based on usage
+- Cascade cleanup of orphaned diet entries
+- Timezone-aware AM/PM time mode with override expiry
+- Automatic note expiry with hourly checks
 - TV display app (pairing + table rendering)
 - Mobile controller PWA (pairing + generic table editor)
-- 68 automated tests passing
+- 113 automated tests passing
 
 ## What's Next
 
@@ -16,9 +21,9 @@ Transform the generic table editor into a domain-specific feed management system
 
 ---
 
-## Phase 1: Domain Data Model
+## Phase 1: Domain Data Model ✓
 
-### 1.1 Update Data Schema
+### 1.1 Update Data Schema ✓
 
 Migrate `table_data` from generic headers/rows to domain structure:
 
@@ -32,27 +37,27 @@ Migrate `table_data` from generic headers/rows to domain structure:
 ```
 
 **Tasks:**
-- [ ] Update validation in `PUT /api/displays/:id`
-- [ ] Add server-side feed ranking on save
-- [ ] Add cascade cleanup (remove orphaned diet entries)
-- [ ] Initialize new displays with empty domain structure
-- [ ] Add tests for new validation and processing
+- [x] Update validation in `PUT /api/displays/:id`
+- [x] Add server-side feed ranking on save
+- [x] Add cascade cleanup (remove orphaned diet entries)
+- [x] Initialize new displays with empty domain structure
+- [x] Add tests for new validation and processing
 
-### 1.2 Time Mode Logic
-
-**Tasks:**
-- [ ] Add timezone-aware AM/PM detection
-- [ ] Implement override expiry (1 hour timeout)
-- [ ] Add minute-interval check for override expiry
-- [ ] Broadcast state changes via SSE
-- [ ] Add tests
-
-### 1.3 Note Expiry
+### 1.2 Time Mode Logic ✓
 
 **Tasks:**
-- [ ] Implement hourly check per display
-- [ ] Clear expired notes and broadcast
-- [ ] Add tests
+- [x] Add timezone-aware AM/PM detection
+- [x] Implement override expiry (1 hour timeout)
+- [x] Add minute-interval check for override expiry
+- [x] Broadcast state changes via SSE
+- [x] Add tests
+
+### 1.3 Note Expiry ✓
+
+**Tasks:**
+- [x] Implement hourly check per display
+- [x] Clear expired notes and broadcast
+- [x] Add tests
 
 ---
 

@@ -49,15 +49,22 @@ export class DisplayDatabase {
   }
 
   /**
-   * Create a new display
+   * Create a new display with domain structure
    */
   createDisplay() {
     const id = this.generateId();
     const pairCode = this.generatePairCode();
     const tableData = JSON.stringify({
-      headers: [],
-      rows: [],
-      displaySettings: { startRow: 0, rowCount: 10 }
+      settings: {
+        timezone: 'Australia/Sydney',
+        timeMode: 'AUTO',
+        overrideUntil: null,
+        zoomLevel: 2,
+        currentPage: 0
+      },
+      feeds: [],
+      horses: [],
+      diet: {}
     });
 
     this.db.prepare(`

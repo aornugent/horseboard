@@ -38,7 +38,7 @@ describe('Display API', () => {
   });
 
   describe('GET /api/displays/:id', () => {
-    it('returns display data', async () => {
+    it('returns display data with domain structure', async () => {
       const created = await request(app).post('/api/displays');
 
       const res = await request(app)
@@ -47,8 +47,11 @@ describe('Display API', () => {
 
       assert.strictEqual(res.body.id, created.body.id);
       assert.ok(res.body.tableData, 'should have tableData');
-      assert.ok(Array.isArray(res.body.tableData.headers), 'headers should be array');
-      assert.ok(Array.isArray(res.body.tableData.rows), 'rows should be array');
+      assert.ok(res.body.tableData.settings, 'should have settings');
+      assert.strictEqual(res.body.tableData.settings.timeMode, 'AUTO', 'should have timeMode');
+      assert.ok(Array.isArray(res.body.tableData.feeds), 'feeds should be array');
+      assert.ok(Array.isArray(res.body.tableData.horses), 'horses should be array');
+      assert.ok(typeof res.body.tableData.diet === 'object', 'diet should be object');
     });
 
     it('returns 404 for non-existent display', async () => {

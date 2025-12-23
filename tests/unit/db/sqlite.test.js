@@ -85,12 +85,15 @@ describe('SQLite Database', () => {
       assert.strictEqual(found, null);
     });
 
-    it('returns parsed tableData', () => {
+    it('returns parsed tableData with domain structure', () => {
       const created = db.createDisplay();
       const found = db.getDisplayById(created.id);
 
-      assert.ok(Array.isArray(found.tableData.headers), 'headers should be array');
-      assert.ok(Array.isArray(found.tableData.rows), 'rows should be array');
+      assert.ok(found.tableData.settings, 'should have settings');
+      assert.strictEqual(found.tableData.settings.timeMode, 'AUTO', 'should have timeMode');
+      assert.ok(Array.isArray(found.tableData.feeds), 'feeds should be array');
+      assert.ok(Array.isArray(found.tableData.horses), 'horses should be array');
+      assert.ok(typeof found.tableData.diet === 'object', 'diet should be object');
     });
   });
 
