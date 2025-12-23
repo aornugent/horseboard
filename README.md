@@ -59,6 +59,20 @@ npm test              # Run tests
 npm run test:watch    # Watch mode
 ```
 
+## Deployment (Railway)
+
+This app deploys to [Railway](https://railway.app) with zero configuration.
+
+**Environment variables:**
+- `PORT` — Set automatically by Railway
+- `DB_PATH` — SQLite database path (default: `./data/horseboard.db`)
+
+**Node version:** Pinned to Node 20 LTS via `package.json` engines field. Railway reads this automatically via Nixpacks.
+
+**Persistent storage:** Mount a volume at `/app/data` for SQLite persistence.
+
+**GitHub Actions:** CI runs tests on push/PR. Deploy workflow requires `RAILWAY_TOKEN` secret (create at Railway → Account Settings → Tokens).
+
 ## Documentation
 
 | Document | Contents |
