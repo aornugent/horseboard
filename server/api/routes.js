@@ -3,7 +3,7 @@ import { Router } from 'express';
 /**
  * Create API routes
  */
-export function createRoutes(displayService, sseManager) {
+export function createRoutes(displayService, sseManager, timeModeService) {
   const router = Router();
 
   /**
@@ -126,6 +126,57 @@ export function createRoutes(displayService, sseManager) {
     res.on('close', () => {
       clearInterval(keepAlive);
     });
+  });
+
+  /**
+   * GET /api/displays/:id/time-mode - Get current time mode
+   */
+  router.get('/displays/:id/time-mode', (req, res) => {
+    if (!timeModeService) {
+      return res.status(500).json({ error: 'Time mode service not available' });
+    }
+
+    const result = timeModeService.getCurrentMode(req.params.id);
+
+    if (!result.success) {
+      const status = result.error === 'Display not found' ? 404 : 400;
+      return res.status(status).json({ success: false, error: result.error });
+    }
+
+    res.json(result);
+  });
+
+  /**
+   * PUT /api/displays/:id/time-mode - Set time mode override
+   */
+  router.put('/displays/:id/time-mode', (req, res) => {
+    if (!timeModeService) {
+      return res.status(500).json({ error: 'Time mode service not available' });
+    }
+
+    const { mode } = req.body;
+
+    if (!mode) {
+      return res.status(400).json({ success: false, error: 'mode is required' });
+    }
+
+    if (mode === 'AUTO') {
+      const result = timeModeService.clearOverride(req.params.id);
+      if (!result.success) {
+        const status = result.error === 'Display not found' ? 404 : 400;
+        return res.status(status).json(result);
+      }
+      return res.json(result);
+    }
+
+    const result = timeModeService.setOverride(req.params.id, mode);
+
+    if (!result.success) {
+      const status = result.error === 'Display not found' ? 404 : 400;
+      return res.status(status).json(result);
+    }
+
+    res.json(result);
   });
 
   return router;
