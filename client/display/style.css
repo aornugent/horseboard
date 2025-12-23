@@ -110,44 +110,123 @@ body {
   background: #1a1a2e;
 }
 
-.table-container {
+.grid-container {
   flex: 1;
   overflow: auto;
   width: 100%;
-  max-height: calc(100vh - 6rem);
+  max-height: calc(100vh - 8rem);
 }
 
-#data-table {
-  width: 100%;
-  border-collapse: collapse;
+/* Feed Grid Layout */
+.feed-grid {
+  display: grid;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.1);
   font-size: 1.5rem;
+  min-width: 100%;
 }
 
-#data-table th {
+/* Grid Cell Base Styles */
+.grid-cell {
+  background: #1a1a2e;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Header Row */
+.grid-cell.header {
   background: #0f3460;
   color: #4fc3f7;
-  padding: 1rem 1.5rem;
-  text-align: left;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 2px solid #4fc3f7;
   position: sticky;
   top: 0;
+  z-index: 10;
 }
 
-#data-table td {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.grid-cell.header.feed-label {
+  z-index: 11;
+}
+
+.grid-cell.header.horse-name {
+  justify-content: center;
+  text-align: center;
+}
+
+/* Feed Name Column */
+.grid-cell.feed-name {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  background: #16213e;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+.grid-cell.feed-name .name {
+  font-weight: 500;
   color: #e0e0e0;
 }
 
-#data-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.03);
+.grid-cell.feed-name .unit {
+  font-size: 0.75em;
+  color: #888;
+  margin-top: 0.2rem;
 }
 
-#data-table tbody tr:hover {
-  background: rgba(79, 195, 247, 0.1);
+/* Value Cells */
+.grid-cell.value {
+  justify-content: center;
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.grid-cell.value.empty {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* Footer Row (Notes) */
+.grid-cell.footer {
+  background: #0f3460;
+  border-top: 2px solid #4fc3f7;
+}
+
+.grid-cell.footer.notes-label {
+  color: #4fc3f7;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+.grid-cell.footer.note {
+  color: #ffeb3b;
+  font-size: 1rem;
+  font-style: italic;
+  text-align: center;
+  justify-content: center;
+}
+
+/* Time Indicator */
+.time-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(15, 52, 96, 0.9);
+  padding: 0.5rem 1.5rem;
+  border-radius: 2rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #4fc3f7;
+  border: 2px solid #4fc3f7;
+  z-index: 100;
 }
 
 /* Pagination */
@@ -223,13 +302,21 @@ body {
     font-size: 3.5rem;
   }
 
-  #data-table {
+  .feed-grid {
     font-size: 2rem;
   }
 
-  #data-table th,
-  #data-table td {
+  .grid-cell {
     padding: 1.5rem 2rem;
+  }
+
+  .grid-cell.value {
+    font-size: 2.5rem;
+  }
+
+  .time-indicator {
+    font-size: 1.5rem;
+    padding: 0.75rem 2rem;
   }
 }
 
@@ -244,7 +331,20 @@ body {
     font-size: 1.5rem;
   }
 
-  #data-table {
+  .feed-grid {
     font-size: 1rem;
+  }
+
+  .grid-cell {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .grid-cell.value {
+    font-size: 1.2rem;
+  }
+
+  .time-indicator {
+    font-size: 0.9rem;
+    padding: 0.4rem 1rem;
   }
 }

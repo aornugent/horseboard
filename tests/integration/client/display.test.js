@@ -46,7 +46,7 @@ describe('Display Client', () => {
         .expect('Content-Type', /css/);
 
       assert.ok(res.text.includes('.pair-code'), 'should have pair-code styles');
-      assert.ok(res.text.includes('#data-table'), 'should have table styles');
+      assert.ok(res.text.includes('.feed-grid'), 'should have feed grid styles');
     });
 
     it('serves app.js at /display/app.js', async () => {
@@ -57,7 +57,7 @@ describe('Display Client', () => {
 
       assert.ok(res.text.includes('createDisplay'), 'should have createDisplay function');
       assert.ok(res.text.includes('connectSSE'), 'should have connectSSE function');
-      assert.ok(res.text.includes('renderTable'), 'should have renderTable function');
+      assert.ok(res.text.includes('renderFeedGrid'), 'should have renderFeedGrid function');
     });
   });
 

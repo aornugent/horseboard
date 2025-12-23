@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phase 1 is complete:
+Phase 1 and Phase 2 are complete:
 - Express server with SQLite persistence
 - Display CRUD API with pairing
 - SSE for real-time updates
@@ -11,13 +11,17 @@ Phase 1 is complete:
 - Cascade cleanup of orphaned diet entries
 - Timezone-aware AM/PM time mode with override expiry
 - Automatic note expiry with hourly checks
-- TV display app (pairing + table rendering)
+- TV display app with CSS Grid feed grid (horses as columns, feeds as rows)
+- Fraction display (0.5 → ½, 0.25 → ¼, etc.)
+- Time mode AM/PM value display with time indicator
+- Pagination based on zoom level (1=10, 2=7, 3=5 horses per page)
+- Notes footer row display
 - Mobile controller PWA (pairing + generic table editor)
 - 113 automated tests passing
 
 ## What's Next
 
-Transform the generic table editor into a domain-specific feed management system.
+Transform the generic mobile controller into a domain-specific feed management system (Phase 3).
 
 ---
 
@@ -61,29 +65,29 @@ Migrate `table_data` from generic headers/rows to domain structure:
 
 ---
 
-## Phase 2: TV Feed Grid
+## Phase 2: TV Feed Grid ✓
 
-### 2.1 Grid Layout
-
-**Tasks:**
-- [ ] Refactor to CSS Grid layout
-- [ ] Horses as columns, feeds as rows
-- [ ] Dynamic column count based on zoom level
-- [ ] Notes as footer row
-- [ ] Only show feeds with non-zero values
-
-### 2.2 Value Formatting
+### 2.1 Grid Layout ✓
 
 **Tasks:**
-- [ ] Create fraction utility (0.5 → ½, 0.25 → ¼, etc.)
-- [ ] Show AM or PM values based on time mode
-- [ ] Blank for 0/null (preserve row height)
+- [x] Refactor to CSS Grid layout
+- [x] Horses as columns, feeds as rows
+- [x] Dynamic column count based on zoom level
+- [x] Notes as footer row
+- [x] Only show feeds with non-zero values
 
-### 2.3 Pagination
+### 2.2 Value Formatting ✓
 
 **Tasks:**
-- [ ] Implement page slicing based on zoom level
-- [ ] Show current page indicator
+- [x] Create fraction utility (0.5 → ½, 0.25 → ¼, etc.)
+- [x] Show AM or PM values based on time mode
+- [x] Blank for 0/null (preserve row height)
+
+### 2.3 Pagination ✓
+
+**Tasks:**
+- [x] Implement page slicing based on zoom level
+- [x] Show current page indicator
 
 ---
 
