@@ -1,352 +1,174 @@
 # Implementation Plan
 
-## Overview
+## Current State
 
-This plan outlines the implementation of the Dynamic Information Board MVP using a web-first architecture.
+The core infrastructure is complete:
+- Express server with SQLite persistence
+- Display CRUD API with pairing
+- SSE for real-time updates
+- TV display app (pairing + table rendering)
+- Mobile controller PWA (pairing + generic table editor)
+- 68 automated tests passing
 
-### Project Structure
+## What's Next
 
-```
-horseboard/
-├── server/
-│   ├── index.js           # Express server entry point
-│   ├── api/
-│   │   ├── routes.js      # API route definitions
-│   │   └── sse.js         # Server-Sent Events handler
-│   ├── services/
-│   │   └── display.js     # Business logic
-│   └── db/
-│       └── sqlite.js      # SQLite database layer
-├── client/
-│   ├── display/           # TV display web app
-│   │   ├── index.html
-│   │   ├── style.css
-│   │   └── app.js
-│   └── controller/        # Mobile controller PWA
-│       ├── index.html
-│       ├── style.css
-│       ├── app.js
-│       └── manifest.json  # PWA manifest
-├── tests/
-│   ├── unit/              # Unit tests
-│   └── integration/       # Integration tests
-├── package.json
-└── README.md
-```
+Transform the generic table editor into a domain-specific feed management system.
 
 ---
 
-## Phase 1: Project Setup ✅ COMPLETE
+## Phase 1: Domain Data Model
 
-### 1.1 Initialize Project Structure
+### 1.1 Update Data Schema
 
-**Tasks:**
-- [x] Create directory structure
-- [x] Initialize `package.json` with dependencies
-- [x] Set up Express server
-- [x] Configure static file serving
+Migrate `table_data` from generic headers/rows to domain structure:
 
-**Dependencies:**
 ```json
 {
-  "dependencies": {
-    "express": "^4.18.2",
-    "better-sqlite3": "^11.0.0",
-    "cors": "^2.8.5"
-  },
-  "devDependencies": {
-    "supertest": "^7.0.0"
-  }
+  "settings": { "timezone", "timeMode", "overrideUntil", "zoomLevel", "currentPage" },
+  "feeds": [{ "id", "name", "unit", "rank" }],
+  "horses": [{ "id", "name", "note", "noteExpiry", "noteCreatedAt" }],
+  "diet": { "horseId": { "feedId": { "am", "pm" } } }
 }
 ```
 
-**Files created:**
-- `server/index.js` - Express app initialization
-- `package.json` - Project configuration
+**Tasks:**
+- [ ] Update validation in `PUT /api/displays/:id`
+- [ ] Add server-side feed ranking on save
+- [ ] Add cascade cleanup (remove orphaned diet entries)
+- [ ] Initialize new displays with empty domain structure
+- [ ] Add tests for new validation and processing
 
-### 1.2 Database Layer
+### 1.2 Time Mode Logic
 
 **Tasks:**
-- [x] Create SQLite database schema
-- [x] Implement CRUD operations for displays
-- [x] Add auto-initialization on startup
-- [x] Add unit tests (15 tests)
+- [ ] Add timezone-aware AM/PM detection
+- [ ] Implement override expiry (1 hour timeout)
+- [ ] Add minute-interval check for override expiry
+- [ ] Broadcast state changes via SSE
+- [ ] Add tests
 
-**Schema:**
-```sql
-CREATE TABLE displays (
-  id TEXT PRIMARY KEY,
-  pair_code TEXT UNIQUE,
-  table_data TEXT,  -- JSON string
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
+### 1.3 Note Expiry
 
-**Files created:**
-- `server/db/sqlite.js` - Database operations
-- `tests/unit/db/sqlite.test.js` - Database unit tests
+**Tasks:**
+- [ ] Implement hourly check per display
+- [ ] Clear expired notes and broadcast
+- [ ] Add tests
 
 ---
 
-## Phase 2: Backend API ✅ COMPLETE
+## Phase 2: TV Feed Grid
 
-### 2.1 Core API Endpoints
-
-**Tasks:**
-- [x] `POST /api/displays` - Create new display (generates ID + pair code)
-- [x] `POST /api/pair` - Pair controller with display using code
-- [x] `GET /api/displays/:id` - Get display data
-- [x] `PUT /api/displays/:id` - Update table data
-- [x] `DELETE /api/displays/:id` - Remove display
-- [x] Add integration tests (19 tests)
-
-**Files created:**
-- `server/api/routes.js` - Route definitions
-- `server/services/display.js` - Business logic
-- `tests/integration/api/displays.test.js` - Display API tests
-- `tests/integration/api/pairing.test.js` - Pairing API tests
-
-### 2.2 Server-Sent Events (SSE)
+### 2.1 Grid Layout
 
 **Tasks:**
-- [x] `GET /api/displays/:id/events` - SSE endpoint for real-time updates
-- [x] Implement client connection tracking
-- [x] Broadcast updates when data changes
-- [x] Add integration tests (7 tests)
+- [ ] Refactor to CSS Grid layout
+- [ ] Horses as columns, feeds as rows
+- [ ] Dynamic column count based on zoom level
+- [ ] Notes as footer row
+- [ ] Only show feeds with non-zero values
 
-**How SSE works:**
-```
-TV connects to /api/displays/ABC123/events
-  ↓
-Server keeps connection open
-  ↓
-Mobile updates data via PUT /api/displays/ABC123
-  ↓
-Server broadcasts to all SSE clients for ABC123
-  ↓
-TV receives update instantly
-```
+### 2.2 Value Formatting
 
-**Files created:**
-- `server/api/sse.js` - SSE connection manager
-- `tests/integration/api/sse.test.js` - SSE tests
+**Tasks:**
+- [ ] Create fraction utility (0.5 → ½, 0.25 → ¼, etc.)
+- [ ] Show AM or PM values based on time mode
+- [ ] Blank for 0/null (preserve row height)
+
+### 2.3 Pagination
+
+**Tasks:**
+- [ ] Implement page slicing based on zoom level
+- [ ] Show current page indicator
 
 ---
 
-## Phase 3: TV Display (Web App) ✅ COMPLETE
+## Phase 3: Mobile Controller Redesign
 
-### 3.1 Pairing Screen
-
-**Tasks:**
-- [x] Create minimal HTML/CSS layout
-- [x] On load: call `POST /api/displays` to get pair code
-- [x] Display 6-digit code prominently
-- [x] Store display ID in localStorage
-
-**UI:**
-```
-┌─────────────────────────────────┐
-│                                 │
-│     Enter this code on your     │
-│           mobile device         │
-│                                 │
-│          ┌─────────┐            │
-│          │ 847291  │            │
-│          └─────────┘            │
-│                                 │
-│     yourapp.com                 │
-│                                 │
-└─────────────────────────────────┘
-```
-
-### 3.2 Table Display Screen
+### 3.1 Tab Navigation
 
 **Tasks:**
-- [x] Connect to SSE endpoint after pairing
-- [x] Render table from JSON data
-- [x] Handle empty state gracefully
-- [x] Auto-scale table to fit screen
-- [x] Support pagination display (show "Page X of Y")
+- [ ] Add tab bar: [Board] [Horses] [Feeds] [Reports]
+- [ ] Persist current tab in session
 
-**Files created:**
-- `client/display/index.html`
-- `client/display/style.css`
-- `client/display/app.js`
+### 3.2 Board Tab
+
+**Tasks:**
+- [ ] Mirror TV grid layout
+- [ ] Tap cell → numeric keypad popover
+- [ ] Tap horse name → open horse detail
+- [ ] Tap note → edit note text
+- [ ] AM/PM/AUTO toggle
+- [ ] Zoom controls [-] [+]
+- [ ] Pagination controls
+
+### 3.3 Horses Tab
+
+**Tasks:**
+- [ ] Horse list view (cards)
+- [ ] Horse detail modal:
+  - [ ] Clone diet dropdown (copy from another horse)
+  - [ ] Notes field with expiry toggle (None, 24h, 48h)
+  - [ ] Stale note warning (>24h without expiry)
+  - [ ] Active feeds section (editable)
+  - [ ] Inactive feeds section (tap to add)
+- [ ] Numeric input with step="0.25"
+
+### 3.4 Feeds Tab
+
+**Tasks:**
+- [ ] Create/rename/delete feeds
+- [ ] Set unit (Scoop, ml, Biscuit, Sachet)
+- [ ] Cascade delete confirmation
+
+### 3.5 Reports Tab
+
+**Tasks:**
+- [ ] Calculate weekly consumption per feed
+- [ ] Display table: Feed | Weekly | Unit
+- [ ] Round to 2 decimal places
 
 ---
 
-## Phase 4: Mobile Controller (PWA) ✅ COMPLETE
+## Phase 4: Polish
 
-### 4.1 Pairing Screen
-
-**Tasks:**
-- [x] Create code input UI (6 digit boxes)
-- [x] Call `POST /api/pair` with entered code
-- [x] Store display ID on successful pair
-- [x] Navigate to editor on success
-
-**UI:**
-```
-┌─────────────────────┐
-│                     │
-│  Enter the code     │
-│  shown on your TV   │
-│                     │
-│  ┌─┬─┬─┬─┬─┬─┐      │
-│  │8│4│7│2│9│1│      │
-│  └─┴─┴─┴─┴─┴─┘      │
-│                     │
-│  [ Connect ]        │
-│                     │
-└─────────────────────┘
-```
-
-### 4.2 Table Editor
-
-**Tasks:**
-- [x] Fetch current table data on load
-- [x] Render editable table grid
-- [x] Tap cell to edit (inline or modal)
-- [x] Add row button (bottom)
-- [x] Add column button (right side)
-- [x] Delete row/column (delete buttons with confirmation)
-- [x] Column header double-click to sort (A-Z / Z-A toggle)
-- [x] Save changes → `PUT /api/displays/:id`
-
-**UI:**
-```
-┌─────────────────────────────┐
-│  ← Your Board        [Save] │
-├─────────────────────────────┤
-│  Task    │ Owner  │ Status  │
-├──────────┼────────┼─────────┤
-│  Buy milk│ Alice  │ To Do   │
-│  Walk dog│ Bob    │ Done    │
-│  [+ Add Row]                │
-├─────────────────────────────┤
-│  Page 1 of 3   < 1 2 3 >    │
-└─────────────────────────────┘
-```
-
-### 4.3 TV Pagination Control
-
-**Tasks:**
-- [x] Show "TV View" toggle/section
-- [x] Allow selecting which rows to display on TV
-- [x] Send display slice with update
-
-**Files created:**
-- `client/controller/index.html`
-- `client/controller/style.css`
-- `client/controller/app.js`
-- `client/controller/manifest.json`
-
----
-
-## Phase 5: PWA Features ✅ COMPLETE
-
-### 5.1 Make Controller Installable
-
-**Tasks:**
-- [x] Create `manifest.json` with app metadata
-- [x] Add service worker for basic caching
-- [x] Add "Add to Home Screen" prompt
-- [x] Configure app icons (SVG-based, multiple sizes)
-
-**Files created:**
-- `client/controller/sw.js` - Service worker with cache-first strategy
-- Updated `manifest.json` with proper PWA configuration
-- Updated `app.js` with install prompt handling
-
-**Features:**
-- Offline support for static assets
-- Custom install banner with dismiss option
-- Network-first with cache fallback for API calls
-
----
-
-## Phase 6: Polish & Error Handling
-
-### 6.1 Error States
+### 4.1 Error Handling
 
 **Tasks:**
 - [ ] TV: "Connection lost" overlay with retry
-- [ ] TV: "Waiting for data" state
-- [ ] Mobile: Network error toast notifications
-- [ ] Mobile: Invalid pairing code feedback
+- [ ] Mobile: Network error notifications
 - [ ] Mobile: Sync status indicator
 
-### 6.2 UX Improvements
+### 4.2 UX
 
 **Tasks:**
-- [ ] TV: Smooth transitions between states
-- [ ] TV: Auto-reconnect SSE on disconnect
-- [ ] Mobile: Optimistic UI updates
-- [ ] Mobile: Pull-to-refresh
-- [ ] Mobile: Debounce saves (don't save on every keystroke)
+- [ ] TV: Smooth transitions
+- [ ] TV: Auto-reconnect SSE
+- [ ] Mobile: Debounce saves
+- [ ] Timezone selector in settings
 
 ---
 
-## Implementation Order
+## Testing Additions
 
-| Step | Task | Complexity | Status |
-|------|------|------------|--------|
-| 1 | Project setup + Express server | Low | ✅ Done |
-| 2 | SQLite database layer | Low | ✅ Done |
-| 3 | API routes (CRUD) | Medium | ✅ Done |
-| 4 | SSE implementation | Medium | ✅ Done |
-| 5 | TV display - pairing screen | Low | ✅ Done |
-| 6 | TV display - table rendering | Medium | ✅ Done |
-| 7 | Mobile - pairing screen | Low | ✅ Done |
-| 8 | Mobile - table editor | High | ✅ Done |
-| 9 | Mobile - sorting & pagination | Medium | ✅ Done |
-| 10 | PWA manifest + service worker | Low | ✅ Done |
-| 11 | Error handling & polish | Medium | Pending |
+| Suite | Description |
+|-------|-------------|
+| Domain validation | Feed/horse/diet structure |
+| Feed ranking | Usage-based rank calculation |
+| Time mode | AM/PM detection, override expiry |
+| Note expiry | Hourly cleanup |
+| Reports | Weekly consumption calculation |
 
 ---
 
-## Testing
+## Manual Testing Checklist
 
-### Automated Tests (68 tests, all passing)
-
-```bash
-npm test
-```
-
-| Suite | Tests | Description |
-|-------|-------|-------------|
-| SQLite Database | 15 | CRUD operations, schema, uniqueness |
-| Display API | 12 | Create, read, update, delete endpoints |
-| Pairing API | 7 | Code validation, pairing flow |
-| SSE API | 7 | Streaming, broadcasting, connection handling |
-| Controller Client | 19 | Pairing, editing, sorting, session persistence |
-| Display Client | 8 | Static files, SSE workflow, pairing integration |
-
-### Manual Testing Flow
-
-1. [ ] Open `localhost:3000/display` in browser (simulating TV)
-2. [ ] Verify 6-digit code appears
-3. [ ] Open `localhost:3000/controller` on phone/second browser
-4. [ ] Enter pairing code
-5. [ ] Verify pairing succeeds and editor loads
-6. [ ] Add a row of data
-7. [ ] Verify TV updates in real-time (no refresh)
-8. [ ] Edit a cell
-9. [ ] Verify TV updates
-10. [ ] Test sorting by clicking column header
-11. [ ] Refresh TV page - verify data persists
-12. [ ] Restart server - verify data persists (SQLite)
-
----
-
-## Success Criteria
-
-MVP is complete when:
-
-- [ ] TV shows pairing code on first load
-- [ ] Mobile can pair using the code
-- [ ] Mobile can edit table data (add/edit/delete rows)
-- [ ] TV updates in real-time when mobile saves
-- [ ] Data persists across server restarts
-- [ ] Works on actual TV browser + mobile phone browser
+1. [ ] Start server, open `/display` on TV
+2. [ ] Open `/controller` on phone, pair
+3. [ ] Add horses and feeds
+4. [ ] Set diet quantities (AM/PM)
+5. [ ] Verify TV updates in real-time
+6. [ ] Test AM/PM toggle and auto-detection
+7. [ ] Test zoom and pagination
+8. [ ] Add note with 24h expiry, verify it clears
+9. [ ] Delete a feed, verify diet entries removed
+10. [ ] Check reports show correct weekly totals

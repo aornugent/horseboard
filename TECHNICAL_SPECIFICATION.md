@@ -1,14 +1,19 @@
-# Technical Specification: Dynamic Information Board
+# Technical Specification: Horse Feed Management System
 
 ## 1. Overview
 
-This document outlines the technical details for the Minimum Viable Product (MVP) of a software service that transforms any large screen into a dynamic, remotely-managed information board optimized for displaying tabular data.
+HorseBoard is a feed management system for equine care. It displays feeding schedules on a stable TV and allows editing via a mobile controller (PWA).
 
-**Core user experience:** "Edit a table on my phone, and it instantly appears on my big screen."
+**Core experience:** Update feeding quantities on your phone, see them instantly on the stable TV.
+
+**Domain Model:**
+- **Columns** = Horses
+- **Rows** = Feeds/Supplements
+- **Cells** = Quantities (AM/PM values with units)
+
+**Scoping:** One display = one stable. All horses, feeds, and diets belong to that display. Creating a new display starts a fresh stable with no shared data.
 
 ## 2. System Architecture
-
-The system uses a unified web-first architecture with three components served from a single Node.js server:
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -20,35 +25,121 @@ The system uses a unified web-first architecture with three components served fr
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Backend | Node.js + Express | API, SSE, static file serving, SQLite |
-| TV Display | Vanilla HTML/CSS/JS | Shows pairing code, renders table |
-| Mobile Controller | PWA (HTML/CSS/JS) | Pairing, table editing |
+| Backend | Node.js + Express | API, SSE, SQLite, business logic |
+| TV Display | Vanilla HTML/CSS/JS | Renders feed grid, listens for updates |
+| Mobile Controller | PWA (HTML/CSS/JS) | Pairing, editing, display control |
 
-## 3. Component Details
+**Design principles:**
+- TV is a "dumb renderer" - receives state, renders it
+- Controller is the "command center" - all editing happens here
+- Server owns business logic - ranking, time mode, note expiry
 
-### 3.1 Backend Server
+## 3. Data Architecture
 
-**Technology:** Node.js with Express.js
+### 3.1 Database Schema
 
-**Database:** SQLite (file-based persistence)
+**SQLite Database:** `./data/horseboard.db`
 
-**Schema:**
 ```sql
 CREATE TABLE displays (
   id TEXT PRIMARY KEY,
   pair_code TEXT UNIQUE,
-  table_data TEXT,          -- JSON string
+  table_data TEXT,          -- JSON blob (see 3.2)
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-**API Endpoints:**
+### 3.2 Table Data Structure
+
+The `table_data` column stores a JSON blob:
+
+```json
+{
+  "settings": {
+    "timezone": "Australia/Sydney",
+    "timeMode": "AUTO",
+    "overrideUntil": null,
+    "zoomLevel": 2,
+    "currentPage": 0
+  },
+  "feeds": [
+    { "id": "f1", "name": "Easisport", "unit": "scoop", "rank": 1 },
+    { "id": "f2", "name": "Bute", "unit": "sachet", "rank": 2 }
+  ],
+  "horses": [
+    {
+      "id": "h1",
+      "name": "Spider",
+      "note": "Turn out early",
+      "noteExpiry": 1735460000,
+      "noteCreatedAt": 1735400000
+    }
+  ],
+  "diet": {
+    "h1": {
+      "f1": { "am": 0.5, "pm": 0.5 },
+      "f2": { "am": 1, "pm": 0 }
+    }
+  }
+}
+```
+
+### 3.3 Field Definitions
+
+#### Settings
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `timezone` | `string` | IANA timezone (e.g., "Australia/Sydney") |
+| `timeMode` | `"AUTO" \| "AM" \| "PM"` | Current display mode |
+| `overrideUntil` | `number \| null` | Unix timestamp when manual override expires |
+| `zoomLevel` | `number` | Columns per page (1=10, 2=7, 3=5 horses) |
+| `currentPage` | `number` | Pagination index (0-based) |
+
+#### Feed
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique identifier (e.g., "f1") |
+| `name` | `string` | Display name |
+| `unit` | `string` | Unit of measure (scoop, ml, sachet, biscuit) |
+| `rank` | `number` | Usage-based ranking (lower = more popular) |
+
+#### Horse
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique identifier (e.g., "h1") |
+| `name` | `string` | Horse name |
+| `note` | `string` | Optional note text |
+| `noteExpiry` | `number \| null` | Unix timestamp when note auto-clears |
+| `noteCreatedAt` | `number` | Unix timestamp when note was created |
+
+#### Diet
+
+Nested object keyed by horse ID, then feed ID:
+
+```json
+{
+  "h1": {
+    "f1": { "am": 0.5, "pm": 0.5 }
+  }
+}
+```
+
+**Value semantics:**
+- `0` = Deliberate zero (horse gets none)
+- `null` or missing key = Feed not assigned to horse
+- Both calculate as 0 in reports
+
+## 4. API Reference
+
+### 4.1 Display Lifecycle
 
 #### `POST /api/displays`
-Create a new display session.
 
-*Request:* None (empty body)
+Create a new display (stable).
 
 *Response (201):*
 ```json
@@ -59,54 +150,28 @@ Create a new display session.
 ```
 
 #### `GET /api/displays/:id`
-Retrieve current display data.
+
+Retrieve display data.
 
 *Response (200):*
 ```json
 {
   "id": "d_abc123def456",
   "pairCode": "847291",
-  "tableData": {
-    "headers": ["Task", "Owner", "Status"],
-    "rows": [
-      ["Buy milk", "Alice", "To Do"],
-      ["Walk dog", "Bob", "Done"]
-    ],
-    "displaySettings": {
-      "startRow": 0,
-      "rowCount": 10
-    }
-  },
+  "tableData": { /* see 3.2 */ },
   "createdAt": "2024-01-15T10:30:00.000Z",
   "updatedAt": "2024-01-15T10:30:00.000Z"
 }
 ```
 
-*Response (404):*
-```json
-{
-  "error": "Display not found"
-}
-```
-
 #### `PUT /api/displays/:id`
-Update table data for a display.
+
+Update display data. This is the primary endpoint for all edits.
 
 *Request:*
 ```json
 {
-  "tableData": {
-    "headers": ["Task", "Owner", "Status"],
-    "rows": [
-      ["Buy milk", "Alice", "To Do"],
-      ["Walk dog", "Bob", "Done"],
-      ["Mow lawn", "Charlie", "To Do"]
-    ],
-    "displaySettings": {
-      "startRow": 0,
-      "rowCount": 10
-    }
-  }
+  "tableData": { /* see 3.2 */ }
 }
 ```
 
@@ -118,24 +183,15 @@ Update table data for a display.
 }
 ```
 
-*Response (400 - validation error):*
-```json
-{
-  "success": false,
-  "error": "Invalid table data format"
-}
-```
-
-*Response (404):*
-```json
-{
-  "success": false,
-  "error": "Display not found"
-}
-```
+**Server-side processing on save:**
+1. Validate structure (settings, feeds, horses, diet)
+2. Recalculate feed rankings based on usage
+3. Clean up orphaned diet entries (if a feed was removed from `feeds[]`)
+4. Broadcast update to SSE clients
 
 #### `DELETE /api/displays/:id`
-Remove a display.
+
+Remove a display and all its data.
 
 *Response (200):*
 ```json
@@ -144,15 +200,11 @@ Remove a display.
 }
 ```
 
-*Response (404):*
-```json
-{
-  "error": "Display not found"
-}
-```
+### 4.2 Pairing
 
 #### `POST /api/pair`
-Pair a mobile controller with a display using the 6-digit code.
+
+Pair a controller with a display using the 6-digit code.
 
 *Request:*
 ```json
@@ -161,11 +213,9 @@ Pair a mobile controller with a display using the 6-digit code.
 }
 ```
 
-*Validation:*
-- `code` must be a string
-- `code` must be exactly 6 digits (regex: `/^\d{6}$/`)
+*Validation:* Code must be exactly 6 digits.
 
-*Response (200 - Success):*
+*Response (200):*
 ```json
 {
   "success": true,
@@ -173,15 +223,7 @@ Pair a mobile controller with a display using the 6-digit code.
 }
 ```
 
-*Response (400 - validation error):*
-```json
-{
-  "success": false,
-  "error": "Code must be 6 digits"
-}
-```
-
-*Response (404 - invalid code):*
+*Response (404):*
 ```json
 {
   "success": false,
@@ -189,42 +231,38 @@ Pair a mobile controller with a display using the 6-digit code.
 }
 ```
 
+### 4.3 Server-Sent Events
+
 #### `GET /api/displays/:id/events`
-Server-Sent Events endpoint for real-time updates.
+
+SSE endpoint for real-time updates.
 
 *Headers:*
 ```
 Content-Type: text/event-stream
 Cache-Control: no-cache
 Connection: keep-alive
-X-Accel-Buffering: no
 ```
 
-*Response:* SSE stream
+*Event types:*
 
+| Event | Payload | When |
+|-------|---------|------|
+| `update` | Full `tableData` | Any data change |
+| (comment) | `: keepalive` | Every 30 seconds |
+
+*Example:*
 ```
-data: {"tableData": {...}, "updatedAt": "2024-01-15T10:30:00.000Z"}
+data: {"settings":{...},"feeds":[...],"horses":[...],"diet":{...}}
 
 : keepalive
 
-data: {"tableData": {...}, "updatedAt": "2024-01-15T10:35:00.000Z"}
+data: {"settings":{...},"feeds":[...],"horses":[...],"diet":{...}}
 ```
 
-*Behavior:*
-- Sends current state immediately on connection
-- Sends keepalive comment (`: keepalive\n\n`) every 30 seconds
-- Broadcasts updates when `PUT /api/displays/:id` is called
-- Connection stays open until client disconnects
-
-*Response (404):*
-```json
-{
-  "error": "Display not found"
-}
-```
+### 4.4 Health Check
 
 #### `GET /health`
-Health check endpoint.
 
 *Response (200):*
 ```json
@@ -234,206 +272,234 @@ Health check endpoint.
 }
 ```
 
-### 3.2 Input Validation
+## 5. Server Business Logic
 
-#### Table Data Validation
+### 5.1 Feed Ranking
 
-The `tableData` object must satisfy:
+On every `PUT /api/displays/:id`:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `headers` | `string[]` | Yes | Column headers (can be empty) |
-| `rows` | `string[][]` | Yes | Row data (can be empty) |
-| `displaySettings` | `object` | No | TV display settings |
+1. Count horses using each feed (where AM > 0 or PM > 0)
+2. Sort feeds by usage count (descending)
+3. Assign `rank` values (1 = most used)
 
-Each row must be an array. Non-array rows are rejected.
+Popular feeds appear first in the controller's "Add Feed" list.
 
-#### Pair Code Validation
+### 5.2 Cascade Cleanup
 
-| Rule | Description |
-|------|-------------|
-| Type | Must be a string |
-| Length | Exactly 6 characters |
-| Format | Digits only (0-9) |
+On every `PUT /api/displays/:id`:
 
-### 3.3 TV Display (Web App)
+If a feed ID exists in `diet` but not in `feeds[]`, remove it from `diet`. This handles feed deletion without requiring a separate endpoint.
 
-**URL:** `/display` or `/display/`
+### 5.3 Time Mode (AM/PM)
 
-**Technology:** Vanilla HTML, CSS, JavaScript
+**Auto detection** uses the display's configured timezone:
+- 04:00 - 11:59 local time = AM
+- 12:00 - 03:59 local time = PM
 
-**Behavior:**
-1. On load, check localStorage for existing `displayId`
-2. If none, call `POST /api/displays` to create new session
-3. Display 6-digit pairing code prominently
-4. Connect to SSE endpoint `/api/displays/:id/events`
-5. When data arrives, render table and hide pairing code
-6. Auto-reconnect SSE on disconnect
+**Manual override:**
+1. User sets `timeMode` to "AM" or "PM"
+2. Set `overrideUntil` to current time + 1 hour
+3. After expiry, server resets to "AUTO" on next check
 
-**UI States:**
-- **Pairing:** Large centered 6-digit code with instructions
-- **Connected (no data):** "Waiting for data..." message
-- **Connected (with data):** Full-screen table display
+Server checks override expiry every minute and broadcasts if changed.
 
-### 3.4 Mobile Controller (PWA)
+### 5.4 Note Expiry
 
-**URL:** `/controller` or `/controller/`
-
-**Technology:** HTML, CSS, JavaScript (vanilla or lightweight framework)
-
-**Screens:**
-
-#### Pairing Screen
-- 6-digit code input (individual boxes)
-- "Connect" button
-- Error feedback for invalid codes
-
-#### Table Editor Screen
-- Editable grid with headers and rows
-- Tap cell to edit (inline or modal input)
-- "Add Row" button at bottom
-- "Add Column" button (or via menu)
-- Column header tap toggles sort (A-Z → Z-A → unsorted)
-- Pagination controls for large tables
-- "TV View" section to select which rows display on TV
-- Save button (or auto-save with debounce)
-
-**PWA Features:**
-- `manifest.json` for installability
-- Service worker for basic offline caching
-- App icons for home screen
-
-## 4. Data Structures
-
-### Table Data Format
-
-```json
-{
-  "headers": ["Column1", "Column2", "Column3"],
-  "rows": [
-    ["value1a", "value1b", "value1c"],
-    ["value2a", "value2b", "value2c"]
-  ],
-  "displaySettings": {
-    "startRow": 0,
-    "rowCount": 10,
-    "sortColumn": null,
-    "sortDirection": "asc"
-  }
-}
-```
-
-### SSE Message Format
-
-Messages are sent as unnamed events with JSON data:
+Server checks every hour (per display timezone):
 
 ```
-data: {"tableData": {...}, "updatedAt": "2024-01-15T10:30:00.000Z"}
-
+for each horse:
+  if noteExpiry != null AND noteExpiry < now:
+    clear note and noteExpiry
+    broadcast update
 ```
 
-Keepalive comments are sent every 30 seconds:
+### 5.5 Pagination
+
+| Zoom Level | Horses/Page | Use Case |
+|------------|-------------|----------|
+| 1 | 10 | Many horses, small text |
+| 2 | 7 | Default |
+| 3 | 5 | Few horses, large text |
+
+Total pages = `ceil(horses.length / horsesPerPage)`
+
+## 6. TV Display
+
+### 6.1 Grid Layout
+
+- **Header row:** Horse names
+- **Body rows:** One per feed (showing AM or PM value based on time mode)
+- **Footer row:** Horse notes
+
+Only show feeds that have at least one non-zero value across all horses.
+
+### 6.2 Value Formatting
+
+| Decimal | Display |
+|---------|---------|
+| 0.25 | ¼ |
+| 0.33 | ⅓ |
+| 0.5 | ½ |
+| 0.75 | ¾ |
+| Other | Value + unit (e.g., "0.7 ml") |
+| 0 or null | Blank |
+
+### 6.3 Behavior
+
+1. Check localStorage for `displayId`
+2. If none, `POST /api/displays` to create session
+3. Show pairing code until data arrives
+4. Connect to SSE, render grid on updates
+5. Auto-reconnect on disconnect
+
+**URL:** `/display`
+
+## 7. Mobile Controller
+
+### 7.1 Navigation
+
+Tab bar: **[Board] [Horses] [Feeds] [Reports]**
+
+### 7.2 Board Tab
+
+Mirror of TV grid with editing:
+
+- Tap cell → Numeric keypad for quantity
+- Tap horse name → Open horse detail
+- Tap note → Edit note text
+
+**Controls:**
+- AM/PM/AUTO toggle
+- Zoom: [-] [+]
+- Page: [<] [Page X of Y] [>]
+
+### 7.3 Horses Tab
+
+List of horse cards. Tapping opens detail modal:
+
+- **Header:** Name + "Clone Diet From" dropdown
+- **Notes:** Text field + expiry (None, 24h, 48h)
+- **Warning:** Highlight if note >24h old without expiry
+- **Feeds:** Active feeds (editable) + inactive feeds (tap to add)
+
+Feed input: `[Name] [AM] [PM] [Unit]` with `step="0.25"`
+
+### 7.4 Feeds Tab
+
+Manage master feed list:
+- Create, rename, delete feeds
+- Set unit (Scoop, ml, Biscuit, Sachet)
+- Delete confirmation (cascades to diet)
+
+### 7.5 Reports Tab
+
+Weekly consumption per feed:
+
+1. Sum all AM + PM values across horses
+2. Multiply by 7
+3. Round to 2 decimal places
+
+| Feed | Weekly | Unit |
+|------|--------|------|
+| Easisport | 45.50 | scoops |
+| Bute | 14.00 | sachets |
+
+**URL:** `/controller`
+
+## 8. Data Flow
+
+### 8.1 Pairing
 
 ```
-: keepalive
+TV: POST /api/displays → receives displayId + pairCode
+TV: Shows "847291" on screen
+TV: Connects to /api/displays/:id/events
 
+Mobile: User enters "847291"
+Mobile: POST /api/pair {code} → receives displayId
+Mobile: Stores displayId, loads data
 ```
 
-## 5. Data Flow
-
-### Pairing Flow
+### 8.2 Editing
 
 ```
-1. TV opens /display
-   → POST /api/displays
-   ← {id: "d_abc123", pairCode: "847291"}
-   → Display "847291" on screen
-   → Connect to /api/displays/d_abc123/events (SSE)
+Mobile: User changes Spider's Easisport to 0.5
+Mobile: PUT /api/displays/:id {tableData: {...}}
 
-2. Mobile opens /controller
-   → User enters "847291"
-   → POST /api/pair {code: "847291"}
-   ← {success: true, displayId: "d_abc123"}
-   → Store displayId, navigate to editor
+Server: Validates, recalculates ranks
+Server: Broadcasts to SSE clients
+
+TV: Receives update, re-renders grid
 ```
 
-### Edit Flow
+## 9. Validation
 
-```
-1. Mobile: User edits cell
-   → PUT /api/displays/d_abc123 {tableData: {...}}
-   ← {success: true, updatedAt: "..."}
+### 9.1 Quantities
 
-2. Server: Broadcasts to SSE clients
-   → SSE event to TV
+| Input | Stored | Report Value |
+|-------|--------|--------------|
+| Empty | Key deleted | 0 |
+| 0 | `0` | 0 |
+| 0.5 | `0.5` | 0.5 |
 
-3. TV: Receives SSE event
-   → Re-renders table with new data
-```
+### 9.2 Pair Code
 
-## 6. Configuration
+- String, exactly 6 digits, 0-9 only
 
-**Environment Variables:**
+### 9.3 Table Data
+
+Required structure:
+- `settings` object with `timezone`, `timeMode`, `zoomLevel`, `currentPage`
+- `feeds` array of feed objects
+- `horses` array of horse objects
+- `diet` object
+
+## 10. Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | Server port |
-| `DB_PATH` | `./data/horseboard.db` | SQLite database path |
+| `DB_PATH` | `./data/horseboard.db` | Database path |
 
-**Network Configuration:**
-- TV and mobile must be able to reach the server
-- For local development: use machine's local IP
-- For production: deploy to public URL
+## 11. Error Handling
 
-## 7. Error Handling
-
-### HTTP Status Codes
-
-| Code | Usage |
-|------|-------|
-| 200 | Successful GET, PUT, DELETE |
-| 201 | Successful POST (resource created) |
-| 400 | Validation error (bad input) |
-| 404 | Resource not found |
+| Code | Meaning |
+|------|---------|
+| 200 | Success (GET, PUT, DELETE) |
+| 201 | Created (POST) |
+| 400 | Validation error |
+| 404 | Not found |
 | 500 | Server error |
-
-### Error Response Format
-
-```json
-{
-  "error": "Human-readable error message"
-}
-```
-
-Or for operations with success flag:
 
 ```json
 {
   "success": false,
-  "error": "Human-readable error message"
+  "error": "Human-readable message"
 }
 ```
 
-## 8. Future Considerations
+## 12. Concurrency
 
-These are out of scope for MVP but inform design decisions:
+**Strategy:** Last Write Wins
 
-### Post-MVP Improvements
+MVP supports one controller per display. If multiple controllers edit simultaneously, the last save wins. This is acceptable because:
+- Edits are usually to different horses
+- Conflicts are rare in practice
 
-| Item | Priority | Description |
-|------|----------|-------------|
-| Pair code expiration | Medium | Add `expires_at` column, auto-cleanup after 24h |
-| Rate limiting | Medium | Prevent abuse on public endpoints |
-| tableData size limit | Medium | Cap at ~1MB to prevent memory issues |
-| Display cleanup | Low | Remove displays inactive for 30+ days |
-| Pair code collision | Low | Replace recursive generation with loop |
+## 13. Constraints
 
-### Future Features
+- **No build step:** Vanilla JS, ES Modules
+- **CSS Grid:** For dynamic column sizing
+- **Denormalized:** Single JSON blob per display (simpler than normalized tables for MVP)
 
-- **User authentication:** Add login, associate displays with user accounts
-- **Multiple displays:** One user manages multiple TV displays
-- **Rich content:** Images, formatted text, multiple tables per display
-- **Offline editing:** Queue changes when offline, sync when reconnected
-- **Themes:** Customizable table styling and colors
-- **Sharing:** Generate shareable links for view-only access
-- **SSE authentication:** Validate display ownership before allowing subscription
+## 14. Future Considerations
+
+| Feature | Description |
+|---------|-------------|
+| Multiple controllers | Granular endpoints (`PUT /displays/:id/horses/:horseId/diet`) to reduce conflicts |
+| Historical tracking | Store feeding logs for accurate consumption reports over time |
+| Offline editing | Queue changes locally, sync when reconnected |
+| Inventory tracking | Track feed stock levels, alert when low |
+| User authentication | Associate displays with user accounts |
+| Pair code expiration | Auto-cleanup codes after 24h |
