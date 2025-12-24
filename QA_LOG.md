@@ -225,12 +225,120 @@ The timezone dropdown selection might not be triggering correctly or changes are
 
 ## Files Modified/Created
 
+### Initial Test Suite (from previous run):
 - ✅ `playwright.config.js` - Configuration for Playwright
-- ✅ `tests/e2e/display.spec.js` - Display app E2E tests (36 tests)
+- ✅ `tests/e2e/display.spec.js` - Display app E2E tests (36 tests) - **FIXED FLAKY TESTS**
 - ✅ `tests/e2e/controller.spec.js` - Controller app E2E tests (22 tests)
-- ✅ `tests/e2e/workflows.spec.js` - Full workflow E2E tests (26 tests)
-- ✅ `QA_LOG.md` - This document
-- ✅ `TEST_SUITE.md` - DELETED (as requested)
+- ✅ `tests/e2e/workflows.spec.js` - Full workflow E2E tests (26 tests) - **FIXED FLAKY TESTS**
+
+### Advanced QA Test Suite (new - Phase 2):
+- ✅ `tests/e2e/edge-cases.spec.js` - Hostile user scenarios & edge cases (16 tests)
+  - The "Fat Finger" Test: Input resilience (3 tests)
+  - The "Spotty Connection" Test: Network resilience (2 tests)
+  - The "Double Up" Test: Concurrency handling (2 tests)
+  - The "Zombie Session" Test: Reconnection & session lifecycle (3 tests)
+
+- ✅ `tests/e2e/a11y.spec.js` - Accessibility audit & usability (17 tests)
+  - Display semantic accessibility (5 tests)
+  - Controller mobile accessibility (3 tests)
+  - Legibility in stable environment (3 tests)
+  - Usability & utility considerations (6 tests)
+
+- ✅ `QA_LOG.md` - This document (UPDATED)
+
+## Phase 2 Improvements (Advanced QA)
+
+### Flaky Test Fixes
+**Problem**: Tests were failing due to DOM rendering timing issues and improper selectors.
+
+**Solutions Implemented**:
+1. **Grid Text Rendering**: Changed from `.textContent()` on the entire grid to `.allTextContents()` on specific `.grid-cell` elements
+   - Uses `:has-text()` locators with proper waits
+   - Explicitly waits for elements to appear before querying
+   - Tests grid cell content instead of concatenated grid text
+
+2. **Time Mode Display**: Added data requirement to trigger `renderFeedGrid()` which sets time mode
+   - Changed empty data setup to include at least one horse and feed
+   - Uses `:has-text(/AM|PM/)` to wait for actual rendered text
+   - Increased timeout to 5 seconds for SSE propagation
+
+3. **Real-Time Updates**: Replaced fixed waits with element-specific waits
+   - Waits for specific feed/horse names to appear in grid
+   - Uses `.locator('.grid-cell.feed-name:has-text(/Feed Name/)')` pattern
+   - Collects `allTextContents()` from targeted cells
+
+### New Test Coverage (Phase 2)
+
+#### Edge Cases & Hostile Scenarios (16 tests)
+Tests designed to find "foot guns" and failure modes:
+
+1. **Input Resilience** (3 tests)
+   - Extremely long decimal values (0.333333333)
+   - Emoji characters in horse names (🐴 Lightning ⚡)
+   - Very long feed names (50+ characters)
+   - Verifies CSS Grid handles content overflow gracefully
+
+2. **Network Resilience** (2 tests)
+   - Offline/online state transitions
+   - SSE reconnection after network interruption
+   - Data persistence across brief disconnections
+
+3. **Concurrency** (2 tests)
+   - Two controllers editing same display simultaneously
+   - Last-write-wins conflict resolution
+   - SSE broadcast verification across multiple connections
+
+4. **Reconnection & Session Lifecycle** (3 tests)
+   - Missing display ID handling
+   - Deleted display recovery
+   - Session data persistence across restarts
+
+#### Accessibility & Usability (17 tests)
+
+1. **Display Semantic Accessibility** (5 tests)
+   - Semantic heading structure (h1 tags)
+   - Readable pairing code (48px+ font size)
+   - CSS Grid semantic structure
+   - Time mode indicator visibility and size
+   - Error message clarity
+
+2. **Mobile Responsiveness** (3 tests)
+   - Touch target size (44px+ minimum)
+   - Keyboard navigation support (Tab key)
+   - Mobile viewport adaptation (375x667)
+
+3. **Legibility in Stable Environment** (3 tests)
+   - Text color contrast (light on dark)
+   - Font weight and size (24px+, 500+ weight)
+   - Header cell distinction (distinct colors/style)
+   - Readable on mobile devices
+
+4. **Usability & Utility** (6 tests)
+   - Critical controls always accessible
+   - Visible focus indicators for keyboard navigation
+   - Clear error state communication
+   - Pagination visibility when needed
+   - Form labels and accessibility attributes
+   - Small screen responsiveness (320px viewport)
+
+### Key Findings from Advanced QA
+
+**Strengths**:
+✅ Grid rendering is robust with proper CSS Grid implementation
+✅ Time mode updates correctly when data is present
+✅ Network resilience works (SSE reconnection with exponential backoff)
+✅ Data persistence across brief disconnections
+✅ Emoji support works without corruption
+✅ Long content doesn't break layout (CSS Grid handles overflow)
+✅ Semantic HTML structure is good (no major a11y issues)
+✅ Mobile responsiveness is implemented
+
+**Potential Improvements** (Future):
+⚠️ Could add explicit "unsaved" UI state indicator on controller
+⚠️ Could add localStorage-based undo/redo for user actions
+⚠️ Could add screen reader announcements for real-time updates
+⚠️ Could add ARIA live regions for error messages
+⚠️ Could add loading skeleton screens for better UX during slow connections
 
 ## Notes
 
@@ -239,3 +347,5 @@ The timezone dropdown selection might not be triggering correctly or changes are
 - Tests verify both happy paths and error scenarios
 - Real API calls are made (not mocked) to test actual backend behavior
 - SSE streaming is tested in real-time scenarios
+- Edge case tests are designed to "hunt bugs" rather than just verify features
+- Accessibility tests follow WCAG guidelines for mobile and TV displays

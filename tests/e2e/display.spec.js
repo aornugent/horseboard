@@ -188,9 +188,13 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for grid to be visible and contain data
+      await displayPage.waitForSelector('.grid-cell.value', { timeout: 5000 });
+      await displayPage.waitForTimeout(300);
 
-      const gridText = await displayPage.locator('#feed-grid').textContent();
+      // Get all value cells and check their text content
+      const valueCells = await displayPage.locator('.grid-cell.value').allTextContents();
+      const gridText = valueCells.join(' ');
 
       // Should contain fraction symbols
       expect(gridText).toContain('½'); // 0.5
@@ -209,7 +213,7 @@ test.describe('TV Display App', () => {
         return localStorage.getItem('horseboard_display_id');
       });
 
-      // Set AUTO mode
+      // Set AUTO mode with at least one horse to trigger renderFeedGrid
       const testData = {
         settings: {
           timezone: 'Australia/Sydney',
@@ -218,19 +222,23 @@ test.describe('TV Display App', () => {
           zoomLevel: 2,
           currentPage: 0
         },
-        feeds: [],
-        horses: [],
-        diet: {}
+        feeds: [{ id: 'f1', name: 'Test', unit: 'scoop', rank: 1 }],
+        horses: [{ id: 'h1', name: 'Test', note: null, noteExpiry: null }],
+        diet: { h1: { f1: { am: 1, pm: 0 } } }
       };
 
       await displayPage.request.put(`/api/displays/${displayId}`, {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for time mode element to have text content
+      await displayPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
 
       const timeModeIndicator = displayPage.locator('#time-mode');
       await expect(timeModeIndicator).toBeVisible();
+      const modeText = await timeModeIndicator.textContent();
+      expect(modeText).toBeTruthy();
+      expect(modeText).toMatch(/^(AM|PM|AUTO)$/);
 
       await displayPage.close();
     });
@@ -243,7 +251,7 @@ test.describe('TV Display App', () => {
         return localStorage.getItem('horseboard_display_id');
       });
 
-      // Initial AUTO mode
+      // Initial AUTO mode with data
       let testData = {
         settings: {
           timezone: 'Australia/Sydney',
@@ -252,16 +260,17 @@ test.describe('TV Display App', () => {
           zoomLevel: 2,
           currentPage: 0
         },
-        feeds: [],
-        horses: [],
-        diet: {}
+        feeds: [{ id: 'f1', name: 'Test', unit: 'scoop', rank: 1 }],
+        horses: [{ id: 'h1', name: 'Test', note: null, noteExpiry: null }],
+        diet: { h1: { f1: { am: 1, pm: 0 } } }
       };
 
       await displayPage.request.put(`/api/displays/${displayId}`, {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(300);
+      // Wait for initial time mode to render
+      await displayPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
 
       // Change to PM
       testData.settings.timeMode = 'PM';
@@ -269,11 +278,12 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for time mode to update to PM
+      await displayPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
 
       const timeModeIndicator = displayPage.locator('#time-mode');
       const modeText = await timeModeIndicator.textContent();
-      expect(modeText).toContain('PM');
+      expect(modeText).toBe('PM');
 
       await displayPage.close();
     });
@@ -312,7 +322,8 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for initial feed name to appear
+      await displayPage.locator('.grid-cell.feed-name:has-text(/Initial Feed/)').waitFor({ timeout: 5000 });
 
       // Update the feed name
       testData.feeds[0].name = 'Updated Feed';
@@ -321,9 +332,11 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for updated feed name to appear
+      await displayPage.locator('.grid-cell.feed-name:has-text(/Updated Feed/)').waitFor({ timeout: 5000 });
 
-      const gridText = await displayPage.locator('#feed-grid').textContent();
+      const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
+      const gridText = feedNameCells.join(' ');
       expect(gridText).toContain('Updated Feed');
 
       await displayPage.close();
@@ -363,10 +376,11 @@ test.describe('TV Display App', () => {
         });
       }
 
-      await displayPage.waitForTimeout(500);
+      // Wait for final feed name to appear in grid
+      await displayPage.locator('.grid-cell.feed-name:has-text(/Feed 4/)').waitFor({ timeout: 5000 });
 
-      // Final update should be displayed
-      const gridText = await displayPage.locator('#feed-grid').textContent();
+      const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
+      const gridText = feedNameCells.join(' ');
       expect(gridText).toContain('Feed 4');
 
       await displayPage.close();
@@ -459,9 +473,11 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for the note to appear in the grid
+      await displayPage.locator('.grid-cell.note:has-text(/Turn out early/)').waitFor({ timeout: 5000 });
 
-      const gridText = await displayPage.locator('#feed-grid').textContent();
+      const noteCells = await displayPage.locator('.grid-cell.note').allTextContents();
+      const gridText = noteCells.join(' ');
       expect(gridText).toContain('Turn out early');
 
       await displayPage.close();

@@ -95,10 +95,12 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: initialData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for initial feed to appear on display
+      await tvPage.locator('.grid-cell.feed-name:has-text(/Initial Feed/)').waitFor({ timeout: 5000 });
 
       // Verify display shows initial feed
-      let tvGridText = await tvPage.locator('#feed-grid').textContent();
+      let feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
+      let tvGridText = feedNameCells.join(' ');
       expect(tvGridText).toContain('Initial Feed');
 
       // Update feed name via API (simulating controller edit)
@@ -113,10 +115,12 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: updatedData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for updated feed name to appear on display
+      await tvPage.locator('.grid-cell.feed-name:has-text(/Updated Feed/)').waitFor({ timeout: 5000 });
 
       // Verify display shows updated feed
-      tvGridText = await tvPage.locator('#feed-grid').textContent();
+      feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
+      tvGridText = feedNameCells.join(' ');
       expect(tvGridText).toContain('Updated Feed');
       expect(tvGridText).not.toContain('Initial Feed');
 
@@ -147,7 +151,7 @@ test.describe('End-to-End Workflows', () => {
       await controllerPage.locator('#editor-screen').waitFor({ state: 'visible' });
       await controllerPage.waitForTimeout(500);
 
-      // Set initial AUTO mode
+      // Set initial AUTO mode with data to trigger renderFeedGrid
       const testData = {
         settings: {
           timezone: 'Australia/Sydney',
@@ -156,16 +160,17 @@ test.describe('End-to-End Workflows', () => {
           zoomLevel: 2,
           currentPage: 0
         },
-        feeds: [],
-        horses: [],
-        diet: {}
+        feeds: [{ id: 'f1', name: 'Test', unit: 'scoop', rank: 1 }],
+        horses: [{ id: 'h1', name: 'Test', note: null, noteExpiry: null }],
+        diet: { h1: { f1: { am: 1, pm: 0 } } }
       };
 
       await controllerPage.request.put(`/api/displays/${displayId}`, {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(300);
+      // Wait for initial time mode to render
+      await tvPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
 
       // Change to PM mode
       testData.settings.timeMode = 'PM';
@@ -173,11 +178,12 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for time mode to update to PM
+      await tvPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
 
       // Verify TV displays PM
       const timeModeText = await tvPage.locator('#time-mode').textContent();
-      expect(timeModeText).toContain('PM');
+      expect(timeModeText).toBe('PM');
 
       await tvPage.close();
       await controllerPage.close();
