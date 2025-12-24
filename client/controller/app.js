@@ -35,7 +35,7 @@ let currentTab = 'board';
 // Modal state
 let editingQuantity = { horseId: null, feedId: null, period: null };
 let editingNote = { horseId: null };
-let editingHorse = { id: null, isNew: false };
+let editingHorse = { id: null, isNew: false, tempDiet: {} };
 let editingFeed = { id: null, isNew: false };
 let deleteTarget = { type: null, id: null };
 
@@ -785,12 +785,13 @@ function renderHorsesList() {
 
 function openHorseModal(horseId) {
   const isNew = !horseId;
-  editingHorse = { id: horseId, isNew };
+  editingHorse = { id: horseId, isNew, tempDiet: {} };
 
   const modal = document.getElementById('horse-modal');
   const title = document.getElementById('horse-modal-title');
   const nameInput = document.getElementById('horse-name-input');
   const cloneSelect = document.getElementById('clone-diet-select');
+  const cloneRow = modal.querySelector('.horse-clone-row');
   const noteInput = document.getElementById('horse-note-input');
   const noteExpiry = document.getElementById('horse-note-expiry');
   const deleteBtn = modal.querySelector('.delete-horse-btn');
@@ -826,14 +827,26 @@ function openHorseModal(horseId) {
     deleteBtn.classList.remove('hidden');
   }
 
-  // Populate clone dropdown
+  // Populate clone dropdown - only show horses with actual diet data
+  const horsesWithDiet = tableData.horses.filter(h => {
+    if (h.id === horseId) return false;
+    const diet = tableData.diet[h.id];
+    if (!diet) return false;
+    return Object.keys(diet).length > 0;
+  });
+
   cloneSelect.innerHTML = '<option value="">-- Select horse --</option>';
-  tableData.horses.filter(h => h.id !== horseId).forEach(h => {
+  horsesWithDiet.forEach(h => {
     const option = document.createElement('option');
     option.value = h.id;
     option.textContent = h.name;
     cloneSelect.appendChild(option);
   });
+
+  // Hide clone row if no feeds exist or no horses with diet to clone from
+  const hasFeeds = tableData.feeds.length > 0;
+  const hasHorsesToClone = horsesWithDiet.length > 0;
+  cloneRow.classList.toggle('hidden', !hasFeeds || !hasHorsesToClone);
 
   // Render feeds in horse modal
   renderHorseFeedsInModal(horseId);
@@ -845,11 +858,22 @@ function openHorseModal(horseId) {
 function renderHorseFeedsInModal(horseId) {
   const activeContainer = document.getElementById('horse-active-feeds');
   const inactiveContainer = document.getElementById('horse-inactive-feeds');
+  const feedsSectionHeadings = document.querySelectorAll('.horse-feeds-section h3');
 
   activeContainer.innerHTML = '';
   inactiveContainer.innerHTML = '';
 
-  const horseDiet = horseId ? (tableData.diet[horseId] || {}) : {};
+  // If no feeds exist, show helpful message and hide feed-related sections
+  if (tableData.feeds.length === 0) {
+    activeContainer.innerHTML = '<div class="reports-empty" style="padding: 0.5rem;">No feeds in system</div>';
+    inactiveContainer.innerHTML = '<div class="reports-empty" style="padding: 0.5rem;">Add feeds in the Feeds tab first</div>';
+    return;
+  }
+
+  // For new horses, use tempDiet; for existing horses, use tableData.diet
+  const horseDiet = editingHorse.isNew
+    ? editingHorse.tempDiet
+    : (tableData.diet[horseId] || {});
 
   // Active feeds (have values)
   const activeFeeds = tableData.feeds.filter(feed => {
@@ -880,9 +904,13 @@ function renderHorseFeedsInModal(horseId) {
       row.className = 'horse-feed-row';
       row.innerHTML = `<span class="horse-feed-name">${feed.name}</span><span class="horse-feed-unit">Tap to add</span>`;
       row.addEventListener('click', () => {
-        // Add this feed to the horse
-        if (!tableData.diet[horseId]) tableData.diet[horseId] = {};
-        tableData.diet[horseId][feed.id] = { am: 0, pm: 0 };
+        // Add this feed - use tempDiet for new horses
+        if (editingHorse.isNew) {
+          editingHorse.tempDiet[feed.id] = { am: 0, pm: 0 };
+        } else {
+          if (!tableData.diet[horseId]) tableData.diet[horseId] = {};
+          tableData.diet[horseId][feed.id] = { am: 0, pm: 0 };
+        }
         renderHorseFeedsInModal(horseId);
       });
       inactiveContainer.appendChild(row);
@@ -911,9 +939,15 @@ function createHorseFeedRow(feed, dietData, horseId) {
       const feedId = input.dataset.feedId;
       const value = input.value === '' ? null : parseFloat(input.value);
 
-      if (!tableData.diet[horseId]) tableData.diet[horseId] = {};
-      if (!tableData.diet[horseId][feedId]) tableData.diet[horseId][feedId] = { am: null, pm: null };
-      tableData.diet[horseId][feedId][period] = value;
+      // Use tempDiet for new horses
+      if (editingHorse.isNew) {
+        if (!editingHorse.tempDiet[feedId]) editingHorse.tempDiet[feedId] = { am: null, pm: null };
+        editingHorse.tempDiet[feedId][period] = value;
+      } else {
+        if (!tableData.diet[horseId]) tableData.diet[horseId] = {};
+        if (!tableData.diet[horseId][feedId]) tableData.diet[horseId][feedId] = { am: null, pm: null };
+        tableData.diet[horseId][feedId][period] = value;
+      }
     });
   });
 
@@ -922,11 +956,11 @@ function createHorseFeedRow(feed, dietData, horseId) {
 
 function closeHorseModal() {
   document.getElementById('horse-modal').classList.add('hidden');
-  editingHorse = { id: null, isNew: false };
+  editingHorse = { id: null, isNew: false, tempDiet: {} };
 }
 
 function saveHorse() {
-  const { id, isNew } = editingHorse;
+  const { id, isNew, tempDiet } = editingHorse;
   const name = document.getElementById('horse-name-input').value.trim();
 
   if (!name) {
@@ -949,29 +983,37 @@ function saveHorse() {
     };
     tableData.horses.push(horse);
 
-    // Clone diet if selected
+    // Apply diet: clone from another horse OR use tempDiet from modal
     if (cloneFromId && tableData.diet[cloneFromId]) {
       tableData.diet[horse.id] = JSON.parse(JSON.stringify(tableData.diet[cloneFromId]));
+    } else if (Object.keys(tempDiet).length > 0) {
+      // Collect final values from modal inputs and apply tempDiet
+      const finalDiet = {};
+      document.querySelectorAll('#horse-active-feeds .horse-feed-row input').forEach(input => {
+        const period = input.dataset.period;
+        const feedId = input.dataset.feedId;
+        const value = input.value === '' ? null : parseFloat(input.value);
+
+        if (!finalDiet[feedId]) finalDiet[feedId] = { am: null, pm: null };
+        finalDiet[feedId][period] = value;
+      });
+
+      // Clean up entries where both am and pm are null
+      Object.keys(finalDiet).forEach(feedId => {
+        if (finalDiet[feedId].am === null && finalDiet[feedId].pm === null) {
+          delete finalDiet[feedId];
+        }
+      });
+
+      if (Object.keys(finalDiet).length > 0) {
+        tableData.diet[horse.id] = finalDiet;
+      }
     }
   } else {
     horse = tableData.horses.find(h => h.id === id);
     horse.name = name;
-  }
 
-  // Update note
-  horse.note = note;
-  if (note && expiryHours) {
-    horse.noteExpiry = Date.now() + parseInt(expiryHours) * 60 * 60 * 1000;
-    horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
-  } else {
-    horse.noteExpiry = null;
-    if (note) {
-      horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
-    }
-  }
-
-  // If editing, collect diet changes from modal inputs
-  if (!isNew) {
+    // For existing horses, collect diet changes from modal inputs
     document.querySelectorAll('#horse-active-feeds .horse-feed-row input').forEach(input => {
       const period = input.dataset.period;
       const feedId = input.dataset.feedId;
@@ -993,6 +1035,18 @@ function saveHorse() {
       if (Object.keys(tableData.diet[id]).length === 0) {
         delete tableData.diet[id];
       }
+    }
+  }
+
+  // Update note
+  horse.note = note;
+  if (note && expiryHours) {
+    horse.noteExpiry = Date.now() + parseInt(expiryHours) * 60 * 60 * 1000;
+    horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
+  } else {
+    horse.noteExpiry = null;
+    if (note) {
+      horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
     }
   }
 
