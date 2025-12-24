@@ -393,6 +393,7 @@ body {
   background: var(--border-color);
   border-radius: 0.5rem;
   overflow: hidden;
+  width: max-content;
   min-width: 100%;
 }
 
