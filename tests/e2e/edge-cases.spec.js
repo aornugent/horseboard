@@ -306,6 +306,10 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const controller2Page = await context.newPage();
       await controller2Page.goto('/controller');
 
+      // Clear localStorage to ensure fresh pairing (different "device")
+      await controller2Page.evaluate(() => localStorage.clear());
+      await controller2Page.reload();
+
       // Wait for pairing screen to be ready before filling inputs
       await controller2Page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
@@ -402,6 +406,10 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Controller 2
       const controller2Page = await context.newPage();
       await controller2Page.goto('/controller');
+
+      // Clear localStorage to ensure fresh pairing (different "device")
+      await controller2Page.evaluate(() => localStorage.clear());
+      await controller2Page.reload();
 
       // Wait for pairing screen to be ready before filling inputs
       await controller2Page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
