@@ -235,6 +235,33 @@ body {
   transition: all 0.3s ease;
 }
 
+/* Pairing Code Display */
+.pairing-code-display {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: rgba(15, 52, 96, 0.9);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #4fc3f7;
+  border: 1px solid #4fc3f7;
+  z-index: 100;
+  letter-spacing: 0.1em;
+}
+
+#pairing-code-label {
+  color: #888;
+  margin-right: 0.5rem;
+}
+
+#pairing-code-value {
+  color: #4fc3f7;
+  font-weight: 700;
+}
+
 /* Pagination */
 .pagination {
   padding: 1rem;
