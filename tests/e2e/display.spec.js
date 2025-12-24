@@ -95,12 +95,12 @@ test.describe('TV Display App', () => {
 
       expect(response.ok()).toBeTruthy();
 
-      // Wait for SSE update
-      await displayPage.waitForTimeout(500);
+      // Wait for SSE update and table screen to appear
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
       // Display should now show table (not empty)
-      const tableScreen = displayPage.locator('#table-screen');
-      await expect(tableScreen).not.toHaveClass(/hidden/);
+      await expect(tableScreen).toBeVisible();
 
       await displayPage.close();
     });
@@ -142,15 +142,17 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for the table screen to show with grid
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
       // Grid should exist and be visible
       const feedGrid = displayPage.locator('#feed-grid');
       await expect(feedGrid).toBeVisible();
 
-      // Should contain horse headers
-      const headers = displayPage.locator('.feed-grid-header');
-      expect(headers).toBeTruthy();
+      // Should contain horse headers (look for the actual header cells)
+      const horseHeaders = displayPage.locator('.grid-cell.header.horse-name');
+      expect(await horseHeaders.count()).toBeGreaterThan(0);
 
       await displayPage.close();
     });
@@ -187,13 +189,17 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      // Wait for grid to be visible and contain data
-      await displayPage.waitForSelector('.grid-cell.value', { timeout: 5000 });
-      await displayPage.waitForTimeout(300);
+      // Wait for table screen and grid to be visible
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
+
+      // Wait for grid value cells to appear with data
+      const valueCells = displayPage.locator('.grid-cell.value');
+      await valueCells.first().waitFor({ state: 'visible', timeout: 5000 });
 
       // Get all value cells and check their text content
-      const valueCells = await displayPage.locator('.grid-cell.value').allTextContents();
-      const gridText = valueCells.join(' ');
+      const valueContents = await valueCells.allTextContents();
+      const gridText = valueContents.join(' ');
 
       // Should contain fraction symbols
       expect(gridText).toContain('½'); // 0.5
@@ -335,6 +341,9 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
+      // Wait for table screen to be visible first
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       // Wait for initial feed name to appear
       await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Initial Feed' }).waitFor({ timeout: 5000 });
 
@@ -389,8 +398,9 @@ test.describe('TV Display App', () => {
         });
       }
 
-      // Wait for final feed name to appear in grid
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Feed 4/)').waitFor({ timeout: 5000 });
+      // Wait for table screen and final feed name to appear in grid
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Feed 4' }).waitFor({ timeout: 5000 });
 
       const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
       const gridText = feedNameCells.join(' ');
@@ -439,14 +449,18 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for table screen to be visible
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       // Pagination should be visible
       const pagination = displayPage.locator('#pagination');
-      // May be hidden initially if zoom allows all horses
+      // Wait for grid to render with multiple horses
+      await displayPage.locator('.grid-cell.horse-name').first().waitFor({ state: 'visible', timeout: 5000 });
+
+      // Should have pagination since we have 15 horses and zoom level 2 shows 7
       const pageInfo = displayPage.locator('#page-info');
-      // Should have page info if pagination is used
-      expect(pageInfo).toBeTruthy();
+      const pageText = await pageInfo.textContent();
+      expect(pageText).toMatch(/Page \d+ of \d+/);
 
       await displayPage.close();
     });
