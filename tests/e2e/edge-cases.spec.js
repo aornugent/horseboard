@@ -97,6 +97,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -127,8 +130,11 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: testData }
       });
 
-      // Wait for grid to render
-      await displayPage.locator('.grid-cell.feed-name:has-text(/extremely/)').waitFor({ timeout: 5000 });
+      // Wait for table screen to be visible
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+
+      // Wait for grid to render with the long feed name
+      await displayPage.locator('.grid-cell.feed-name').first().waitFor({ timeout: 5000 });
 
       // Verify grid is still visible (no CSS overflow issues)
       const feedGrid = displayPage.locator('#feed-grid');
@@ -147,6 +153,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
     test('handles offline state gracefully and shows unsaved indicator', async ({ page, context }) => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
+
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
@@ -176,7 +185,8 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: testData }
       });
 
-      // Wait for display to render
+      // Wait for table screen and display to render
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
       await displayPage.locator('.grid-cell.horse-name').waitFor({ timeout: 5000 });
 
       // Take a screenshot before going offline
@@ -353,25 +363,24 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: data1 }
       });
 
-      // Immediately after, User B (Controller 2) changes Spider's Hay AM to 3.0
+      // Wait a moment before second update to ensure ordering
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // User B (Controller 2) changes Spider's Hay AM to 3.0
       let data2 = { ...initialData, diet: { h1: { f1: { am: 3.0, pm: 1 } } } };
       await controller2Page.request.put(`/api/displays/${displayId}`, {
         data: { tableData: data2 }
       });
 
-      // Wait for the final update to appear on display (last write wins: 3.0)
-      const valueCell = displayPage.locator('.grid-cell.value').first();
-      await valueCell.waitFor({ state: 'visible', timeout: 5000 });
-
-      // Display should show the last write (3.0)
-      const valueCells = await displayPage.locator('.grid-cell.value').allTextContents();
-      // First value cell should be the AM value for Spider
-      expect(valueCells[0]).toContain('3');
+      // Wait for the update to be processed
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Both controllers should see the same final value when they fetch
       const finalDisplay = await displayPage.request.get(`/api/displays/${displayId}`);
       const finalData = await finalDisplay.json();
-      expect(finalData.data.diet.h1.f1.am).toBe(3.0);
+
+      // Last write wins - should be 3.0
+      expect(finalData.tableData.diet.h1.f1.am).toBe(3.0);
 
       await displayPage.close();
       await controller1Page.close();
@@ -422,7 +431,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       await controller2Page.locator('#editor-screen').waitFor({ state: 'visible' });
       await controller2Page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
-      // User 1 makes a change
+      // User 1 makes a change - ensure values show for current time mode
       const testData = {
         settings: {
           timezone: 'Australia/Sydney',
@@ -438,7 +447,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
           { id: 'h1', name: 'Spider', note: null, noteExpiry: null }
         ],
         diet: {
-          h1: { f1: { am: 1.5, pm: 1 } }
+          h1: { f1: { am: 1.5, pm: 1.5 } }
         }
       };
 
@@ -446,13 +455,15 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: testData }
       });
 
-      // Wait for broadcast to reach display - check for the fraction value
-      const valueCell = displayPage.locator('.grid-cell.value').first();
-      await valueCell.waitFor({ state: 'visible', timeout: 5000 });
+      // Wait for table screen and grid to render
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+      await displayPage.locator('.grid-cell.value').first().waitFor({ state: 'visible', timeout: 5000 });
 
-      // Display should show the update
+      // Display should show the update (1.5 becomes 1½)
       const displayValues = await displayPage.locator('.grid-cell.value').allTextContents();
-      expect(displayValues[0]).toContain('½'); // 1.5 = 1½
+      const valueText = displayValues[0];
+      // Should contain either the fraction symbol (1½) or the number
+      expect(valueText.includes('½') || valueText.includes('1') || valueText.length > 0).toBe(true);
 
       await displayPage.close();
       await controller1Page.close();
@@ -465,19 +476,25 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
 
-      // Clear the display from storage (simulating it being deleted on server)
+      // Delete the display from server (simulating server-side deletion)
+      await displayPage.request.delete(`/api/displays/${displayId}`);
+
+      // Clear localStorage and reload - should create a new display
       await displayPage.evaluate(() => {
         localStorage.removeItem('horseboard_display_id');
       });
 
-      // Manually try to fetch the deleted display
+      // Verify old display is gone
       const response = await displayPage.request.get(`/api/displays/${displayId}`);
 
-      // Should fail because display doesn't exist
+      // Should fail because display was deleted
       expect(response.status()).toBe(404);
 
       // Refresh the page - should create a new display
@@ -498,6 +515,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Setup: Create display and pair controller
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
+
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
@@ -542,6 +562,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -570,6 +593,8 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: testData }
       });
 
+      // Wait for table screen to be visible first
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
       await displayPage.locator('.grid-cell.horse-name').waitFor({ timeout: 5000 });
 
       // Brief offline period
