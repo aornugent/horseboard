@@ -572,7 +572,7 @@ function updateTimeModeButtons() {
 function updateZoomDisplay() {
   // Zoom controls affect the TV display, not the controller's scrollable view
   const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
-  document.getElementById('zoom-level').textContent = `TV: ${horsesPerPage}`;
+  document.getElementById('zoom-level').textContent = `# horses: ${horsesPerPage}`;
 }
 
 function updatePagination() {
@@ -581,7 +581,7 @@ function updatePagination() {
   const totalPages = Math.max(1, Math.ceil(tableData.horses.length / horsesPerPage));
   const currentPage = tableData.settings.currentPage || 0;
 
-  document.getElementById('page-indicator').textContent = `TV: ${currentPage + 1}/${totalPages}`;
+  document.getElementById('page-indicator').textContent = `Page: ${currentPage + 1}/${totalPages}`;
   document.getElementById('page-prev').disabled = currentPage === 0;
   document.getElementById('page-next').disabled = currentPage >= totalPages - 1;
 }
