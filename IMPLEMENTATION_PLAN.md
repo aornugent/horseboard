@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phase 1 and Phase 2 are complete:
+Phase 1, Phase 2, and Phase 3 are complete:
 - Express server with SQLite persistence
 - Display CRUD API with pairing
 - SSE for real-time updates
@@ -16,12 +16,18 @@ Phase 1 and Phase 2 are complete:
 - Time mode AM/PM value display with time indicator
 - Pagination based on zoom level (1=10, 2=7, 3=5 horses per page)
 - Notes footer row display
-- Mobile controller PWA (pairing + generic table editor)
+- Mobile controller PWA with domain-specific UI:
+  - Tab navigation (Board, Horses, Feeds, Reports)
+  - Board tab with grid, time mode toggle, zoom, pagination
+  - Horses tab with list, detail modal, feed management
+  - Feeds tab with create/rename/delete, unit selection
+  - Reports tab with weekly consumption calculation
+- Session tab persistence
 - 113 automated tests passing
 
 ## What's Next
 
-Transform the generic mobile controller into a domain-specific feed management system (Phase 3).
+Phase 4: Polish (error handling, UX improvements, sync status)
 
 ---
 
@@ -91,50 +97,50 @@ Migrate `table_data` from generic headers/rows to domain structure:
 
 ---
 
-## Phase 3: Mobile Controller Redesign
+## Phase 3: Mobile Controller Redesign ✓
 
-### 3.1 Tab Navigation
-
-**Tasks:**
-- [ ] Add tab bar: [Board] [Horses] [Feeds] [Reports]
-- [ ] Persist current tab in session
-
-### 3.2 Board Tab
+### 3.1 Tab Navigation ✓
 
 **Tasks:**
-- [ ] Mirror TV grid layout
-- [ ] Tap cell → numeric keypad popover
-- [ ] Tap horse name → open horse detail
-- [ ] Tap note → edit note text
-- [ ] AM/PM/AUTO toggle
-- [ ] Zoom controls [-] [+]
-- [ ] Pagination controls
+- [x] Add tab bar: [Board] [Horses] [Feeds] [Reports]
+- [x] Persist current tab in session
 
-### 3.3 Horses Tab
+### 3.2 Board Tab ✓
 
 **Tasks:**
-- [ ] Horse list view (cards)
-- [ ] Horse detail modal:
-  - [ ] Clone diet dropdown (copy from another horse)
-  - [ ] Notes field with expiry toggle (None, 24h, 48h)
-  - [ ] Stale note warning (>24h without expiry)
-  - [ ] Active feeds section (editable)
-  - [ ] Inactive feeds section (tap to add)
-- [ ] Numeric input with step="0.25"
+- [x] Mirror TV grid layout
+- [x] Tap cell → numeric keypad popover
+- [x] Tap horse name → open horse detail
+- [x] Tap note → edit note text
+- [x] AM/PM/AUTO toggle
+- [x] Zoom controls [-] [+]
+- [x] Pagination controls
 
-### 3.4 Feeds Tab
-
-**Tasks:**
-- [ ] Create/rename/delete feeds
-- [ ] Set unit (Scoop, ml, Biscuit, Sachet)
-- [ ] Cascade delete confirmation
-
-### 3.5 Reports Tab
+### 3.3 Horses Tab ✓
 
 **Tasks:**
-- [ ] Calculate weekly consumption per feed
-- [ ] Display table: Feed | Weekly | Unit
-- [ ] Round to 2 decimal places
+- [x] Horse list view (cards)
+- [x] Horse detail modal:
+  - [x] Clone diet dropdown (copy from another horse)
+  - [x] Notes field with expiry toggle (None, 24h, 48h)
+  - [x] Stale note warning (>24h without expiry)
+  - [x] Active feeds section (editable)
+  - [x] Inactive feeds section (tap to add)
+- [x] Numeric input with step="0.25"
+
+### 3.4 Feeds Tab ✓
+
+**Tasks:**
+- [x] Create/rename/delete feeds
+- [x] Set unit (Scoop, ml, Biscuit, Sachet)
+- [x] Cascade delete confirmation
+
+### 3.5 Reports Tab ✓
+
+**Tasks:**
+- [x] Calculate weekly consumption per feed
+- [x] Display table: Feed | Weekly | Unit
+- [x] Round to 2 decimal places
 
 ---
 
