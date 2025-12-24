@@ -46,6 +46,7 @@ const screens = {
 const elements = {
   pairCode: document.getElementById('pair-code'),
   controllerUrl: document.getElementById('controller-url'),
+  pairingCodeValue: document.getElementById('pairing-code-value'),
   feedGrid: document.getElementById('feed-grid'),
   pagination: document.getElementById('pagination'),
   pageInfo: document.getElementById('page-info'),
@@ -109,11 +110,14 @@ async function createDisplay() {
 }
 
 /**
- * Verify a display still exists
+ * Verify a display still exists and get its data
  */
 async function verifyDisplay(id) {
   const response = await fetch(`/api/displays/${id}`);
-  return response.ok;
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
 }
 
 /**
@@ -126,10 +130,12 @@ async function initDisplay() {
   const storedId = localStorage.getItem(STORAGE_KEY);
 
   if (storedId) {
-    // Verify it still exists
-    const exists = await verifyDisplay(storedId);
-    if (exists) {
+    // Verify it still exists and get its data
+    const displayData = await verifyDisplay(storedId);
+    if (displayData) {
       displayId = storedId;
+      // Display the pairing code
+      elements.pairingCodeValue.textContent = displayData.pairCode;
       connectSSE();
       return;
     }
@@ -146,6 +152,8 @@ async function initDisplay() {
     // Show pairing screen with code
     elements.pairCode.textContent = display.pairCode;
     elements.controllerUrl.textContent = `${window.location.origin}/controller`;
+    // Also display code in bottom-right corner
+    elements.pairingCodeValue.textContent = display.pairCode;
     showScreen('pairing');
 
     // Connect to SSE for updates
