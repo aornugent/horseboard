@@ -140,15 +140,15 @@ test.describe('Accessibility Audit (A11y)', () => {
 
       // Error overlay should exist in DOM
       const errorOverlay = page.locator('#error-overlay');
-      expect(errorOverlay).toBeTruthy();
+      expect(await errorOverlay.count()).toBeGreaterThan(0);
 
       // Error message should exist
       const errorMessage = page.locator('#error-message');
-      expect(errorMessage).toBeTruthy();
+      expect(await errorMessage.count()).toBeGreaterThan(0);
 
       // Retry button should exist and be visible when needed
       const retryBtn = page.locator('#retry-btn');
-      expect(retryBtn).toBeTruthy();
+      expect(await retryBtn.count()).toBeGreaterThan(0);
     });
 
     test('display is responsive on mobile viewports', async ({ page }) => {

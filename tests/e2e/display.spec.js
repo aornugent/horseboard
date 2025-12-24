@@ -41,6 +41,22 @@ test.describe('TV Display App', () => {
   });
 
   test.describe('Display Data Structure', () => {
+    let displayIds = [];
+
+    test.afterEach(async ({ context }) => {
+      // Cleanup any displays created during tests
+      for (const displayId of displayIds) {
+        try {
+          const cleanupPage = await context.newPage();
+          await cleanupPage.request.delete(`/api/displays/${displayId}`);
+          await cleanupPage.close();
+        } catch (error) {
+          // Ignore cleanup errors
+        }
+      }
+      displayIds = [];
+    });
+
     test('initially shows empty state', async ({ page }) => {
       await page.goto('/display');
 
@@ -65,6 +81,7 @@ test.describe('TV Display App', () => {
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
+      displayIds.push(displayId);
 
       // Create test data with valid domain structure
       const testData = {
@@ -95,8 +112,7 @@ test.describe('TV Display App', () => {
 
       expect(response.ok()).toBeTruthy();
 
-      // Small delay for SSE, then wait for actual condition
-      await displayPage.waitForTimeout(100);
+      // Wait for SSE to trigger the update and table screen to appear
       const tableScreen = displayPage.locator('#table-screen');
       await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
@@ -108,6 +124,21 @@ test.describe('TV Display App', () => {
   });
 
   test.describe('Feed Grid Rendering', () => {
+    let displayIds = [];
+
+    test.afterEach(async ({ context }) => {
+      for (const displayId of displayIds) {
+        try {
+          const cleanupPage = await context.newPage();
+          await cleanupPage.request.delete(`/api/displays/${displayId}`);
+          await cleanupPage.close();
+        } catch (error) {
+          // Ignore cleanup errors
+        }
+      }
+      displayIds = [];
+    });
+
     test('renders feed grid with horses and feeds', async ({ page, context }) => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
@@ -115,6 +146,7 @@ test.describe('TV Display App', () => {
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
+      displayIds.push(displayId);
 
       // Set up test data
       const testData = {
@@ -165,6 +197,7 @@ test.describe('TV Display App', () => {
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
+      displayIds.push(displayId);
 
       // Set data with fractional values
       const testData = {
@@ -190,9 +223,7 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      // Small delay for SSE to trigger the update, then wait for the actual condition
-      // (SSE is async, so we give it a moment, then check for the actual DOM change)
-      await displayPage.waitForTimeout(100);
+      // Wait for SSE to trigger the update and table screen to appear
       const tableScreen = displayPage.locator('#table-screen');
       await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
