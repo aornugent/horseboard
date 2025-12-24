@@ -212,6 +212,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -240,7 +243,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: initialData }
       });
 
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Initial/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Initial' }).waitFor({ timeout: 5000 });
 
       // Go offline
       await context.setOffline(true);
@@ -261,7 +264,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       expect(response.ok()).toBe(true);
 
       // Wait for update to propagate via SSE
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Updated/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Updated' }).waitFor({ timeout: 5000 });
 
       const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
       const feedText = feedNameCells.join(' ');
@@ -276,6 +279,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Setup: Create display and pair two controllers
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
+
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
@@ -299,6 +305,10 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Second controller (same pair code)
       const controller2Page = await context.newPage();
       await controller2Page.goto('/controller');
+
+      // Clear localStorage to ensure fresh pairing (different "device")
+      await controller2Page.evaluate(() => localStorage.clear());
+      await controller2Page.reload();
 
       // Wait for pairing screen to be ready before filling inputs
       await controller2Page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
@@ -372,6 +382,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -393,6 +406,10 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Controller 2
       const controller2Page = await context.newPage();
       await controller2Page.goto('/controller');
+
+      // Clear localStorage to ensure fresh pairing (different "device")
+      await controller2Page.evaluate(() => localStorage.clear());
+      await controller2Page.reload();
 
       // Wait for pairing screen to be ready before filling inputs
       await controller2Page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });

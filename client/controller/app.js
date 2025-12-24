@@ -1235,7 +1235,6 @@ async function init() {
   const settingsModal = document.getElementById('settings-modal');
   settingsModal.querySelector('.modal-close-btn').addEventListener('click', closeSettingsModal);
   document.getElementById('settings-close-btn').addEventListener('click', saveTimezone);
-  document.getElementById('timezone-select').addEventListener('change', saveTimezone);
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) closeSettingsModal();
   });

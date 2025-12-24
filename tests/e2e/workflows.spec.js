@@ -50,6 +50,9 @@ test.describe('End-to-End Workflows', () => {
       const tvPage = await context.newPage();
       await tvPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await tvPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await tvPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -457,6 +460,9 @@ test.describe('End-to-End Workflows', () => {
       const tvPage = await context.newPage();
       await tvPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await tvPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await tvPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -565,6 +571,9 @@ test.describe('End-to-End Workflows', () => {
       // Setup
       const tvPage = await context.newPage();
       await tvPage.goto('/display');
+
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await tvPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await tvPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
