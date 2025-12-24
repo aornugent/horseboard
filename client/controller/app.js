@@ -3,77 +3,47 @@
  *
  * Handles:
  * - Pairing with TV display via 6-digit code
- * - Table editing (add/edit/delete rows and columns)
- * - Column sorting
- * - TV display settings (pagination)
+ * - Tab navigation (Board, Horses, Feeds, Reports)
+ * - Domain-specific feed management
  */
 
 const STORAGE_KEY = 'horseboard_controller_display_id';
+const TAB_STORAGE_KEY = 'horseboard_controller_tab';
 const DEBOUNCE_MS = 500;
+
+// Zoom level to horses per page mapping
+const ZOOM_HORSES = { 1: 10, 2: 7, 3: 5 };
 
 // State
 let displayId = null;
 let tableData = {
-  headers: [],
-  rows: [],
-  displaySettings: {
-    startRow: 0,
-    rowCount: 10
-  }
-};
-let sortState = {
-  column: null,
-  direction: null // 'asc', 'desc', or null
+  settings: {
+    timezone: 'Australia/Sydney',
+    timeMode: 'AUTO',
+    overrideUntil: null,
+    zoomLevel: 2,
+    currentPage: 0
+  },
+  feeds: [],
+  horses: [],
+  diet: {}
 };
 let hasUnsavedChanges = false;
 let saveTimeout = null;
+let currentTab = 'board';
 
-// Cell edit state
-let editingCell = {
-  row: null,
-  col: null,
-  isHeader: false
-};
-
-// Delete state
-let deleteTarget = {
-  type: null, // 'row' or 'column'
-  index: null
-};
+// Modal state
+let editingQuantity = { horseId: null, feedId: null, period: null };
+let editingNote = { horseId: null };
+let editingHorse = { id: null, isNew: false };
+let editingFeed = { id: null, isNew: false };
+let deleteTarget = { type: null, id: null };
 
 // DOM Elements
 const screens = {
   pairing: document.getElementById('pairing-screen'),
   loading: document.getElementById('loading-screen'),
   editor: document.getElementById('editor-screen')
-};
-
-const elements = {
-  codeInputs: document.getElementById('code-inputs'),
-  codeDigits: document.querySelectorAll('.code-digit'),
-  connectBtn: document.getElementById('connect-btn'),
-  pairingError: document.getElementById('pairing-error'),
-  backBtn: document.getElementById('back-btn'),
-  saveBtn: document.getElementById('save-btn'),
-  editorHead: document.getElementById('editor-head'),
-  editorBody: document.getElementById('editor-body'),
-  addRowBtn: document.getElementById('add-row-btn'),
-  addColumnBtn: document.getElementById('add-column-btn'),
-  startRowInput: document.getElementById('start-row'),
-  rowCountInput: document.getElementById('row-count'),
-  statusText: document.getElementById('status-text'),
-  cellModal: document.getElementById('cell-modal'),
-  modalTitle: document.getElementById('modal-title'),
-  cellInput: document.getElementById('cell-input'),
-  modalClose: document.getElementById('modal-close'),
-  modalCancel: document.getElementById('modal-cancel'),
-  modalSave: document.getElementById('modal-save'),
-  deleteModal: document.getElementById('delete-modal'),
-  deleteTitle: document.getElementById('delete-title'),
-  deleteMessage: document.getElementById('delete-message'),
-  deleteCancel: document.getElementById('delete-cancel'),
-  deleteConfirm: document.getElementById('delete-confirm'),
-  toast: document.getElementById('toast')
 };
 
 // ===================
@@ -97,19 +67,59 @@ function showScreen(screenName) {
 let toastTimeout = null;
 
 function showToast(message, type = 'info') {
+  const toast = document.getElementById('toast');
   if (toastTimeout) {
     clearTimeout(toastTimeout);
   }
 
-  elements.toast.textContent = message;
-  elements.toast.className = 'toast';
+  toast.textContent = message;
+  toast.className = 'toast';
   if (type !== 'info') {
-    elements.toast.classList.add(type);
+    toast.classList.add(type);
   }
 
   toastTimeout = setTimeout(() => {
-    elements.toast.classList.add('hidden');
+    toast.classList.add('hidden');
   }, 3000);
+}
+
+// ===================
+// Tab Navigation
+// ===================
+
+function switchTab(tabName) {
+  currentTab = tabName;
+  sessionStorage.setItem(TAB_STORAGE_KEY, tabName);
+
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+
+  // Update tab panels
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+  });
+
+  // Render current tab content
+  renderCurrentTab();
+}
+
+function renderCurrentTab() {
+  switch (currentTab) {
+    case 'board':
+      renderBoard();
+      break;
+    case 'horses':
+      renderHorsesList();
+      break;
+    case 'feeds':
+      renderFeedsList();
+      break;
+    case 'reports':
+      renderReports();
+      break;
+  }
 }
 
 // ===================
@@ -117,13 +127,12 @@ function showToast(message, type = 'info') {
 // ===================
 
 function setupPairingInputs() {
-  const digits = elements.codeDigits;
+  const digits = document.querySelectorAll('.code-digit');
 
   digits.forEach((input, index) => {
-    // Handle input
     input.addEventListener('input', (e) => {
       const value = e.target.value.replace(/\D/g, '');
-      e.target.value = value.slice(-1); // Keep only last digit
+      e.target.value = value.slice(-1);
 
       if (value && index < 5) {
         digits[index + 1].focus();
@@ -133,7 +142,6 @@ function setupPairingInputs() {
       updateConnectButton();
     });
 
-    // Handle backspace
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Backspace' && !e.target.value && index > 0) {
         digits[index - 1].focus();
@@ -142,13 +150,11 @@ function setupPairingInputs() {
         updateConnectButton();
       }
 
-      // Allow Enter to submit
       if (e.key === 'Enter' && getCode().length === 6) {
         handleConnect();
       }
     });
 
-    // Handle paste
     input.addEventListener('paste', (e) => {
       e.preventDefault();
       const pasted = (e.clipboardData || window.clipboardData).getData('text');
@@ -161,40 +167,38 @@ function setupPairingInputs() {
         }
       });
 
-      // Focus appropriate field
       const nextEmpty = Math.min(numbers.length, 5);
       digits[nextEmpty].focus();
       updateConnectButton();
     });
   });
 
-  // Focus first input
   digits[0].focus();
 }
 
 function getCode() {
-  return Array.from(elements.codeDigits).map(input => input.value).join('');
+  return Array.from(document.querySelectorAll('.code-digit')).map(input => input.value).join('');
 }
 
 function clearCode() {
-  elements.codeDigits.forEach(input => {
+  document.querySelectorAll('.code-digit').forEach(input => {
     input.value = '';
     input.classList.remove('filled');
   });
-  elements.codeDigits[0].focus();
+  document.querySelectorAll('.code-digit')[0].focus();
   updateConnectButton();
 }
 
 function updateConnectButton() {
   const code = getCode();
-  elements.connectBtn.disabled = code.length !== 6;
+  document.getElementById('connect-btn').disabled = code.length !== 6;
 }
 
 async function handleConnect() {
   const code = getCode();
   if (code.length !== 6) return;
 
-  elements.pairingError.classList.add('hidden');
+  document.getElementById('pairing-error').classList.add('hidden');
   showScreen('loading');
 
   try {
@@ -213,15 +217,17 @@ async function handleConnect() {
       showScreen('editor');
     } else {
       showScreen('pairing');
-      elements.pairingError.textContent = data.error || 'Invalid code. Please try again.';
-      elements.pairingError.classList.remove('hidden');
+      const errorEl = document.getElementById('pairing-error');
+      errorEl.textContent = data.error || 'Invalid code. Please try again.';
+      errorEl.classList.remove('hidden');
       clearCode();
     }
   } catch (error) {
     console.error('Pairing error:', error);
     showScreen('pairing');
-    elements.pairingError.textContent = 'Connection failed. Please try again.';
-    elements.pairingError.classList.remove('hidden');
+    const errorEl = document.getElementById('pairing-error');
+    errorEl.textContent = 'Connection failed. Please try again.';
+    errorEl.classList.remove('hidden');
   }
 }
 
@@ -235,7 +241,6 @@ async function loadDisplayData() {
 
     if (!response.ok) {
       if (response.status === 404) {
-        // Display no longer exists
         localStorage.removeItem(STORAGE_KEY);
         displayId = null;
         showScreen('pairing');
@@ -247,33 +252,45 @@ async function loadDisplayData() {
 
     const data = await response.json();
 
-    // Initialize with existing data or empty table
-    if (data.tableData) {
+    if (data.tableData && data.tableData.feeds) {
+      // Domain format
       tableData = {
-        headers: data.tableData.headers || [],
-        rows: data.tableData.rows || [],
-        displaySettings: data.tableData.displaySettings || {
-          startRow: 0,
-          rowCount: 10
-        }
+        settings: data.tableData.settings || {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: data.tableData.feeds || [],
+        horses: data.tableData.horses || [],
+        diet: data.tableData.diet || {}
       };
     } else {
-      // Start with empty table with one column
+      // Initialize with empty domain structure
       tableData = {
-        headers: ['Column 1'],
-        rows: [['']],
-        displaySettings: {
-          startRow: 0,
-          rowCount: 10
-        }
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [],
+        horses: [],
+        diet: {}
       };
     }
 
-    // Update TV settings inputs
-    elements.startRowInput.value = (tableData.displaySettings.startRow || 0) + 1;
-    elements.rowCountInput.value = tableData.displaySettings.rowCount || 10;
+    // Restore saved tab
+    const savedTab = sessionStorage.getItem(TAB_STORAGE_KEY);
+    if (savedTab) {
+      currentTab = savedTab;
+    }
 
-    renderTable();
+    updateTimeModeButtons();
+    updateZoomDisplay();
+    switchTab(currentTab);
     setStatus('Ready');
 
   } catch (error) {
@@ -285,7 +302,6 @@ async function loadDisplayData() {
 async function saveData(immediate = false) {
   if (!displayId) return;
 
-  // Cancel pending save
   if (saveTimeout) {
     clearTimeout(saveTimeout);
     saveTimeout = null;
@@ -319,7 +335,6 @@ async function saveData(immediate = false) {
   if (immediate) {
     await doSave();
   } else {
-    // Debounce save
     setStatus('Unsaved changes');
     hasUnsavedChanges = true;
     saveTimeout = setTimeout(doSave, DEBOUNCE_MS);
@@ -327,302 +342,780 @@ async function saveData(immediate = false) {
 }
 
 function setStatus(text) {
-  elements.statusText.textContent = text;
+  document.getElementById('status-text').textContent = text;
 }
 
 // ===================
-// Table Rendering
+// Utility Functions
 // ===================
 
-function renderTable() {
-  renderHeaders();
-  renderBody();
+function generateId() {
+  return 'id_' + Math.random().toString(36).substr(2, 9);
 }
 
-function renderHeaders() {
-  elements.editorHead.innerHTML = '';
+function formatFraction(value) {
+  if (value === null || value === undefined || value === 0) return '';
+  const fractions = {
+    0.25: '¼', 0.5: '½', 0.75: '¾',
+    0.33: '⅓', 0.67: '⅔'
+  };
+  if (fractions[value]) return fractions[value];
+  if (value % 1 === 0) return value.toString();
+  const whole = Math.floor(value);
+  const frac = value - whole;
+  if (fractions[frac]) {
+    return whole > 0 ? `${whole}${fractions[frac]}` : fractions[frac];
+  }
+  return value.toString();
+}
 
-  if (tableData.headers.length === 0) {
+function getEffectiveTimeMode() {
+  const settings = tableData.settings;
+  if (settings.timeMode !== 'AUTO') {
+    return settings.timeMode;
+  }
+  // Auto-detect based on time
+  const now = new Date();
+  const hour = now.getHours();
+  return (hour >= 4 && hour < 12) ? 'AM' : 'PM';
+}
+
+function pluralize(unit, count) {
+  if (count === 1) return unit;
+  if (unit === 'ml') return 'ml';
+  return unit + 's';
+}
+
+// ===================
+// Board Tab
+// ===================
+
+function renderBoard() {
+  const grid = document.getElementById('board-grid');
+  const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
+  const currentPage = tableData.settings.currentPage || 0;
+  const totalPages = Math.max(1, Math.ceil(tableData.horses.length / horsesPerPage));
+
+  // Ensure current page is valid
+  if (currentPage >= totalPages) {
+    tableData.settings.currentPage = Math.max(0, totalPages - 1);
+  }
+
+  const startIdx = currentPage * horsesPerPage;
+  const pageHorses = tableData.horses.slice(startIdx, startIdx + horsesPerPage);
+
+  // Filter feeds that have at least one non-zero value
+  const activeFeeds = tableData.feeds.filter(feed => {
+    return tableData.horses.some(horse => {
+      const horseDiet = tableData.diet[horse.id];
+      if (!horseDiet) return false;
+      const feedDiet = horseDiet[feed.id];
+      if (!feedDiet) return false;
+      return feedDiet.am > 0 || feedDiet.pm > 0;
+    });
+  });
+
+  const timeMode = getEffectiveTimeMode();
+  const period = timeMode.toLowerCase();
+  const colCount = pageHorses.length + 1; // +1 for feed name column
+
+  grid.style.gridTemplateColumns = `minmax(80px, 1fr) repeat(${pageHorses.length}, minmax(70px, 1fr))`;
+  grid.innerHTML = '';
+
+  if (pageHorses.length === 0) {
+    grid.innerHTML = '<div class="board-cell empty" style="grid-column: 1/-1; padding: 2rem;">No horses yet. Add horses in the Horses tab.</div>';
+    updatePagination();
     return;
   }
 
-  const tr = document.createElement('tr');
-
-  tableData.headers.forEach((header, colIndex) => {
-    const th = document.createElement('th');
-    th.dataset.col = colIndex;
-
-    // Header text
-    const textSpan = document.createElement('span');
-    textSpan.className = 'header-text';
-    textSpan.textContent = header || `Column ${colIndex + 1}`;
-    th.appendChild(textSpan);
-
-    // Sort indicator
-    const sortSpan = document.createElement('span');
-    sortSpan.className = 'sort-indicator';
-    th.appendChild(sortSpan);
-
-    // Apply sort class
-    if (sortState.column === colIndex) {
-      th.classList.add(sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc');
-    }
-
-    // Delete button (only if more than one column)
-    if (tableData.headers.length > 1) {
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-col';
-      deleteBtn.innerHTML = '&times;';
-      deleteBtn.title = 'Delete column';
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        confirmDelete('column', colIndex);
-      });
-      th.appendChild(deleteBtn);
-    }
-
-    // Click to edit header
-    th.addEventListener('click', (e) => {
-      if (e.target.classList.contains('delete-col')) return;
-      // Double-click to edit, single click to sort
-      openCellModal(null, colIndex, true);
-    });
-
-    // Long press or right-click for sort menu could be added later
-    // For now, we'll put sort in header tap
-
-    tr.appendChild(th);
+  // Header row - horse names
+  grid.appendChild(createCell('', 'header'));
+  pageHorses.forEach(horse => {
+    const cell = createCell(horse.name, 'header');
+    cell.dataset.horseId = horse.id;
+    cell.addEventListener('click', () => openHorseModal(horse.id));
+    cell.style.cursor = 'pointer';
+    grid.appendChild(cell);
   });
 
-  // Actions column header (empty)
-  const actionTh = document.createElement('th');
-  actionTh.className = 'row-actions';
-  tr.appendChild(actionTh);
+  // Feed rows
+  if (activeFeeds.length === 0) {
+    const emptyRow = document.createElement('div');
+    emptyRow.className = 'board-cell empty';
+    emptyRow.style.gridColumn = '1 / -1';
+    emptyRow.style.padding = '2rem';
+    emptyRow.textContent = 'No feeds with values. Add feeds in the Feeds tab.';
+    grid.appendChild(emptyRow);
+  } else {
+    activeFeeds.forEach(feed => {
+      // Feed name
+      grid.appendChild(createCell(feed.name, 'feed-name'));
 
-  elements.editorHead.appendChild(tr);
+      // Quantity cells for each horse
+      pageHorses.forEach(horse => {
+        const horseDiet = tableData.diet[horse.id] || {};
+        const feedDiet = horseDiet[feed.id] || {};
+        const value = feedDiet[period];
+        const displayValue = formatFraction(value);
+
+        const cell = createCell(displayValue || '', 'quantity');
+        cell.dataset.horseId = horse.id;
+        cell.dataset.feedId = feed.id;
+        cell.dataset.period = period;
+        if (!displayValue) cell.classList.add('empty');
+
+        cell.addEventListener('click', () => {
+          openQuantityModal(horse.id, feed.id, period);
+        });
+
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  // Notes row
+  grid.appendChild(createCell('Notes', 'feed-name'));
+  pageHorses.forEach(horse => {
+    const cell = createCell(horse.note || '', 'note');
+    cell.dataset.horseId = horse.id;
+    if (!horse.note) cell.classList.add('empty');
+
+    cell.addEventListener('click', () => {
+      openNoteModal(horse.id);
+    });
+
+    grid.appendChild(cell);
+  });
+
+  updatePagination();
 }
 
-function renderBody() {
-  elements.editorBody.innerHTML = '';
+function createCell(content, className) {
+  const cell = document.createElement('div');
+  cell.className = `board-cell ${className}`;
+  cell.textContent = content;
+  return cell;
+}
 
-  if (tableData.rows.length === 0) {
-    const tr = document.createElement('tr');
-    const td = document.createElement('td');
-    td.colSpan = tableData.headers.length + 1;
-    td.className = 'empty-table';
-    td.innerHTML = '<p>No data yet</p><p>Tap "Add Row" to get started</p>';
-    tr.appendChild(td);
-    elements.editorBody.appendChild(tr);
+function updateTimeModeButtons() {
+  const mode = tableData.settings.timeMode;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+}
+
+function updateZoomDisplay() {
+  const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
+  document.getElementById('zoom-level').textContent = `${horsesPerPage} horses`;
+}
+
+function updatePagination() {
+  const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
+  const totalPages = Math.max(1, Math.ceil(tableData.horses.length / horsesPerPage));
+  const currentPage = tableData.settings.currentPage || 0;
+
+  document.getElementById('page-indicator').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+  document.getElementById('page-prev').disabled = currentPage === 0;
+  document.getElementById('page-next').disabled = currentPage >= totalPages - 1;
+}
+
+function setTimeMode(mode) {
+  tableData.settings.timeMode = mode;
+  if (mode !== 'AUTO') {
+    // Set override expiry to 1 hour from now
+    tableData.settings.overrideUntil = Date.now() + 60 * 60 * 1000;
+  } else {
+    tableData.settings.overrideUntil = null;
+  }
+  updateTimeModeButtons();
+  renderBoard();
+  saveData();
+}
+
+function changeZoom(delta) {
+  const newZoom = Math.max(1, Math.min(3, tableData.settings.zoomLevel + delta));
+  if (newZoom !== tableData.settings.zoomLevel) {
+    tableData.settings.zoomLevel = newZoom;
+    tableData.settings.currentPage = 0; // Reset to first page
+    updateZoomDisplay();
+    renderBoard();
+    saveData();
+  }
+}
+
+function changePage(delta) {
+  const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
+  const totalPages = Math.max(1, Math.ceil(tableData.horses.length / horsesPerPage));
+  const newPage = Math.max(0, Math.min(totalPages - 1, tableData.settings.currentPage + delta));
+
+  if (newPage !== tableData.settings.currentPage) {
+    tableData.settings.currentPage = newPage;
+    renderBoard();
+    saveData();
+  }
+}
+
+// ===================
+// Quantity Modal
+// ===================
+
+function openQuantityModal(horseId, feedId, period) {
+  editingQuantity = { horseId, feedId, period };
+
+  const horse = tableData.horses.find(h => h.id === horseId);
+  const feed = tableData.feeds.find(f => f.id === feedId);
+  const horseDiet = tableData.diet[horseId] || {};
+  const feedDiet = horseDiet[feedId] || {};
+  const currentValue = feedDiet[period] || '';
+
+  document.getElementById('quantity-title').textContent = `${horse.name} - ${feed.name} (${period.toUpperCase()})`;
+  document.getElementById('quantity-input').value = currentValue;
+  document.getElementById('quantity-unit').textContent = pluralize(feed.unit, 2);
+
+  document.getElementById('quantity-modal').classList.remove('hidden');
+  document.getElementById('quantity-input').focus();
+  document.getElementById('quantity-input').select();
+}
+
+function closeQuantityModal() {
+  document.getElementById('quantity-modal').classList.add('hidden');
+  editingQuantity = { horseId: null, feedId: null, period: null };
+}
+
+function saveQuantity() {
+  const { horseId, feedId, period } = editingQuantity;
+  const inputValue = document.getElementById('quantity-input').value;
+  const value = inputValue === '' ? null : parseFloat(inputValue);
+
+  // Ensure diet structure exists
+  if (!tableData.diet[horseId]) {
+    tableData.diet[horseId] = {};
+  }
+  if (!tableData.diet[horseId][feedId]) {
+    tableData.diet[horseId][feedId] = { am: null, pm: null };
+  }
+
+  tableData.diet[horseId][feedId][period] = value;
+
+  // Clean up null entries
+  if (tableData.diet[horseId][feedId].am === null && tableData.diet[horseId][feedId].pm === null) {
+    delete tableData.diet[horseId][feedId];
+  }
+  if (Object.keys(tableData.diet[horseId]).length === 0) {
+    delete tableData.diet[horseId];
+  }
+
+  closeQuantityModal();
+  renderBoard();
+  saveData();
+}
+
+function clearQuantity() {
+  document.getElementById('quantity-input').value = '';
+}
+
+// ===================
+// Note Modal
+// ===================
+
+function openNoteModal(horseId) {
+  editingNote = { horseId };
+
+  const horse = tableData.horses.find(h => h.id === horseId);
+
+  document.getElementById('note-horse-name').textContent = horse.name;
+  document.getElementById('note-input').value = horse.note || '';
+
+  // Determine current expiry setting
+  let expiryValue = '';
+  if (horse.noteExpiry) {
+    const hoursUntilExpiry = Math.round((horse.noteExpiry - Date.now()) / (1000 * 60 * 60));
+    if (hoursUntilExpiry > 36) {
+      expiryValue = '48';
+    } else if (hoursUntilExpiry > 0) {
+      expiryValue = '24';
+    }
+  }
+  document.getElementById('note-expiry-select').value = expiryValue;
+
+  document.getElementById('note-modal').classList.remove('hidden');
+  document.getElementById('note-input').focus();
+}
+
+function closeNoteModal() {
+  document.getElementById('note-modal').classList.add('hidden');
+  editingNote = { horseId: null };
+}
+
+function saveNote() {
+  const { horseId } = editingNote;
+  const horse = tableData.horses.find(h => h.id === horseId);
+
+  const noteText = document.getElementById('note-input').value.trim();
+  const expiryHours = document.getElementById('note-expiry-select').value;
+
+  horse.note = noteText;
+  if (noteText && expiryHours) {
+    horse.noteExpiry = Date.now() + parseInt(expiryHours) * 60 * 60 * 1000;
+    horse.noteCreatedAt = Date.now();
+  } else {
+    horse.noteExpiry = null;
+    if (noteText) {
+      horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
+    } else {
+      horse.noteCreatedAt = null;
+    }
+  }
+
+  closeNoteModal();
+  renderCurrentTab();
+  saveData();
+}
+
+// ===================
+// Horses Tab
+// ===================
+
+function renderHorsesList() {
+  const list = document.getElementById('horses-list');
+  list.innerHTML = '';
+
+  if (tableData.horses.length === 0) {
+    list.innerHTML = '<div class="reports-empty">No horses yet. Tap the button below to add one.</div>';
     return;
   }
 
-  tableData.rows.forEach((row, rowIndex) => {
-    const tr = document.createElement('tr');
-    tr.dataset.row = rowIndex;
+  tableData.horses.forEach(horse => {
+    const card = document.createElement('div');
+    card.className = 'horse-card';
+    card.dataset.horseId = horse.id;
 
-    // Data cells
-    for (let colIndex = 0; colIndex < tableData.headers.length; colIndex++) {
-      const td = document.createElement('td');
-      td.dataset.row = rowIndex;
-      td.dataset.col = colIndex;
-      td.textContent = row[colIndex] !== undefined ? row[colIndex] : '';
+    // Count active feeds
+    const horseDiet = tableData.diet[horse.id] || {};
+    const activeFeedCount = Object.keys(horseDiet).filter(feedId => {
+      const fd = horseDiet[feedId];
+      return fd && (fd.am > 0 || fd.pm > 0);
+    }).length;
 
-      td.addEventListener('click', () => {
-        openCellModal(rowIndex, colIndex, false);
-      });
+    let html = `
+      <div class="horse-card-header">
+        <span class="horse-card-name">${horse.name}</span>
+        <span class="horse-card-feeds">${activeFeedCount} feed${activeFeedCount !== 1 ? 's' : ''}</span>
+      </div>
+    `;
 
-      tr.appendChild(td);
+    if (horse.note) {
+      const isStale = horse.noteCreatedAt && !horse.noteExpiry &&
+        (Date.now() - horse.noteCreatedAt) > 24 * 60 * 60 * 1000;
+      html += `<div class="horse-card-note${isStale ? ' stale' : ''}">${horse.note}</div>`;
     }
 
-    // Delete row button
-    const actionTd = document.createElement('td');
-    actionTd.className = 'row-actions';
-    const deleteBtn = document.createElement('button');
-    deleteBtn.innerHTML = '&times;';
-    deleteBtn.title = 'Delete row';
-    deleteBtn.addEventListener('click', () => {
-      confirmDelete('row', rowIndex);
+    card.innerHTML = html;
+    card.addEventListener('click', () => openHorseModal(horse.id));
+    list.appendChild(card);
+  });
+}
+
+function openHorseModal(horseId) {
+  const isNew = !horseId;
+  editingHorse = { id: horseId, isNew };
+
+  const modal = document.getElementById('horse-modal');
+  const title = document.getElementById('horse-modal-title');
+  const nameInput = document.getElementById('horse-name-input');
+  const cloneSelect = document.getElementById('clone-diet-select');
+  const noteInput = document.getElementById('horse-note-input');
+  const noteExpiry = document.getElementById('horse-note-expiry');
+  const deleteBtn = modal.querySelector('.delete-horse-btn');
+  const warningEl = document.getElementById('stale-note-warning');
+
+  if (isNew) {
+    title.textContent = 'Add Horse';
+    nameInput.value = '';
+    noteInput.value = '';
+    noteExpiry.value = '';
+    deleteBtn.classList.add('hidden');
+    warningEl.classList.add('hidden');
+  } else {
+    const horse = tableData.horses.find(h => h.id === horseId);
+    title.textContent = 'Edit Horse';
+    nameInput.value = horse.name;
+    noteInput.value = horse.note || '';
+
+    // Expiry
+    let expiryValue = '';
+    if (horse.noteExpiry) {
+      const hoursUntilExpiry = Math.round((horse.noteExpiry - Date.now()) / (1000 * 60 * 60));
+      if (hoursUntilExpiry > 36) expiryValue = '48';
+      else if (hoursUntilExpiry > 0) expiryValue = '24';
+    }
+    noteExpiry.value = expiryValue;
+
+    // Stale warning
+    const isStale = horse.note && horse.noteCreatedAt && !horse.noteExpiry &&
+      (Date.now() - horse.noteCreatedAt) > 24 * 60 * 60 * 1000;
+    warningEl.classList.toggle('hidden', !isStale);
+
+    deleteBtn.classList.remove('hidden');
+  }
+
+  // Populate clone dropdown
+  cloneSelect.innerHTML = '<option value="">-- Select horse --</option>';
+  tableData.horses.filter(h => h.id !== horseId).forEach(h => {
+    const option = document.createElement('option');
+    option.value = h.id;
+    option.textContent = h.name;
+    cloneSelect.appendChild(option);
+  });
+
+  // Render feeds in horse modal
+  renderHorseFeedsInModal(horseId);
+
+  modal.classList.remove('hidden');
+  nameInput.focus();
+}
+
+function renderHorseFeedsInModal(horseId) {
+  const activeContainer = document.getElementById('horse-active-feeds');
+  const inactiveContainer = document.getElementById('horse-inactive-feeds');
+
+  activeContainer.innerHTML = '';
+  inactiveContainer.innerHTML = '';
+
+  const horseDiet = horseId ? (tableData.diet[horseId] || {}) : {};
+
+  // Active feeds (have values)
+  const activeFeeds = tableData.feeds.filter(feed => {
+    const fd = horseDiet[feed.id];
+    return fd && (fd.am !== null || fd.pm !== null);
+  });
+
+  // Inactive feeds
+  const inactiveFeeds = tableData.feeds.filter(feed => {
+    const fd = horseDiet[feed.id];
+    return !fd || (fd.am === null && fd.pm === null);
+  });
+
+  if (activeFeeds.length === 0) {
+    activeContainer.innerHTML = '<div class="reports-empty" style="padding: 0.5rem;">No feeds assigned</div>';
+  } else {
+    activeFeeds.forEach(feed => {
+      const fd = horseDiet[feed.id] || { am: null, pm: null };
+      activeContainer.appendChild(createHorseFeedRow(feed, fd, horseId));
     });
-    actionTd.appendChild(deleteBtn);
-    tr.appendChild(actionTd);
-
-    elements.editorBody.appendChild(tr);
-  });
-}
-
-// ===================
-// Cell Editing
-// ===================
-
-function openCellModal(row, col, isHeader) {
-  editingCell = { row, col, isHeader };
-
-  if (isHeader) {
-    elements.modalTitle.textContent = 'Edit Column Header';
-    elements.cellInput.value = tableData.headers[col] || '';
-  } else {
-    elements.modalTitle.textContent = 'Edit Cell';
-    elements.cellInput.value = tableData.rows[row]?.[col] || '';
   }
 
-  elements.cellModal.classList.remove('hidden');
-  elements.cellInput.focus();
-  elements.cellInput.select();
-}
-
-function closeCellModal() {
-  elements.cellModal.classList.add('hidden');
-  editingCell = { row: null, col: null, isHeader: false };
-}
-
-function saveCellEdit() {
-  const { row, col, isHeader } = editingCell;
-  const value = elements.cellInput.value;
-
-  if (isHeader) {
-    tableData.headers[col] = value;
+  if (inactiveFeeds.length === 0) {
+    inactiveContainer.innerHTML = '<div class="reports-empty" style="padding: 0.5rem;">All feeds assigned</div>';
   } else {
-    // Ensure row array has enough columns
-    while (tableData.rows[row].length < tableData.headers.length) {
-      tableData.rows[row].push('');
+    inactiveFeeds.forEach(feed => {
+      const row = document.createElement('div');
+      row.className = 'horse-feed-row';
+      row.innerHTML = `<span class="horse-feed-name">${feed.name}</span><span class="horse-feed-unit">Tap to add</span>`;
+      row.addEventListener('click', () => {
+        // Add this feed to the horse
+        if (!tableData.diet[horseId]) tableData.diet[horseId] = {};
+        tableData.diet[horseId][feed.id] = { am: 0, pm: 0 };
+        renderHorseFeedsInModal(horseId);
+      });
+      inactiveContainer.appendChild(row);
+    });
+  }
+}
+
+function createHorseFeedRow(feed, dietData, horseId) {
+  const row = document.createElement('div');
+  row.className = 'horse-feed-row';
+  row.innerHTML = `
+    <span class="horse-feed-name">${feed.name}</span>
+    <div class="horse-feed-inputs">
+      <input type="number" step="0.25" min="0" value="${dietData.am || ''}" data-period="am" data-feed-id="${feed.id}">
+      <span>AM</span>
+      <input type="number" step="0.25" min="0" value="${dietData.pm || ''}" data-period="pm" data-feed-id="${feed.id}">
+      <span>PM</span>
+    </div>
+    <span class="horse-feed-unit">${feed.unit}</span>
+  `;
+
+  // Add change listeners
+  row.querySelectorAll('input').forEach(input => {
+    input.addEventListener('change', () => {
+      const period = input.dataset.period;
+      const feedId = input.dataset.feedId;
+      const value = input.value === '' ? null : parseFloat(input.value);
+
+      if (!tableData.diet[horseId]) tableData.diet[horseId] = {};
+      if (!tableData.diet[horseId][feedId]) tableData.diet[horseId][feedId] = { am: null, pm: null };
+      tableData.diet[horseId][feedId][period] = value;
+    });
+  });
+
+  return row;
+}
+
+function closeHorseModal() {
+  document.getElementById('horse-modal').classList.add('hidden');
+  editingHorse = { id: null, isNew: false };
+}
+
+function saveHorse() {
+  const { id, isNew } = editingHorse;
+  const name = document.getElementById('horse-name-input').value.trim();
+
+  if (!name) {
+    showToast('Please enter a horse name', 'error');
+    return;
+  }
+
+  const note = document.getElementById('horse-note-input').value.trim();
+  const expiryHours = document.getElementById('horse-note-expiry').value;
+  const cloneFromId = document.getElementById('clone-diet-select').value;
+
+  let horse;
+  if (isNew) {
+    horse = {
+      id: generateId(),
+      name,
+      note: note || '',
+      noteExpiry: null,
+      noteCreatedAt: null
+    };
+    tableData.horses.push(horse);
+
+    // Clone diet if selected
+    if (cloneFromId && tableData.diet[cloneFromId]) {
+      tableData.diet[horse.id] = JSON.parse(JSON.stringify(tableData.diet[cloneFromId]));
     }
-    tableData.rows[row][col] = value;
-  }
-
-  closeCellModal();
-  renderTable();
-  saveData();
-}
-
-// ===================
-// Row/Column Management
-// ===================
-
-function addRow() {
-  const newRow = new Array(tableData.headers.length).fill('');
-  tableData.rows.push(newRow);
-  renderTable();
-  saveData();
-
-  // Scroll to bottom
-  const wrapper = document.querySelector('.table-wrapper');
-  wrapper.scrollTop = wrapper.scrollHeight;
-}
-
-function addColumn() {
-  const colNum = tableData.headers.length + 1;
-  tableData.headers.push(`Column ${colNum}`);
-
-  // Add empty cell to each row
-  tableData.rows.forEach(row => {
-    row.push('');
-  });
-
-  renderTable();
-  saveData();
-
-  // Scroll to right
-  const wrapper = document.querySelector('.table-wrapper');
-  wrapper.scrollLeft = wrapper.scrollWidth;
-}
-
-function confirmDelete(type, index) {
-  deleteTarget = { type, index };
-
-  if (type === 'row') {
-    elements.deleteTitle.textContent = 'Delete Row?';
-    elements.deleteMessage.textContent = `Delete row ${index + 1}? This cannot be undone.`;
   } else {
-    elements.deleteTitle.textContent = 'Delete Column?';
-    elements.deleteMessage.textContent = `Delete "${tableData.headers[index]}"? This cannot be undone.`;
+    horse = tableData.horses.find(h => h.id === id);
+    horse.name = name;
   }
 
-  elements.deleteModal.classList.remove('hidden');
+  // Update note
+  horse.note = note;
+  if (note && expiryHours) {
+    horse.noteExpiry = Date.now() + parseInt(expiryHours) * 60 * 60 * 1000;
+    horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
+  } else {
+    horse.noteExpiry = null;
+    if (note) {
+      horse.noteCreatedAt = horse.noteCreatedAt || Date.now();
+    }
+  }
+
+  // If editing, collect diet changes from modal inputs
+  if (!isNew) {
+    document.querySelectorAll('#horse-active-feeds .horse-feed-row input').forEach(input => {
+      const period = input.dataset.period;
+      const feedId = input.dataset.feedId;
+      const value = input.value === '' ? null : parseFloat(input.value);
+
+      if (!tableData.diet[id]) tableData.diet[id] = {};
+      if (!tableData.diet[id][feedId]) tableData.diet[id][feedId] = { am: null, pm: null };
+      tableData.diet[id][feedId][period] = value;
+    });
+
+    // Clean up empty diet entries
+    if (tableData.diet[id]) {
+      Object.keys(tableData.diet[id]).forEach(feedId => {
+        const fd = tableData.diet[id][feedId];
+        if (fd.am === null && fd.pm === null) {
+          delete tableData.diet[id][feedId];
+        }
+      });
+      if (Object.keys(tableData.diet[id]).length === 0) {
+        delete tableData.diet[id];
+      }
+    }
+  }
+
+  closeHorseModal();
+  renderCurrentTab();
+  saveData();
 }
+
+function confirmDeleteHorse() {
+  const horse = tableData.horses.find(h => h.id === editingHorse.id);
+  deleteTarget = { type: 'horse', id: editingHorse.id };
+
+  document.getElementById('delete-title').textContent = 'Delete Horse?';
+  document.getElementById('delete-message').textContent = `Delete "${horse.name}"? This will also remove all diet entries for this horse.`;
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+// ===================
+// Feeds Tab
+// ===================
+
+function renderFeedsList() {
+  const list = document.getElementById('feeds-list');
+  list.innerHTML = '';
+
+  if (tableData.feeds.length === 0) {
+    list.innerHTML = '<div class="reports-empty">No feeds yet. Tap the button below to add one.</div>';
+    return;
+  }
+
+  // Sort by rank
+  const sortedFeeds = [...tableData.feeds].sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+  sortedFeeds.forEach(feed => {
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+    item.dataset.feedId = feed.id;
+    item.innerHTML = `
+      <span class="feed-item-name">${feed.name}</span>
+      <span class="feed-item-unit">${feed.unit}</span>
+    `;
+    item.addEventListener('click', () => openFeedModal(feed.id));
+    list.appendChild(item);
+  });
+}
+
+function openFeedModal(feedId) {
+  const isNew = !feedId;
+  editingFeed = { id: feedId, isNew };
+
+  const modal = document.getElementById('feed-modal');
+  const title = document.getElementById('feed-modal-title');
+  const nameInput = document.getElementById('feed-name-input');
+  const unitSelect = document.getElementById('feed-unit-select');
+  const deleteBtn = modal.querySelector('.delete-feed-btn');
+
+  if (isNew) {
+    title.textContent = 'Add Feed';
+    nameInput.value = '';
+    unitSelect.value = 'scoop';
+    deleteBtn.classList.add('hidden');
+  } else {
+    const feed = tableData.feeds.find(f => f.id === feedId);
+    title.textContent = 'Edit Feed';
+    nameInput.value = feed.name;
+    unitSelect.value = feed.unit;
+    deleteBtn.classList.remove('hidden');
+  }
+
+  modal.classList.remove('hidden');
+  nameInput.focus();
+}
+
+function closeFeedModal() {
+  document.getElementById('feed-modal').classList.add('hidden');
+  editingFeed = { id: null, isNew: false };
+}
+
+function saveFeed() {
+  const { id, isNew } = editingFeed;
+  const name = document.getElementById('feed-name-input').value.trim();
+  const unit = document.getElementById('feed-unit-select').value;
+
+  if (!name) {
+    showToast('Please enter a feed name', 'error');
+    return;
+  }
+
+  if (isNew) {
+    const feed = {
+      id: generateId(),
+      name,
+      unit,
+      rank: tableData.feeds.length + 1
+    };
+    tableData.feeds.push(feed);
+  } else {
+    const feed = tableData.feeds.find(f => f.id === id);
+    feed.name = name;
+    feed.unit = unit;
+  }
+
+  closeFeedModal();
+  renderCurrentTab();
+  saveData();
+}
+
+function confirmDeleteFeed() {
+  const feed = tableData.feeds.find(f => f.id === editingFeed.id);
+  deleteTarget = { type: 'feed', id: editingFeed.id };
+
+  document.getElementById('delete-title').textContent = 'Delete Feed?';
+  document.getElementById('delete-message').textContent = `Delete "${feed.name}"? This will remove it from all horses' diets.`;
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+// ===================
+// Delete Confirmation
+// ===================
 
 function closeDeleteModal() {
-  elements.deleteModal.classList.add('hidden');
-  deleteTarget = { type: null, index: null };
+  document.getElementById('delete-modal').classList.add('hidden');
+  deleteTarget = { type: null, id: null };
 }
 
 function executeDelete() {
-  const { type, index } = deleteTarget;
+  const { type, id } = deleteTarget;
 
-  if (type === 'row') {
-    tableData.rows.splice(index, 1);
-  } else if (type === 'column') {
-    tableData.headers.splice(index, 1);
-    tableData.rows.forEach(row => {
-      row.splice(index, 1);
+  if (type === 'horse') {
+    tableData.horses = tableData.horses.filter(h => h.id !== id);
+    delete tableData.diet[id];
+    closeHorseModal();
+  } else if (type === 'feed') {
+    tableData.feeds = tableData.feeds.filter(f => f.id !== id);
+    // Remove from all diets
+    Object.keys(tableData.diet).forEach(horseId => {
+      delete tableData.diet[horseId][id];
+      if (Object.keys(tableData.diet[horseId]).length === 0) {
+        delete tableData.diet[horseId];
+      }
     });
-
-    // Reset sort if we deleted the sorted column
-    if (sortState.column === index) {
-      sortState = { column: null, direction: null };
-    } else if (sortState.column !== null && sortState.column > index) {
-      sortState.column--;
-    }
+    closeFeedModal();
   }
 
   closeDeleteModal();
-  renderTable();
+  renderCurrentTab();
   saveData();
 }
 
 // ===================
-// Sorting
+// Reports Tab
 // ===================
 
-function toggleSort(colIndex) {
-  if (sortState.column === colIndex) {
-    // Cycle: asc -> desc -> none
-    if (sortState.direction === 'asc') {
-      sortState.direction = 'desc';
-    } else if (sortState.direction === 'desc') {
-      sortState = { column: null, direction: null };
-    } else {
-      sortState.direction = 'asc';
-    }
-  } else {
-    sortState = { column: colIndex, direction: 'asc' };
+function renderReports() {
+  const tbody = document.getElementById('reports-body');
+  tbody.innerHTML = '';
+
+  if (tableData.feeds.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="reports-empty">No feeds to report on.</td></tr>';
+    return;
   }
 
-  if (sortState.column !== null) {
-    sortRows();
-  }
-
-  renderTable();
-  saveData();
-}
-
-function sortRows() {
-  const { column, direction } = sortState;
-  if (column === null) return;
-
-  tableData.rows.sort((a, b) => {
-    const valA = (a[column] || '').toString().toLowerCase();
-    const valB = (b[column] || '').toString().toLowerCase();
-
-    let comparison = valA.localeCompare(valB, undefined, { numeric: true });
-
-    return direction === 'desc' ? -comparison : comparison;
+  // Calculate weekly consumption for each feed
+  const consumption = {};
+  tableData.feeds.forEach(feed => {
+    consumption[feed.id] = 0;
   });
-}
 
-// ===================
-// TV Display Settings
-// ===================
+  // Sum all AM + PM values across all horses
+  Object.values(tableData.diet).forEach(horseDiet => {
+    Object.entries(horseDiet).forEach(([feedId, values]) => {
+      if (consumption[feedId] !== undefined) {
+        consumption[feedId] += (values.am || 0) + (values.pm || 0);
+      }
+    });
+  });
 
-function updateDisplaySettings() {
-  const startRow = Math.max(0, parseInt(elements.startRowInput.value, 10) - 1) || 0;
-  const rowCount = Math.max(1, parseInt(elements.rowCountInput.value, 10)) || 10;
+  // Multiply by 7 for weekly total
+  tableData.feeds.forEach(feed => {
+    const daily = consumption[feed.id];
+    const weekly = (daily * 7).toFixed(2);
 
-  tableData.displaySettings = {
-    startRow,
-    rowCount
-  };
-
-  saveData();
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${feed.name}</td>
+      <td>${weekly}</td>
+      <td>${pluralize(feed.unit, parseFloat(weekly))}</td>
+    `;
+    tbody.appendChild(row);
+  });
 }
 
 // ===================
@@ -631,22 +1124,22 @@ function updateDisplaySettings() {
 
 function handleBack() {
   if (hasUnsavedChanges) {
-    // Save before leaving
     saveData(true);
   }
 
-  // Clear stored display ID and go back to pairing
   localStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem(TAB_STORAGE_KEY);
   displayId = null;
   tableData = {
-    headers: [],
-    rows: [],
-    displaySettings: { startRow: 0, rowCount: 10 }
+    settings: { timezone: 'Australia/Sydney', timeMode: 'AUTO', overrideUntil: null, zoomLevel: 2, currentPage: 0 },
+    feeds: [],
+    horses: [],
+    diet: {}
   };
-  sortState = { column: null, direction: null };
+  currentTab = 'board';
 
   clearCode();
-  elements.pairingError.classList.add('hidden');
+  document.getElementById('pairing-error').classList.add('hidden');
   showScreen('pairing');
 }
 
@@ -655,60 +1148,84 @@ function handleBack() {
 // ===================
 
 async function init() {
-  // Setup event listeners
   setupPairingInputs();
 
-  elements.connectBtn.addEventListener('click', handleConnect);
-  elements.backBtn.addEventListener('click', handleBack);
-  elements.saveBtn.addEventListener('click', () => saveData(true));
+  // Pairing
+  document.getElementById('connect-btn').addEventListener('click', handleConnect);
 
-  elements.addRowBtn.addEventListener('click', addRow);
-  elements.addColumnBtn.addEventListener('click', addColumn);
+  // Header buttons
+  document.getElementById('back-btn').addEventListener('click', handleBack);
+  document.getElementById('save-btn').addEventListener('click', () => saveData(true));
 
-  // Cell modal
-  elements.modalClose.addEventListener('click', closeCellModal);
-  elements.modalCancel.addEventListener('click', closeCellModal);
-  elements.modalSave.addEventListener('click', saveCellEdit);
+  // Tab navigation
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
 
-  // Allow Enter in cell input to save
-  elements.cellInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      saveCellEdit();
-    }
-    if (e.key === 'Escape') {
-      closeCellModal();
-    }
+  // Board controls
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTimeMode(btn.dataset.mode));
+  });
+  document.getElementById('zoom-out').addEventListener('click', () => changeZoom(1));
+  document.getElementById('zoom-in').addEventListener('click', () => changeZoom(-1));
+  document.getElementById('page-prev').addEventListener('click', () => changePage(-1));
+  document.getElementById('page-next').addEventListener('click', () => changePage(1));
+
+  // Add buttons
+  document.getElementById('add-horse-btn').addEventListener('click', () => openHorseModal(null));
+  document.getElementById('add-feed-btn').addEventListener('click', () => openFeedModal(null));
+
+  // Quantity modal
+  const qtyModal = document.getElementById('quantity-modal');
+  qtyModal.querySelector('.modal-close-btn').addEventListener('click', closeQuantityModal);
+  qtyModal.querySelector('.clear-qty-btn').addEventListener('click', clearQuantity);
+  qtyModal.querySelector('.save-qty-btn').addEventListener('click', saveQuantity);
+  qtyModal.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('quantity-input').value = btn.dataset.value;
+    });
+  });
+  document.getElementById('quantity-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveQuantity();
+    if (e.key === 'Escape') closeQuantityModal();
+  });
+  qtyModal.addEventListener('click', (e) => {
+    if (e.target === qtyModal) closeQuantityModal();
+  });
+
+  // Note modal
+  const noteModal = document.getElementById('note-modal');
+  noteModal.querySelector('.modal-close-btn').addEventListener('click', closeNoteModal);
+  noteModal.querySelector('.modal-cancel-btn').addEventListener('click', closeNoteModal);
+  noteModal.querySelector('.save-note-btn').addEventListener('click', saveNote);
+  noteModal.addEventListener('click', (e) => {
+    if (e.target === noteModal) closeNoteModal();
+  });
+
+  // Horse modal
+  const horseModal = document.getElementById('horse-modal');
+  horseModal.querySelector('.modal-close-btn').addEventListener('click', closeHorseModal);
+  horseModal.querySelector('.save-horse-btn').addEventListener('click', saveHorse);
+  horseModal.querySelector('.delete-horse-btn').addEventListener('click', confirmDeleteHorse);
+  horseModal.addEventListener('click', (e) => {
+    if (e.target === horseModal) closeHorseModal();
+  });
+
+  // Feed modal
+  const feedModal = document.getElementById('feed-modal');
+  feedModal.querySelector('.modal-close-btn').addEventListener('click', closeFeedModal);
+  feedModal.querySelector('.modal-cancel-btn').addEventListener('click', closeFeedModal);
+  feedModal.querySelector('.save-feed-btn').addEventListener('click', saveFeed);
+  feedModal.querySelector('.delete-feed-btn').addEventListener('click', confirmDeleteFeed);
+  feedModal.addEventListener('click', (e) => {
+    if (e.target === feedModal) closeFeedModal();
   });
 
   // Delete modal
-  elements.deleteCancel.addEventListener('click', closeDeleteModal);
-  elements.deleteConfirm.addEventListener('click', executeDelete);
-
-  // TV settings
-  elements.startRowInput.addEventListener('change', updateDisplaySettings);
-  elements.rowCountInput.addEventListener('change', updateDisplaySettings);
-
-  // Close modals on backdrop click
-  elements.cellModal.addEventListener('click', (e) => {
-    if (e.target === elements.cellModal) {
-      closeCellModal();
-    }
-  });
-
-  elements.deleteModal.addEventListener('click', (e) => {
-    if (e.target === elements.deleteModal) {
-      closeDeleteModal();
-    }
-  });
-
-  // Header click for sorting (using event delegation)
-  elements.editorHead.addEventListener('dblclick', (e) => {
-    const th = e.target.closest('th[data-col]');
-    if (th && !e.target.classList.contains('delete-col')) {
-      const colIndex = parseInt(th.dataset.col, 10);
-      toggleSort(colIndex);
-    }
+  document.getElementById('delete-cancel').addEventListener('click', closeDeleteModal);
+  document.getElementById('delete-confirm').addEventListener('click', executeDelete);
+  document.getElementById('delete-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('delete-modal')) closeDeleteModal();
   });
 
   // Check for existing session
@@ -719,7 +1236,6 @@ async function init() {
     showScreen('loading');
 
     try {
-      // Verify display exists
       const response = await fetch(`/api/displays/${storedId}`);
 
       if (response.ok) {
@@ -731,7 +1247,6 @@ async function init() {
       console.error('Session restore error:', error);
     }
 
-    // Clear invalid session
     localStorage.removeItem(STORAGE_KEY);
     displayId = null;
   }
@@ -746,13 +1261,11 @@ async function init() {
 let deferredPrompt = null;
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent default browser prompt
   e.preventDefault();
   deferredPrompt = e;
 
-  // Show custom install banner
   const banner = document.getElementById('install-banner');
-  if (banner) {
+  if (banner && !localStorage.getItem('horseboard_install_dismissed')) {
     banner.classList.remove('hidden');
   }
 });
@@ -767,30 +1280,24 @@ function setupInstallPrompt() {
   installBtn.addEventListener('click', async () => {
     if (!deferredPrompt) return;
 
-    // Show browser install prompt
     deferredPrompt.prompt();
-
     const { outcome } = await deferredPrompt.userChoice;
     console.log('Install prompt outcome:', outcome);
 
-    // Clear prompt reference
     deferredPrompt = null;
     banner.classList.add('hidden');
   });
 
   dismissBtn.addEventListener('click', () => {
     banner.classList.add('hidden');
-    // Store dismissal preference
     localStorage.setItem('horseboard_install_dismissed', 'true');
   });
 
-  // Check if already dismissed
   if (localStorage.getItem('horseboard_install_dismissed')) {
     banner.classList.add('hidden');
   }
 }
 
-// Handle app installed event
 window.addEventListener('appinstalled', () => {
   console.log('App installed');
   const banner = document.getElementById('install-banner');

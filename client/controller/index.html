@@ -42,31 +42,78 @@
       <button id="back-btn" class="btn btn-icon" title="Disconnect">
         <span class="icon">&#x2190;</span>
       </button>
-      <h1>Your Board</h1>
+      <h1 id="header-title">Feed Board</h1>
       <button id="save-btn" class="btn btn-primary btn-small">Save</button>
     </header>
 
-    <main class="editor-main">
-      <!-- Table Editor -->
-      <div class="table-wrapper">
-        <table id="editor-table">
-          <thead id="editor-head"></thead>
-          <tbody id="editor-body"></tbody>
-        </table>
-        <button id="add-column-btn" class="btn btn-add btn-add-column" title="Add column">+</button>
-      </div>
-      <button id="add-row-btn" class="btn btn-add btn-add-row">+ Add Row</button>
+    <!-- Tab Navigation -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="board">Board</button>
+      <button class="tab-btn" data-tab="horses">Horses</button>
+      <button class="tab-btn" data-tab="feeds">Feeds</button>
+      <button class="tab-btn" data-tab="reports">Reports</button>
+    </nav>
 
-      <!-- TV View Settings -->
-      <div class="tv-settings">
-        <h2>TV Display Settings</h2>
-        <div class="setting-row">
-          <label for="start-row">Start from row:</label>
-          <input type="number" id="start-row" min="1" value="1">
+    <!-- Tab Content -->
+    <main class="tab-content">
+      <!-- Board Tab -->
+      <div id="tab-board" class="tab-panel active">
+        <div class="board-controls">
+          <div class="time-mode-toggle">
+            <button class="mode-btn" data-mode="AM">AM</button>
+            <button class="mode-btn active" data-mode="AUTO">Auto</button>
+            <button class="mode-btn" data-mode="PM">PM</button>
+          </div>
+          <div class="zoom-controls">
+            <button id="zoom-out" class="btn btn-icon" title="Zoom out">−</button>
+            <span id="zoom-level">7 horses</span>
+            <button id="zoom-in" class="btn btn-icon" title="Zoom in">+</button>
+          </div>
         </div>
-        <div class="setting-row">
-          <label for="row-count">Rows to show:</label>
-          <input type="number" id="row-count" min="1" value="10">
+        <div class="board-grid-container">
+          <div id="board-grid" class="board-grid">
+            <!-- Grid will be rendered by JS -->
+          </div>
+        </div>
+        <div class="pagination-controls">
+          <button id="page-prev" class="btn btn-icon" disabled>‹</button>
+          <span id="page-indicator">Page 1 of 1</span>
+          <button id="page-next" class="btn btn-icon" disabled>›</button>
+        </div>
+      </div>
+
+      <!-- Horses Tab -->
+      <div id="tab-horses" class="tab-panel">
+        <div class="horses-list" id="horses-list">
+          <!-- Horse cards will be rendered by JS -->
+        </div>
+        <button id="add-horse-btn" class="btn btn-add btn-add-row">+ Add Horse</button>
+      </div>
+
+      <!-- Feeds Tab -->
+      <div id="tab-feeds" class="tab-panel">
+        <div class="feeds-list" id="feeds-list">
+          <!-- Feed items will be rendered by JS -->
+        </div>
+        <button id="add-feed-btn" class="btn btn-add btn-add-row">+ Add Feed</button>
+      </div>
+
+      <!-- Reports Tab -->
+      <div id="tab-reports" class="tab-panel">
+        <div class="reports-container">
+          <h2>Weekly Consumption</h2>
+          <table id="reports-table" class="reports-table">
+            <thead>
+              <tr>
+                <th>Feed</th>
+                <th>Weekly Total</th>
+                <th>Unit</th>
+              </tr>
+            </thead>
+            <tbody id="reports-body">
+              <!-- Report rows will be rendered by JS -->
+            </tbody>
+          </table>
         </div>
       </div>
     </main>
@@ -77,17 +124,127 @@
     </footer>
   </div>
 
-  <!-- Cell Edit Modal -->
-  <div id="cell-modal" class="modal hidden">
+  <!-- Quantity Input Modal -->
+  <div id="quantity-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2 id="quantity-title">Edit Quantity</h2>
+        <button class="modal-close-btn btn btn-icon">&times;</button>
+      </div>
+      <div class="quantity-input-container">
+        <input type="number" id="quantity-input" step="0.25" min="0" placeholder="0">
+        <span id="quantity-unit">scoops</span>
+      </div>
+      <div class="quantity-presets">
+        <button class="preset-btn" data-value="0.25">¼</button>
+        <button class="preset-btn" data-value="0.5">½</button>
+        <button class="preset-btn" data-value="0.75">¾</button>
+        <button class="preset-btn" data-value="1">1</button>
+        <button class="preset-btn" data-value="1.5">1½</button>
+        <button class="preset-btn" data-value="2">2</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn clear-qty-btn">Clear</button>
+        <button class="btn btn-primary save-qty-btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note Edit Modal -->
+  <div id="note-modal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 id="modal-title">Edit Cell</h2>
-        <button id="modal-close" class="btn btn-icon">&times;</button>
+        <h2>Edit Note</h2>
+        <button class="modal-close-btn btn btn-icon">&times;</button>
       </div>
-      <textarea id="cell-input" rows="3"></textarea>
+      <div class="note-horse-name" id="note-horse-name"></div>
+      <textarea id="note-input" rows="3" placeholder="Enter note..."></textarea>
+      <div class="note-expiry-row">
+        <label>Auto-clear:</label>
+        <select id="note-expiry-select">
+          <option value="">Never</option>
+          <option value="24">After 24 hours</option>
+          <option value="48">After 48 hours</option>
+        </select>
+      </div>
       <div class="modal-actions">
-        <button id="modal-cancel" class="btn">Cancel</button>
-        <button id="modal-save" class="btn btn-primary">Done</button>
+        <button class="btn modal-cancel-btn">Cancel</button>
+        <button class="btn btn-primary save-note-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Horse Detail Modal -->
+  <div id="horse-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2 id="horse-modal-title">Horse Details</h2>
+        <button class="modal-close-btn btn btn-icon">&times;</button>
+      </div>
+      <div class="horse-name-row">
+        <label>Name:</label>
+        <input type="text" id="horse-name-input" placeholder="Horse name">
+      </div>
+      <div class="horse-clone-row">
+        <label>Clone diet from:</label>
+        <select id="clone-diet-select">
+          <option value="">-- Select horse --</option>
+        </select>
+      </div>
+      <div class="horse-note-section">
+        <label>Note:</label>
+        <textarea id="horse-note-input" rows="2" placeholder="Optional note..."></textarea>
+        <div class="note-expiry-row">
+          <label>Auto-clear:</label>
+          <select id="horse-note-expiry">
+            <option value="">Never</option>
+            <option value="24">After 24 hours</option>
+            <option value="48">After 48 hours</option>
+          </select>
+        </div>
+        <div id="stale-note-warning" class="warning hidden">Note is over 24h old without expiry set</div>
+      </div>
+      <div class="horse-feeds-section">
+        <h3>Active Feeds</h3>
+        <div id="horse-active-feeds" class="horse-feeds-list">
+          <!-- Active feeds rendered by JS -->
+        </div>
+        <h3>Add Feed</h3>
+        <div id="horse-inactive-feeds" class="horse-feeds-list inactive">
+          <!-- Inactive feeds rendered by JS -->
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger delete-horse-btn">Delete Horse</button>
+        <button class="btn btn-primary save-horse-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feed Edit Modal -->
+  <div id="feed-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="feed-modal-title">Edit Feed</h2>
+        <button class="modal-close-btn btn btn-icon">&times;</button>
+      </div>
+      <div class="feed-name-row">
+        <label>Name:</label>
+        <input type="text" id="feed-name-input" placeholder="Feed name">
+      </div>
+      <div class="feed-unit-row">
+        <label>Unit:</label>
+        <select id="feed-unit-select">
+          <option value="scoop">Scoop</option>
+          <option value="ml">ml</option>
+          <option value="biscuit">Biscuit</option>
+          <option value="sachet">Sachet</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger delete-feed-btn hidden">Delete</button>
+        <button class="btn modal-cancel-btn">Cancel</button>
+        <button class="btn btn-primary save-feed-btn">Save</button>
       </div>
     </div>
   </div>
@@ -95,7 +252,7 @@
   <!-- Delete Confirmation Modal -->
   <div id="delete-modal" class="modal hidden">
     <div class="modal-content modal-small">
-      <h2 id="delete-title">Delete Row?</h2>
+      <h2 id="delete-title">Delete?</h2>
       <p id="delete-message">This action cannot be undone.</p>
       <div class="modal-actions">
         <button id="delete-cancel" class="btn">Cancel</button>
