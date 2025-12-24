@@ -146,6 +146,9 @@ test.describe('TV Display App', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -302,11 +305,14 @@ test.describe('TV Display App', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen first
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
 
-      // Initial AUTO mode with data
+      // Initial AUTO mode with data - ensure values in both AM and PM so feed shows
       let testData = {
         settings: {
           timezone: 'Australia/Sydney',
@@ -317,14 +323,17 @@ test.describe('TV Display App', () => {
         },
         feeds: [{ id: 'f1', name: 'Test', unit: 'scoop', rank: 1 }],
         horses: [{ id: 'h1', name: 'Test', note: null, noteExpiry: null }],
-        diet: { h1: { f1: { am: 1, pm: 0 } } }
+        diet: { h1: { f1: { am: 1, pm: 1 } } }
       };
 
       await displayPage.request.put(`/api/displays/${displayId}`, {
         data: { tableData: testData }
       });
 
-      // Wait for initial time mode to render
+      // Wait for table screen to be visible first
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+
+      // Wait for time mode to have text
       await displayPage.locator('#time-mode').waitFor({ timeout: 5000 });
       await displayPage.waitForFunction(() => {
         const el = document.getElementById('time-mode');
@@ -464,6 +473,9 @@ test.describe('TV Display App', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -519,6 +531,9 @@ test.describe('TV Display App', () => {
     test('displays horse notes in footer', async ({ page, context }) => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
+
+      // Wait for pairing screen to be visible (ensures display was created)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
