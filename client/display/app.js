@@ -9,7 +9,8 @@
  */
 
 const STORAGE_KEY = 'horseboard_display_id';
-const RECONNECT_DELAY_MS = 3000;
+const INITIAL_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 30000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
 // Horses per page based on zoom level
@@ -32,6 +33,7 @@ const FRACTIONS = {
 let displayId = null;
 let eventSource = null;
 let reconnectAttempts = 0;
+let reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
 
 // DOM Elements
 const screens = {
@@ -48,7 +50,10 @@ const elements = {
   pagination: document.getElementById('pagination'),
   pageInfo: document.getElementById('page-info'),
   timeMode: document.getElementById('time-mode'),
-  errorOverlay: document.getElementById('error-overlay')
+  errorOverlay: document.getElementById('error-overlay'),
+  errorMessage: document.getElementById('error-message'),
+  spinner: document.querySelector('.spinner'),
+  retryBtn: document.getElementById('retry-btn')
 };
 
 /**
@@ -65,11 +70,22 @@ function showScreen(screenName) {
 }
 
 /**
- * Show/hide error overlay
+ * Show/hide error overlay with optional retry button
  */
-function showError(show) {
+function showError(show, allowManualRetry = false) {
   if (show) {
     elements.errorOverlay.classList.remove('hidden');
+    elements.errorMessage.textContent = allowManualRetry
+      ? 'Unable to connect. Please check your connection and try again.'
+      : 'Connection lost. Attempting to reconnect...';
+
+    if (allowManualRetry) {
+      elements.spinner.classList.add('hidden');
+      elements.retryBtn.classList.remove('hidden');
+    } else {
+      elements.spinner.classList.remove('hidden');
+      elements.retryBtn.classList.add('hidden');
+    }
   } else {
     elements.errorOverlay.classList.add('hidden');
   }
@@ -141,7 +157,7 @@ async function initDisplay() {
 }
 
 /**
- * Connect to Server-Sent Events endpoint
+ * Connect to Server-Sent Events endpoint with exponential backoff
  */
 function connectSSE() {
   if (eventSource) {
@@ -153,6 +169,7 @@ function connectSSE() {
   eventSource.onopen = () => {
     console.log('SSE connected');
     reconnectAttempts = 0;
+    reconnectDelay = INITIAL_RECONNECT_DELAY_MS; // Reset delay on successful connection
     showError(false);
   };
 
@@ -170,15 +187,24 @@ function connectSSE() {
     eventSource.close();
 
     // Show error overlay if we were showing data
-    if (!screens.pairing.classList.contains('hidden') === false) {
-      showError(true);
+    if (!screens.table.classList.contains('hidden')) {
+      showError(true, false); // Show with spinner (attempting to reconnect)
     }
 
     // Attempt to reconnect
     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       reconnectAttempts++;
-      console.log(`Reconnecting in ${RECONNECT_DELAY_MS}ms (attempt ${reconnectAttempts})`);
-      setTimeout(connectSSE, RECONNECT_DELAY_MS);
+      // Exponential backoff: double delay on each attempt, capped at MAX_RECONNECT_DELAY_MS
+      const nextDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
+      console.log(`Reconnecting in ${nextDelay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+      setTimeout(connectSSE, nextDelay);
+      reconnectDelay = nextDelay; // Update delay for next iteration
+    } else {
+      // Max attempts reached - show retry button
+      console.log('Max reconnect attempts reached');
+      if (!screens.table.classList.contains('hidden')) {
+        showError(true, true); // Show with retry button
+      }
     }
   };
 }
@@ -387,5 +413,21 @@ function renderFeedGrid(tableData) {
   }
 }
 
+/**
+ * Reset reconnection attempts and reconnect
+ */
+function retryConnection() {
+  console.log('User initiated retry');
+  reconnectAttempts = 0;
+  showError(false);
+  connectSSE();
+}
+
 // Initialize on load
-document.addEventListener('DOMContentLoaded', initDisplay);
+document.addEventListener('DOMContentLoaded', () => {
+  // Set up retry button listener
+  elements.retryBtn.addEventListener('click', retryConnection);
+
+  // Initialize display
+  initDisplay();
+});

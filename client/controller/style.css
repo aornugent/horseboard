@@ -244,6 +244,44 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Settings Modal */
+.settings-content {
+  padding: 1.5rem 1rem;
+}
+
+.settings-item {
+  margin-bottom: 1.5rem;
+}
+
+.settings-item label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+}
+
+.settings-item select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.settings-item select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
 /* Tab Navigation */
 .tab-bar {
   display: flex;
@@ -717,7 +755,7 @@ body {
 .editor-footer {
   padding: 0.75rem 1rem;
   background: var(--card-bg);
-  border-top: 1px solid var(--border-color);
+  border-top: 2px solid var(--border-color);
   text-align: center;
   font-size: 0.875rem;
   color: var(--text-muted);
@@ -725,6 +763,93 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+#status-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+#status-text::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+/* Status state: ready (success) */
+#status-text[data-status="ready"]::before {
+  background: #4caf50;
+}
+
+.editor-footer:has(#status-text[data-status="ready"]) {
+  border-top-color: #4caf50;
+}
+
+/* Status state: unsaved changes (warning) */
+#status-text[data-status="unsaved"]::before {
+  background: #ff9800;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.editor-footer:has(#status-text[data-status="unsaved"]) {
+  border-top-color: #ff9800;
+}
+
+/* Status state: saving (info) */
+#status-text[data-status="saving"]::before {
+  background: #2196f3;
+  animation: spin 1s linear infinite;
+}
+
+.editor-footer:has(#status-text[data-status="saving"]) {
+  border-top-color: #2196f3;
+}
+
+/* Status state: saved (success) */
+#status-text[data-status="saved"]::before {
+  background: #4caf50;
+}
+
+.editor-footer:has(#status-text[data-status="saved"]) {
+  border-top-color: #4caf50;
+}
+
+/* Status state: error (danger) */
+#status-text[data-status="error"]::before {
+  background: #f44336;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.editor-footer:has(#status-text[data-status="error"]) {
+  border-top-color: #f44336;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Modal */

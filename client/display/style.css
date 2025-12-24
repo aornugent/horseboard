@@ -22,10 +22,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 
 .screen.hidden {
   display: none;
+  opacity: 0;
 }
 
 /* Pairing Screen */
@@ -124,6 +127,7 @@ body {
   background: rgba(255, 255, 255, 0.1);
   font-size: 1.5rem;
   min-width: 100%;
+  transition: opacity 0.3s ease;
 }
 
 /* Grid Cell Base Styles */
@@ -132,6 +136,7 @@ body {
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Header Row */
@@ -227,6 +232,7 @@ body {
   color: #4fc3f7;
   border: 2px solid #4fc3f7;
   z-index: 100;
+  transition: all 0.3s ease;
 }
 
 /* Pagination */
@@ -253,14 +259,31 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  pointer-events: auto;
 }
 
 .overlay.hidden {
   display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .error-content {
   text-align: center;
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .error-content h2 {
@@ -284,6 +307,38 @@ body {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto;
+  margin-bottom: 1.5rem;
+}
+
+.spinner.hidden {
+  display: none;
+}
+
+/* Retry Button */
+.retry-btn {
+  background: #4fc3f7;
+  color: #1a1a2e;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  background: #81d4fa;
+  transform: scale(1.05);
+}
+
+.retry-btn:active {
+  transform: scale(0.98);
+}
+
+.retry-btn.hidden {
+  display: none;
 }
 
 @keyframes spin {
