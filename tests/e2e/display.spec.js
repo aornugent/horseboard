@@ -28,8 +28,8 @@ test.describe('TV Display App', () => {
     test('persists display ID in localStorage', async ({ page }) => {
       await page.goto('/display');
 
-      // Wait for display to be created
-      await page.waitForTimeout(500);
+      // Wait for pairing screen to appear (indicates display was created)
+      await page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await page.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
@@ -44,11 +44,11 @@ test.describe('TV Display App', () => {
     test('initially shows empty state', async ({ page }) => {
       await page.goto('/display');
 
-      // Wait for SSE connection
-      await page.waitForTimeout(1000);
-
-      // On initial load, pairing screen should be visible
+      // Wait for pairing screen to appear (indicates SSE connected)
       const pairingScreen = page.locator('#pairing-screen');
+      await pairingScreen.waitFor({ state: 'visible', timeout: 5000 });
+
+      // Verify pairing screen is visible
       await expect(pairingScreen).toBeVisible();
 
       // Pair code should be displayed
@@ -95,7 +95,8 @@ test.describe('TV Display App', () => {
 
       expect(response.ok()).toBeTruthy();
 
-      // Wait for SSE update and table screen to appear
+      // Small delay for SSE, then wait for actual condition
+      await displayPage.waitForTimeout(100);
       const tableScreen = displayPage.locator('#table-screen');
       await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
@@ -189,7 +190,9 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      // Wait for table screen and grid to be visible
+      // Small delay for SSE to trigger the update, then wait for the actual condition
+      // (SSE is async, so we give it a moment, then check for the actual DOM change)
+      await displayPage.waitForTimeout(100);
       const tableScreen = displayPage.locator('#table-screen');
       await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 

@@ -186,24 +186,22 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Go offline
       await context.setOffline(true);
 
-      // Wait a moment for SSE to disconnect
-      await displayPage.waitForTimeout(1500);
+      // Wait for SSE to detect disconnection (error overlay may appear or page may just continue)
+      const errorOverlay = displayPage.locator('#error-overlay');
+      const errorAppeared = await errorOverlay.isVisible({ timeout: 2000 }).catch(() => false);
 
       // Check if error overlay becomes visible (display should show connection lost)
-      const errorOverlay = displayPage.locator('#error-overlay');
-      const isErrorVisible = await errorOverlay.isVisible().catch(() => false);
-
-      // Error overlay may or may not be visible depending on timing, but shouldn't crash
-      expect(typeof isErrorVisible).toBe('boolean');
+      // It's ok if it doesn't - the important thing is it handles gracefully
+      expect(typeof errorAppeared).toBe('boolean');
 
       // Come back online
       await context.setOffline(false);
 
-      // Wait for reconnection
-      await displayPage.waitForTimeout(2000);
+      // Wait for reconnection by checking if table screen is still visible/reachable
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
       // Display should be visible again
-      const tableScreen = displayPage.locator('#table-screen');
       const isTableVisible = await tableScreen.isVisible();
       expect(isTableVisible).toBe(true);
 
@@ -246,7 +244,6 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       // Go offline
       await context.setOffline(true);
-      await displayPage.waitForTimeout(500);
 
       // Come back online
       await context.setOffline(false);
@@ -297,7 +294,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       await controller1Page.locator('#connect-btn').click();
       await controller1Page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controller1Page.waitForTimeout(500);
+      await controller1Page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // Second controller (same pair code)
       const controller2Page = await context.newPage();
@@ -312,7 +309,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       await controller2Page.locator('#connect-btn').click();
       await controller2Page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controller2Page.waitForTimeout(500);
+      await controller2Page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // Setup initial data
       const initialData = {
@@ -352,8 +349,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: data2 }
       });
 
-      // Wait for the final update to settle
-      await displayPage.waitForTimeout(1000);
+      // Wait for the final update to appear on display (last write wins: 3.0)
+      const valueCell = displayPage.locator('.grid-cell.value').first();
+      await valueCell.waitFor({ state: 'visible', timeout: 5000 });
 
       // Display should show the last write (3.0)
       const valueCells = await displayPage.locator('.grid-cell.value').allTextContents();
@@ -405,7 +403,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       await controller2Page.locator('#connect-btn').click();
       await controller2Page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controller2Page.waitForTimeout(500);
+      await controller2Page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // User 1 makes a change
       const testData = {
@@ -431,8 +429,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: testData }
       });
 
-      // Wait for broadcast to reach display
-      await displayPage.waitForTimeout(1000);
+      // Wait for broadcast to reach display - check for the fraction value
+      const valueCell = displayPage.locator('.grid-cell.value').first();
+      await valueCell.waitFor({ state: 'visible', timeout: 5000 });
 
       // Display should show the update
       const displayValues = await displayPage.locator('.grid-cell.value').allTextContents();
@@ -502,20 +501,18 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       await controllerPage.locator('#connect-btn').click();
       await controllerPage.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controllerPage.waitForTimeout(500);
+      await controllerPage.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // Controller is now paired. Simulate display being deleted on server
       // by manually deleting it via API
       const deleteResponse = await controllerPage.request.delete(`/api/displays/${displayId}`);
       expect(deleteResponse.status()).toBe(200);
 
-      // Wait a moment
-      await controllerPage.waitForTimeout(1000);
-
       // Controller should still be in editor screen (may eventually show error on next SSE message)
       // The important thing is it doesn't crash immediately
       const editorScreen = controllerPage.locator('#editor-screen');
-      const isEditorVisible = await editorScreen.isVisible().catch(() => false);
+      // Give a moment for any SSE errors to propagate, but don't wait indefinitely
+      const isEditorVisible = await editorScreen.isVisible({ timeout: 2000 }).catch(() => false);
 
       // Should either still show editor or have shown an error gracefully
       expect(typeof isEditorVisible).toBe('boolean');
@@ -560,7 +557,6 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       // Brief offline period
       await context.setOffline(true);
-      await displayPage.waitForTimeout(500);
       await context.setOffline(false);
 
       // Data should still be in localStorage
@@ -571,9 +567,8 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       expect(storedId).toBe(displayId);
 
       // Display should reconnect and still show data
-      await displayPage.waitForTimeout(2000);
-
       const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
       const isVisible = await tableScreen.isVisible();
       expect(isVisible).toBe(true);
 

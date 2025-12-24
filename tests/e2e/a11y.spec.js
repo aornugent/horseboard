@@ -257,7 +257,7 @@ test.describe('Accessibility Audit (A11y)', () => {
 
       await controllerPage.locator('#connect-btn').click();
       await controllerPage.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controllerPage.waitForTimeout(500);
+      await controllerPage.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // Set initial data with data to show controls
       const testData = {
@@ -277,10 +277,10 @@ test.describe('Accessibility Audit (A11y)', () => {
         data: { tableData: testData }
       });
 
-      await controllerPage.waitForTimeout(500);
-
-      // Look for time mode buttons
+      // Look for time mode buttons (should be present after editor loads)
       const timeButtons = controllerPage.locator('button').filter({ hasText: /AM|PM|AUTO/ });
+      // Wait for at least one time button to be available
+      await controllerPage.locator('.mode-btn').first().waitFor({ state: 'visible', timeout: 5000 });
       const buttonCount = await timeButtons.count();
 
       // If time buttons exist, they should be keyboard navigable
