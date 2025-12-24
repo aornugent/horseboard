@@ -465,17 +465,9 @@ function pluralize(unit, count) {
 
 function renderBoard() {
   const grid = document.getElementById('board-grid');
-  const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
-  const currentPage = tableData.settings.currentPage || 0;
-  const totalPages = Math.max(1, Math.ceil(tableData.horses.length / horsesPerPage));
 
-  // Ensure current page is valid
-  if (currentPage >= totalPages) {
-    tableData.settings.currentPage = Math.max(0, totalPages - 1);
-  }
-
-  const startIdx = currentPage * horsesPerPage;
-  const pageHorses = tableData.horses.slice(startIdx, startIdx + horsesPerPage);
+  // Controller shows ALL horses (scrollable) - zoom/pagination only affects the TV display
+  const allHorses = tableData.horses;
 
   // Filter feeds that have at least one non-zero value
   const activeFeeds = tableData.feeds.filter(feed => {
@@ -490,12 +482,12 @@ function renderBoard() {
 
   const timeMode = getEffectiveTimeMode();
   const period = timeMode.toLowerCase();
-  const colCount = pageHorses.length + 1; // +1 for feed name column
 
-  grid.style.gridTemplateColumns = `minmax(80px, 1fr) repeat(${pageHorses.length}, minmax(70px, 1fr))`;
+  // Set grid columns for all horses (controller has touch input, so scrolling is fine)
+  grid.style.gridTemplateColumns = `minmax(80px, 1fr) repeat(${allHorses.length}, minmax(70px, 1fr))`;
   grid.innerHTML = '';
 
-  if (pageHorses.length === 0) {
+  if (allHorses.length === 0) {
     grid.innerHTML = '<div class="board-cell empty" style="grid-column: 1/-1; padding: 2rem;">No horses yet. Add horses in the Horses tab.</div>';
     updatePagination();
     return;
@@ -503,7 +495,7 @@ function renderBoard() {
 
   // Header row - horse names
   grid.appendChild(createCell('', 'header'));
-  pageHorses.forEach(horse => {
+  allHorses.forEach(horse => {
     const cell = createCell(horse.name, 'header');
     cell.dataset.horseId = horse.id;
     cell.addEventListener('click', () => openHorseModal(horse.id));
@@ -525,7 +517,7 @@ function renderBoard() {
       grid.appendChild(createCell(feed.name, 'feed-name'));
 
       // Quantity cells for each horse
-      pageHorses.forEach(horse => {
+      allHorses.forEach(horse => {
         const horseDiet = tableData.diet[horse.id] || {};
         const feedDiet = horseDiet[feed.id] || {};
         const value = feedDiet[period];
@@ -548,7 +540,7 @@ function renderBoard() {
 
   // Notes row
   grid.appendChild(createCell('Notes', 'feed-name'));
-  pageHorses.forEach(horse => {
+  allHorses.forEach(horse => {
     const cell = createCell(horse.note || '', 'note');
     cell.dataset.horseId = horse.id;
     if (!horse.note) cell.classList.add('empty');
@@ -578,16 +570,18 @@ function updateTimeModeButtons() {
 }
 
 function updateZoomDisplay() {
+  // Zoom controls affect the TV display, not the controller's scrollable view
   const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
-  document.getElementById('zoom-level').textContent = `${horsesPerPage} horses`;
+  document.getElementById('zoom-level').textContent = `TV: ${horsesPerPage}`;
 }
 
 function updatePagination() {
+  // Pagination controls affect the TV display, not the controller's scrollable view
   const horsesPerPage = ZOOM_HORSES[tableData.settings.zoomLevel] || 7;
   const totalPages = Math.max(1, Math.ceil(tableData.horses.length / horsesPerPage));
   const currentPage = tableData.settings.currentPage || 0;
 
-  document.getElementById('page-indicator').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+  document.getElementById('page-indicator').textContent = `TV: ${currentPage + 1}/${totalPages}`;
   document.getElementById('page-prev').disabled = currentPage === 0;
   document.getElementById('page-next').disabled = currentPage >= totalPages - 1;
 }

@@ -383,6 +383,8 @@ body {
 .board-grid-container {
   overflow-x: auto;
   margin-bottom: 1rem;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-behavior: smooth;
 }
 
 .board-grid {
