@@ -295,7 +295,15 @@ async function loadDisplayData() {
 
   } catch (error) {
     console.error('Load error:', error);
-    showToast('Failed to load data', 'error');
+
+    // Provide specific error messages
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      showToast('Network error: Unable to connect to server. Check your connection.', 'error');
+    } else if (error.message.includes('404')) {
+      showToast('Display not found. Please pair again.', 'error');
+    } else {
+      showToast('Failed to load data. Please try again.', 'error');
+    }
   }
 }
 
@@ -319,16 +327,35 @@ async function saveData(immediate = false) {
       });
 
       if (!response.ok) {
-        throw new Error('Save failed');
+        throw new Error(`Server error: ${response.status}`);
       }
 
       setStatus('Saved');
+      // Auto-reset to "Ready" after 3 seconds
+      setTimeout(() => {
+        if (document.getElementById('status-text').getAttribute('data-status') === 'saved') {
+          setStatus('Ready');
+        }
+      }, 3000);
 
     } catch (error) {
       console.error('Save error:', error);
-      setStatus('Save failed');
-      showToast('Failed to save changes', 'error');
       hasUnsavedChanges = true;
+
+      // Determine error type and show appropriate message
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        // Network connectivity issue
+        setStatus('Connection lost');
+        showToast('Network error: Unable to reach server. Your changes are saved locally.', 'error');
+      } else if (error.message.includes('Server error')) {
+        // Server-side error
+        setStatus('Save failed');
+        showToast(`Server error. Please check your connection and try again.`, 'error');
+      } else {
+        // Unknown error
+        setStatus('Save failed');
+        showToast(`Error saving changes: ${error.message}`, 'error');
+      }
     }
   };
 
@@ -342,7 +369,53 @@ async function saveData(immediate = false) {
 }
 
 function setStatus(text) {
-  document.getElementById('status-text').textContent = text;
+  const statusEl = document.getElementById('status-text');
+  statusEl.textContent = text;
+
+  // Set data-status attribute for CSS styling
+  if (text.includes('Ready')) {
+    statusEl.setAttribute('data-status', 'ready');
+  } else if (text.includes('Unsaved')) {
+    statusEl.setAttribute('data-status', 'unsaved');
+  } else if (text.includes('Saving')) {
+    statusEl.setAttribute('data-status', 'saving');
+  } else if (text.includes('Saved')) {
+    statusEl.setAttribute('data-status', 'saved');
+  } else if (text.includes('Connection') || text.includes('failed')) {
+    statusEl.setAttribute('data-status', 'error');
+  }
+}
+
+// ===================
+// Settings Modal
+// ===================
+
+function openSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  const timezoneSelect = document.getElementById('timezone-select');
+
+  // Load current timezone
+  const currentTz = tableData.settings?.timezone || 'Australia/Sydney';
+  timezoneSelect.value = currentTz;
+
+  modal.classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+function saveTimezone() {
+  const timezoneSelect = document.getElementById('timezone-select');
+  const newTz = timezoneSelect.value;
+
+  // Update settings
+  tableData.settings.timezone = newTz;
+
+  // Save and close
+  saveData(true);
+  closeSettingsModal();
+  showToast(`Timezone changed to ${newTz}`, 'info');
 }
 
 // ===================
@@ -1156,6 +1229,16 @@ async function init() {
   // Header buttons
   document.getElementById('back-btn').addEventListener('click', handleBack);
   document.getElementById('save-btn').addEventListener('click', () => saveData(true));
+  document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
+
+  // Settings modal
+  const settingsModal = document.getElementById('settings-modal');
+  settingsModal.querySelector('.modal-close-btn').addEventListener('click', closeSettingsModal);
+  document.getElementById('settings-close-btn').addEventListener('click', saveTimezone);
+  document.getElementById('timezone-select').addEventListener('change', saveTimezone);
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) closeSettingsModal();
+  });
 
   // Tab navigation
   document.querySelectorAll('.tab-btn').forEach(btn => {
