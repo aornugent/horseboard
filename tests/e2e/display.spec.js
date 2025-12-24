@@ -356,6 +356,9 @@ test.describe('TV Display App', () => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
 
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
       });
@@ -410,6 +413,9 @@ test.describe('TV Display App', () => {
     test('handles multiple rapid updates', async ({ page, context }) => {
       const displayPage = await context.newPage();
       await displayPage.goto('/display');
+
+      // Wait for pairing screen to be visible (ensures SSE is connected)
+      await displayPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await displayPage.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
