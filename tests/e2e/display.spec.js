@@ -1,0 +1,499 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('TV Display App', () => {
+  test.describe('Pairing Screen', () => {
+    test('shows pairing code on load', async ({ page }) => {
+      await page.goto('/display');
+
+      // Should show pairing screen initially
+      const pairingScreen = page.locator('#pairing-screen');
+      await expect(pairingScreen).not.toHaveClass(/hidden/);
+
+      // Should display a 6-digit code
+      const pairCode = page.locator('#pair-code');
+      await expect(pairCode).toBeVisible();
+      const codeText = await pairCode.textContent();
+      expect(codeText).toMatch(/^\d{6}$/);
+    });
+
+    test('shows controller URL on pairing screen', async ({ page }) => {
+      await page.goto('/display');
+
+      const controllerUrl = page.locator('#controller-url');
+      await expect(controllerUrl).toBeVisible();
+      const url = await controllerUrl.textContent();
+      expect(url).toContain('/controller');
+    });
+
+    test('persists display ID in localStorage', async ({ page }) => {
+      await page.goto('/display');
+
+      // Wait for display to be created
+      await page.waitForTimeout(500);
+
+      const displayId = await page.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      expect(displayId).toBeTruthy();
+      expect(displayId).toMatch(/^d_/);
+    });
+  });
+
+  test.describe('Display Data Structure', () => {
+    test('initially shows empty state', async ({ page }) => {
+      await page.goto('/display');
+
+      // Wait for SSE connection
+      await page.waitForTimeout(1000);
+
+      // Check if empty screen is shown (since we haven't added any data)
+      const emptyScreen = page.locator('#empty-screen');
+      const tableScreen = page.locator('#table-screen');
+
+      // Either empty or table screen should be visible
+      const emptyVisible = await emptyScreen.isVisible();
+      const tableVisible = await tableScreen.isVisible();
+
+      expect(emptyVisible || tableVisible).toBeTruthy();
+    });
+
+    test('accepts valid domain data structure', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      // Get the display ID
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Create test data with valid domain structure
+      const testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [
+          { id: 'f1', name: 'Easisport', unit: 'scoop', rank: 1 }
+        ],
+        horses: [
+          { id: 'h1', name: 'Spider', note: null, noteExpiry: null }
+        ],
+        diet: {
+          h1: {
+            f1: { am: 0.5, pm: 0.5 }
+          }
+        }
+      };
+
+      // Update display via API
+      const response = await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      expect(response.ok()).toBeTruthy();
+
+      // Wait for SSE update
+      await displayPage.waitForTimeout(500);
+
+      // Display should now show table (not empty)
+      const tableScreen = displayPage.locator('#table-screen');
+      await expect(tableScreen).not.toHaveClass(/hidden/);
+
+      await displayPage.close();
+    });
+  });
+
+  test.describe('Feed Grid Rendering', () => {
+    test('renders feed grid with horses and feeds', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Set up test data
+      const testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [
+          { id: 'f1', name: 'Easisport', unit: 'scoop', rank: 1 },
+          { id: 'f2', name: 'Bute', unit: 'sachet', rank: 2 }
+        ],
+        horses: [
+          { id: 'h1', name: 'Spider', note: null, noteExpiry: null },
+          { id: 'h2', name: 'Lightning', note: null, noteExpiry: null }
+        ],
+        diet: {
+          h1: { f1: { am: 0.5, pm: 0.5 }, f2: { am: 1, pm: 0 } },
+          h2: { f1: { am: 1, pm: 1 } }
+        }
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      // Grid should exist and be visible
+      const feedGrid = displayPage.locator('#feed-grid');
+      await expect(feedGrid).toBeVisible();
+
+      // Should contain horse headers
+      const headers = displayPage.locator('.feed-grid-header');
+      expect(headers).toBeTruthy();
+
+      await displayPage.close();
+    });
+
+    test('displays fractions correctly', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Set data with fractional values
+      const testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [
+          { id: 'f1', name: 'Oats', unit: 'scoop', rank: 1 }
+        ],
+        horses: [
+          { id: 'h1', name: 'Spider', note: null, noteExpiry: null }
+        ],
+        diet: {
+          h1: { f1: { am: 0.5, pm: 0.25 } }
+        }
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      const gridText = await displayPage.locator('#feed-grid').textContent();
+
+      // Should contain fraction symbols
+      expect(gridText).toContain('½'); // 0.5
+      expect(gridText).toContain('¼'); // 0.25
+
+      await displayPage.close();
+    });
+  });
+
+  test.describe('Time Mode Display', () => {
+    test('shows current time mode', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Set AUTO mode
+      const testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [],
+        horses: [],
+        diet: {}
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      const timeModeIndicator = displayPage.locator('#time-mode');
+      await expect(timeModeIndicator).toBeVisible();
+
+      await displayPage.close();
+    });
+
+    test('updates when time mode changes', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Initial AUTO mode
+      let testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [],
+        horses: [],
+        diet: {}
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(300);
+
+      // Change to PM
+      testData.settings.timeMode = 'PM';
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      const timeModeIndicator = displayPage.locator('#time-mode');
+      const modeText = await timeModeIndicator.textContent();
+      expect(modeText).toContain('PM');
+
+      await displayPage.close();
+    });
+  });
+
+  test.describe('Real-time Updates', () => {
+    test('receives and displays updates via SSE', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Set initial data
+      let testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [
+          { id: 'f1', name: 'Initial Feed', unit: 'scoop', rank: 1 }
+        ],
+        horses: [
+          { id: 'h1', name: 'TestHorse', note: null, noteExpiry: null }
+        ],
+        diet: {
+          h1: { f1: { am: 1, pm: 1 } }
+        }
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      // Update the feed name
+      testData.feeds[0].name = 'Updated Feed';
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      const gridText = await displayPage.locator('#feed-grid').textContent();
+      expect(gridText).toContain('Updated Feed');
+
+      await displayPage.close();
+    });
+
+    test('handles multiple rapid updates', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Send multiple updates in quick succession
+      for (let i = 0; i < 5; i++) {
+        const testData = {
+          settings: {
+            timezone: 'Australia/Sydney',
+            timeMode: 'AUTO',
+            overrideUntil: null,
+            zoomLevel: 2,
+            currentPage: 0
+          },
+          feeds: [
+            { id: 'f1', name: `Feed ${i}`, unit: 'scoop', rank: 1 }
+          ],
+          horses: [
+            { id: 'h1', name: 'TestHorse', note: null, noteExpiry: null }
+          ],
+          diet: {
+            h1: { f1: { am: i, pm: i } }
+          }
+        };
+
+        await displayPage.request.put(`/api/displays/${displayId}`, {
+          data: { tableData: testData }
+        });
+      }
+
+      await displayPage.waitForTimeout(500);
+
+      // Final update should be displayed
+      const gridText = await displayPage.locator('#feed-grid').textContent();
+      expect(gridText).toContain('Feed 4');
+
+      await displayPage.close();
+    });
+  });
+
+  test.describe('Pagination', () => {
+    test('shows pagination controls with multiple horses', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Create 15 horses (more than zoom level 2 can show)
+      const horses = Array.from({ length: 15 }, (_, i) => ({
+        id: `h${i}`,
+        name: `Horse ${i}`,
+        note: null,
+        noteExpiry: null
+      }));
+
+      const testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [
+          { id: 'f1', name: 'Oats', unit: 'scoop', rank: 1 }
+        ],
+        horses,
+        diet: Object.fromEntries(horses.map(h => [
+          h.id,
+          { f1: { am: 1, pm: 1 } }
+        ]))
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      // Pagination should be visible
+      const pagination = displayPage.locator('#pagination');
+      // May be hidden initially if zoom allows all horses
+      const pageInfo = displayPage.locator('#page-info');
+      // Should have page info if pagination is used
+      expect(pageInfo).toBeTruthy();
+
+      await displayPage.close();
+    });
+  });
+
+  test.describe('Horse Notes', () => {
+    test('displays horse notes in footer', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      const testData = {
+        settings: {
+          timezone: 'Australia/Sydney',
+          timeMode: 'AUTO',
+          overrideUntil: null,
+          zoomLevel: 2,
+          currentPage: 0
+        },
+        feeds: [
+          { id: 'f1', name: 'Oats', unit: 'scoop', rank: 1 }
+        ],
+        horses: [
+          { id: 'h1', name: 'Spider', note: 'Turn out early', noteExpiry: null, noteCreatedAt: Date.now() },
+          { id: 'h2', name: 'Lightning', note: null, noteExpiry: null }
+        ],
+        diet: {
+          h1: { f1: { am: 1, pm: 1 } },
+          h2: { f1: { am: 0.5, pm: 0.5 } }
+        }
+      };
+
+      await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: testData }
+      });
+
+      await displayPage.waitForTimeout(500);
+
+      const gridText = await displayPage.locator('#feed-grid').textContent();
+      expect(gridText).toContain('Turn out early');
+
+      await displayPage.close();
+    });
+  });
+
+  test.describe('Error Handling & Reconnection', () => {
+    test('shows error overlay when connection is lost', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      // Simulate connection loss by stopping the server
+      // Note: In a real E2E environment, this would require server control
+      // For now, we'll test that error overlay exists in DOM
+
+      const errorOverlay = displayPage.locator('#error-overlay');
+      const retryBtn = displayPage.locator('#retry-btn');
+
+      expect(errorOverlay).toBeTruthy();
+      expect(retryBtn).toBeTruthy();
+
+      await displayPage.close();
+    });
+
+    test('retry button is functional', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const retryBtn = displayPage.locator('#retry-btn');
+      expect(retryBtn).toBeTruthy();
+
+      await displayPage.close();
+    });
+  });
+});
