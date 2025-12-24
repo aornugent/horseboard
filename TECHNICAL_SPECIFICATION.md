@@ -479,6 +479,27 @@ Required structure:
 }
 ```
 
+### 11.1 Client-Side Error Handling
+
+**TV Display:**
+- SSE connection failures trigger "Connection Lost" overlay
+- Exponential backoff reconnection: 1s, 2s, 4s, 8s... up to 30s max
+- Max 10 reconnection attempts before showing manual "Retry Now" button
+- Overlay auto-hides when connection restores
+
+**Mobile Controller:**
+- Network failures show toast notifications
+- Specific messages for different error types (network, not found, server error)
+- Sync status indicator shows: Ready, Unsaved, Saving, Saved, Error
+- Failed saves don't clear unsaved state (can be retried)
+
+### 11.2 Save Optimization
+
+- Saves are debounced by 500ms to prevent excessive requests during rapid edits
+- Status shows "Saving" while request in flight
+- Status updates to "Saved" for 3 seconds after successful save
+- Multiple changes within 500ms window are batched into single save
+
 ## 12. Concurrency
 
 **Strategy:** Last Write Wins
