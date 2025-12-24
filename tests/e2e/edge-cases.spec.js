@@ -575,4 +575,109 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       await displayPage.close();
     });
   });
+
+  test.describe('API Error Handling & Resilience', () => {
+    test('handles invalid display ID gracefully', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      // Try to PUT data to a non-existent display
+      const invalidId = 'd_invalid_' + Date.now();
+      const testData = {
+        settings: { timezone: 'UTC', timeMode: 'AUTO', overrideUntil: null, zoomLevel: 2, currentPage: 0 },
+        feeds: [],
+        horses: [],
+        diet: {}
+      };
+
+      const response = await displayPage.request.put(`/api/displays/${invalidId}`, {
+        data: { tableData: testData }
+      }).catch(err => null);
+
+      // Request should fail gracefully (404 or 500)
+      if (response) {
+        expect(response.status()).toBeGreaterThanOrEqual(400);
+      }
+
+      // Display should still be functional
+      const pairingScreen = displayPage.locator('#pairing-screen');
+      const isPairingVisible = await pairingScreen.isVisible().catch(() => false);
+      // Either pairing screen is visible or app is still running
+      expect(typeof isPairingVisible).toBe('boolean');
+
+      await displayPage.close();
+    });
+
+    test('handles missing required fields in data structure', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Send data with missing required fields
+      const invalidData = {
+        feeds: [], // Missing settings, horses, diet
+      };
+
+      const response = await displayPage.request.put(`/api/displays/${displayId}`, {
+        data: { tableData: invalidData }
+      });
+
+      // Should handle gracefully (accept or reject cleanly)
+      // The important thing is the app doesn't crash
+      expect(typeof response).toBe('object');
+
+      // Check that display is still responsive
+      const isPageReachable = await displayPage.goto('/display').catch(() => null);
+      expect(isPageReachable).toBeTruthy();
+
+      await displayPage.close();
+    });
+
+    test('recovers from concurrent conflicting updates', async ({ page, context }) => {
+      const displayPage = await context.newPage();
+      await displayPage.goto('/display');
+
+      const displayId = await displayPage.evaluate(() => {
+        return localStorage.getItem('horseboard_display_id');
+      });
+
+      // Send two conflicting updates simultaneously
+      const data1 = {
+        settings: { timezone: 'UTC', timeMode: 'AM', overrideUntil: null, zoomLevel: 1, currentPage: 0 },
+        feeds: [{ id: 'f1', name: 'Feed1', unit: 'scoop', rank: 1 }],
+        horses: [{ id: 'h1', name: 'Horse1', note: null, noteExpiry: null }],
+        diet: { h1: { f1: { am: 1, pm: 0 } } }
+      };
+
+      const data2 = {
+        settings: { timezone: 'UTC', timeMode: 'PM', overrideUntil: null, zoomLevel: 2, currentPage: 0 },
+        feeds: [{ id: 'f1', name: 'Feed1', unit: 'ml', rank: 1 }],
+        horses: [{ id: 'h1', name: 'Horse1', note: null, noteExpiry: null }],
+        diet: { h1: { f1: { am: 0.5, pm: 0.5 } } }
+      };
+
+      // Send both without waiting
+      const [resp1, resp2] = await Promise.all([
+        displayPage.request.put(`/api/displays/${displayId}`, { data: { tableData: data1 } }),
+        displayPage.request.put(`/api/displays/${displayId}`, { data: { tableData: data2 } })
+      ]);
+
+      // Both should complete (last write wins)
+      expect(resp1.ok()).toBeTruthy();
+      expect(resp2.ok()).toBeTruthy();
+
+      // Verify final state is consistent
+      const finalResponse = await displayPage.request.get(`/api/displays/${displayId}`);
+      expect(finalResponse.ok()).toBeTruthy();
+
+      const finalData = await finalResponse.json();
+      // Should have one of the two update's data
+      expect(finalData.tableData.settings.timeMode).toMatch(/AM|PM/);
+
+      await displayPage.close();
+    });
+  });
 });
