@@ -484,7 +484,8 @@ function renderBoard() {
   const period = timeMode.toLowerCase();
 
   // Set grid columns for all horses (controller has touch input, so scrolling is fine)
-  grid.style.gridTemplateColumns = `minmax(80px, 1fr) repeat(${allHorses.length}, minmax(70px, 1fr))`;
+  // Use fixed widths (not 1fr) so the grid can overflow and enable horizontal scrolling on mobile
+  grid.style.gridTemplateColumns = `80px repeat(${allHorses.length}, 80px)`;
   grid.innerHTML = '';
 
   if (allHorses.length === 0) {
