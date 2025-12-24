@@ -50,7 +50,7 @@ describe('Controller Client', () => {
 
       assert.ok(res.text.includes('handleConnect'), 'should have handleConnect function');
       assert.ok(res.text.includes('loadDisplayData'), 'should have loadDisplayData function');
-      assert.ok(res.text.includes('renderTable'), 'should have renderTable function');
+      assert.ok(res.text.includes('renderBoard'), 'should have renderBoard function');
       assert.ok(res.text.includes('saveData'), 'should have saveData function');
     });
 
