@@ -3,3 +3,11 @@ data/*.db
 data/*.sqlite
 *.log
 .DS_Store
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# SQLite temporary files
+*.db-shm
+*.db-wal

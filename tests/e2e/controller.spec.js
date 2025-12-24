@@ -66,12 +66,9 @@ test.describe('Controller App', () => {
       const connectBtn = page.locator('#connect-btn');
       await connectBtn.click();
 
-      // Wait for error response
-      await page.waitForTimeout(500);
-
       // Error message should appear
       const errorMsg = page.locator('#pairing-error');
-      await expect(errorMsg).not.toHaveClass(/hidden/);
+      await expect(errorMsg).not.toHaveClass(/hidden/, { timeout: 5000 });
     });
   });
 
@@ -125,7 +122,7 @@ test.describe('Controller App', () => {
 
       // Wait for editor screen to load
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('shows tab navigation', async ({ page }) => {
@@ -133,9 +130,14 @@ test.describe('Controller App', () => {
       expect(await tabButtons.count()).toBeGreaterThan(0);
 
       // Check all expected tabs exist
-      const tabNames = ['Board', 'Horses', 'Feeds', 'Reports'];
-      for (const name of tabNames) {
-        const tab = page.locator(`text=${name}`);
+      const tabNames = [
+        { name: 'Board', tab: 'board' },
+        { name: 'Horses', tab: 'horses' },
+        { name: 'Feeds', tab: 'feeds' },
+        { name: 'Reports', tab: 'reports' }
+      ];
+      for (const item of tabNames) {
+        const tab = page.locator(`.tab-btn[data-tab="${item.tab}"]`);
         await expect(tab).toBeVisible();
       }
     });
@@ -200,7 +202,7 @@ test.describe('Controller App', () => {
       await connectBtn.click();
 
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('displays board grid with horses and feeds', async ({ page }) => {
@@ -303,7 +305,7 @@ test.describe('Controller App', () => {
       await connectBtn.click();
 
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('shows list of horses', async ({ page }) => {
@@ -374,7 +376,7 @@ test.describe('Controller App', () => {
       await connectBtn.click();
 
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('shows list of feeds', async ({ page }) => {
@@ -443,7 +445,7 @@ test.describe('Controller App', () => {
       await connectBtn.click();
 
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('shows reports table', async ({ page }) => {
@@ -515,7 +517,7 @@ test.describe('Controller App', () => {
       await connectBtn.click();
 
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('shows quantity modal when cell is clicked', async ({ page }) => {
@@ -595,7 +597,7 @@ test.describe('Controller App', () => {
       await connectBtn.click();
 
       await page.locator('#editor-screen').waitFor({ state: 'visible' });
-      await page.waitForTimeout(500);
+      await page.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
     });
 
     test('shows status text in footer', async ({ page }) => {

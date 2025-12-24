@@ -28,8 +28,8 @@ test.describe('TV Display App', () => {
     test('persists display ID in localStorage', async ({ page }) => {
       await page.goto('/display');
 
-      // Wait for display to be created
-      await page.waitForTimeout(500);
+      // Wait for pairing screen to appear (indicates display was created)
+      await page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const displayId = await page.evaluate(() => {
         return localStorage.getItem('horseboard_display_id');
@@ -44,18 +44,17 @@ test.describe('TV Display App', () => {
     test('initially shows empty state', async ({ page }) => {
       await page.goto('/display');
 
-      // Wait for SSE connection
-      await page.waitForTimeout(1000);
+      // Wait for pairing screen to appear (indicates SSE connected)
+      const pairingScreen = page.locator('#pairing-screen');
+      await pairingScreen.waitFor({ state: 'visible', timeout: 5000 });
 
-      // Check if empty screen is shown (since we haven't added any data)
-      const emptyScreen = page.locator('#empty-screen');
-      const tableScreen = page.locator('#table-screen');
+      // Verify pairing screen is visible
+      await expect(pairingScreen).toBeVisible();
 
-      // Either empty or table screen should be visible
-      const emptyVisible = await emptyScreen.isVisible();
-      const tableVisible = await tableScreen.isVisible();
-
-      expect(emptyVisible || tableVisible).toBeTruthy();
+      // Pair code should be displayed
+      const pairCode = page.locator('#pair-code');
+      const code = await pairCode.textContent();
+      expect(code).toMatch(/^\d{6}$/);
     });
 
     test('accepts valid domain data structure', async ({ page, context }) => {
@@ -96,12 +95,13 @@ test.describe('TV Display App', () => {
 
       expect(response.ok()).toBeTruthy();
 
-      // Wait for SSE update
-      await displayPage.waitForTimeout(500);
+      // Small delay for SSE, then wait for actual condition
+      await displayPage.waitForTimeout(100);
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
       // Display should now show table (not empty)
-      const tableScreen = displayPage.locator('#table-screen');
-      await expect(tableScreen).not.toHaveClass(/hidden/);
+      await expect(tableScreen).toBeVisible();
 
       await displayPage.close();
     });
@@ -143,15 +143,17 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for the table screen to show with grid
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
 
       // Grid should exist and be visible
       const feedGrid = displayPage.locator('#feed-grid');
       await expect(feedGrid).toBeVisible();
 
-      // Should contain horse headers
-      const headers = displayPage.locator('.feed-grid-header');
-      expect(headers).toBeTruthy();
+      // Should contain horse headers (look for the actual header cells)
+      const horseHeaders = displayPage.locator('.grid-cell.header.horse-name');
+      expect(await horseHeaders.count()).toBeGreaterThan(0);
 
       await displayPage.close();
     });
@@ -188,13 +190,19 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      // Wait for grid to be visible and contain data
-      await displayPage.waitForSelector('.grid-cell.value', { timeout: 5000 });
-      await displayPage.waitForTimeout(300);
+      // Small delay for SSE to trigger the update, then wait for the actual condition
+      // (SSE is async, so we give it a moment, then check for the actual DOM change)
+      await displayPage.waitForTimeout(100);
+      const tableScreen = displayPage.locator('#table-screen');
+      await tableScreen.waitFor({ state: 'visible', timeout: 5000 });
+
+      // Wait for grid value cells to appear with data
+      const valueCells = displayPage.locator('.grid-cell.value');
+      await valueCells.first().waitFor({ state: 'visible', timeout: 5000 });
 
       // Get all value cells and check their text content
-      const valueCells = await displayPage.locator('.grid-cell.value').allTextContents();
-      const gridText = valueCells.join(' ');
+      const valueContents = await valueCells.allTextContents();
+      const gridText = valueContents.join(' ');
 
       // Should contain fraction symbols
       expect(gridText).toContain('½'); // 0.5
@@ -231,8 +239,15 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      // Wait for time mode element to have text content
-      await displayPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
+      // Wait for time mode element to appear and have text
+      const timeModeElement = displayPage.locator('#time-mode');
+      await timeModeElement.waitFor({ timeout: 5000 });
+
+      // Wait for it to have actual text content (not just empty)
+      await displayPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.trim().length > 0;
+      }, { timeout: 5000 });
 
       const timeModeIndicator = displayPage.locator('#time-mode');
       await expect(timeModeIndicator).toBeVisible();
@@ -270,7 +285,11 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for initial time mode to render
-      await displayPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
+      await displayPage.locator('#time-mode').waitFor({ timeout: 5000 });
+      await displayPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.trim().length > 0;
+      }, { timeout: 5000 });
 
       // Change to PM
       testData.settings.timeMode = 'PM';
@@ -279,7 +298,10 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for time mode to update to PM
-      await displayPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
+      await displayPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.includes('PM');
+      }, { timeout: 5000 });
 
       const timeModeIndicator = displayPage.locator('#time-mode');
       const modeText = await timeModeIndicator.textContent();
@@ -322,8 +344,11 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
+      // Wait for table screen to be visible first
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       // Wait for initial feed name to appear
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Initial Feed/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Initial Feed' }).waitFor({ timeout: 5000 });
 
       // Update the feed name
       testData.feeds[0].name = 'Updated Feed';
@@ -333,7 +358,7 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for updated feed name to appear
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Updated Feed/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Updated Feed' }).waitFor({ timeout: 5000 });
 
       const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
       const gridText = feedNameCells.join(' ');
@@ -376,8 +401,9 @@ test.describe('TV Display App', () => {
         });
       }
 
-      // Wait for final feed name to appear in grid
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Feed 4/)').waitFor({ timeout: 5000 });
+      // Wait for table screen and final feed name to appear in grid
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Feed 4' }).waitFor({ timeout: 5000 });
 
       const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
       const gridText = feedNameCells.join(' ');
@@ -426,14 +452,18 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.waitForTimeout(500);
+      // Wait for table screen to be visible
+      await displayPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       // Pagination should be visible
       const pagination = displayPage.locator('#pagination');
-      // May be hidden initially if zoom allows all horses
+      // Wait for grid to render with multiple horses
+      await displayPage.locator('.grid-cell.horse-name').first().waitFor({ state: 'visible', timeout: 5000 });
+
+      // Should have pagination since we have 15 horses and zoom level 2 shows 7
       const pageInfo = displayPage.locator('#page-info');
-      // Should have page info if pagination is used
-      expect(pageInfo).toBeTruthy();
+      const pageText = await pageInfo.textContent();
+      expect(pageText).toMatch(/Page \d+ of \d+/);
 
       await displayPage.close();
     });
@@ -474,7 +504,7 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for the note to appear in the grid
-      await displayPage.locator('.grid-cell.note:has-text(/Turn out early/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.note').filter({ hasText: 'Turn out early' }).waitFor({ timeout: 5000 });
 
       const noteCells = await displayPage.locator('.grid-cell.note').allTextContents();
       const gridText = noteCells.join(' ');

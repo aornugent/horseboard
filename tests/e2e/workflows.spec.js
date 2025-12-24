@@ -68,8 +68,9 @@ test.describe('End-to-End Workflows', () => {
       const connectBtn = controllerPage.locator('#connect-btn');
       await connectBtn.click();
 
+      // Wait for editor screen to load and be ready
       await controllerPage.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controllerPage.waitForTimeout(500);
+      await controllerPage.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // Initial data setup
       const initialData = {
@@ -96,7 +97,7 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for initial feed to appear on display
-      await tvPage.locator('.grid-cell.feed-name:has-text(/Initial Feed/)').waitFor({ timeout: 5000 });
+      await tvPage.locator('.grid-cell.feed-name').filter({ hasText: 'Initial Feed' }).waitFor({ timeout: 5000 });
 
       // Verify display shows initial feed
       let feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
@@ -116,7 +117,7 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for updated feed name to appear on display
-      await tvPage.locator('.grid-cell.feed-name:has-text(/Updated Feed/)').waitFor({ timeout: 5000 });
+      await tvPage.locator('.grid-cell.feed-name').filter({ hasText: 'Updated Feed' }).waitFor({ timeout: 5000 });
 
       // Verify display shows updated feed
       feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
@@ -149,7 +150,7 @@ test.describe('End-to-End Workflows', () => {
 
       await controllerPage.locator('#connect-btn').click();
       await controllerPage.locator('#editor-screen').waitFor({ state: 'visible' });
-      await controllerPage.waitForTimeout(500);
+      await controllerPage.locator('#board-grid').waitFor({ state: 'attached', timeout: 5000 });
 
       // Set initial AUTO mode with data to trigger renderFeedGrid
       const testData = {
@@ -170,7 +171,11 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for initial time mode to render
-      await tvPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
+      await tvPage.locator('#time-mode').waitFor({ timeout: 5000 });
+      await tvPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.trim().length > 0;
+      }, { timeout: 5000 });
 
       // Change to PM mode
       testData.settings.timeMode = 'PM';
@@ -179,7 +184,10 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for time mode to update to PM
-      await tvPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
+      await tvPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.includes('PM');
+      }, { timeout: 5000 });
 
       // Verify TV displays PM
       const timeModeText = await tvPage.locator('#time-mode').textContent();
@@ -241,7 +249,8 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for SSE update to be received (by checking if table is still visible)
+      await tvPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       // Change zoom level
       testData.settings.zoomLevel = 3; // 5 horses per page
@@ -249,7 +258,8 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for SSE update again
+      await tvPage.locator('#table-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       // Display should update to show fewer horses per view
       // (This would be visible in actual UI but hard to test without grid inspection)
@@ -308,10 +318,12 @@ test.describe('End-to-End Workflows', () => {
         });
       }
 
-      await tvPage.waitForTimeout(1000);
+      // Wait for final feed to appear on display
+      await tvPage.locator('.grid-cell.feed-name').filter({ hasText: 'Feed 4' }).waitFor({ timeout: 5000 });
 
-      // Final state should be synced
-      const tvGridText = await tvPage.locator('#feed-grid').textContent();
+      // Final state should be synced - check feed name cells specifically
+      const feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
+      const tvGridText = feedNameCells.join(' ');
       expect(tvGridText).toContain('Feed 4');
 
       await tvPage.close();
@@ -423,16 +435,12 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await controllerPage.waitForTimeout(500);
-
       // Add a new horse
       testData.horses.push({ id: 'h2', name: 'Horse 2', note: null, noteExpiry: null });
 
       await controllerPage.request.put(`/api/displays/${displayId}`, {
         data: { tableData: testData }
       });
-
-      await controllerPage.waitForTimeout(500);
 
       // Verify via API
       const response = await controllerPage.request.get(`/api/displays/${displayId}`);
@@ -542,9 +550,12 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for note to appear in grid
+      await tvPage.locator('.grid-cell.note').filter({ hasText: 'Turn out early' }).waitFor({ timeout: 5000 });
 
-      const gridText = await tvPage.locator('#feed-grid').textContent();
+      // Check note cells specifically instead of entire grid
+      const noteCells = await tvPage.locator('.grid-cell.note').allTextContents();
+      const gridText = noteCells.join(' ');
       expect(gridText).toContain('Turn out early');
 
       await tvPage.close();
@@ -588,7 +599,8 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(300);
+      // Wait for note to appear
+      await tvPage.locator('.grid-cell.note').filter({ hasText: 'Original note' }).waitFor({ timeout: 5000 });
 
       // Clear the note
       testData.horses[0].note = null;
@@ -597,9 +609,12 @@ test.describe('End-to-End Workflows', () => {
         data: { tableData: testData }
       });
 
-      await tvPage.waitForTimeout(500);
+      // Wait for note cells to be updated (either empty or not containing original note)
+      const noteCells = tvPage.locator('.grid-cell.note');
+      await noteCells.first().waitFor({ state: 'visible', timeout: 5000 });
 
-      const gridText = await tvPage.locator('#feed-grid').textContent();
+      const gridTexts = await noteCells.allTextContents();
+      const gridText = gridTexts.join(' ');
       expect(gridText).not.toContain('Original note');
 
       await tvPage.close();
@@ -618,11 +633,9 @@ test.describe('End-to-End Workflows', () => {
       const connectBtn = page.locator('#connect-btn');
       await connectBtn.click();
 
-      await page.waitForTimeout(500);
-
-      // Error should appear
+      // Wait for error message to appear (showing invalid code)
       const errorMsg = page.locator('#pairing-error');
-      await expect(errorMsg).not.toHaveClass(/hidden/);
+      await expect(errorMsg).not.toHaveClass(/hidden/, { timeout: 5000 });
     });
 
     test('reconnecting after display deletion', async ({ page, context }) => {
@@ -649,11 +662,10 @@ test.describe('End-to-End Workflows', () => {
       }
 
       await controllerPage.locator('#connect-btn').click();
-      await controllerPage.waitForTimeout(500);
 
-      // Should show error
+      // Should show error when trying to connect with deleted display
       const errorMsg = controllerPage.locator('#pairing-error');
-      await expect(errorMsg).not.toHaveClass(/hidden/);
+      await expect(errorMsg).not.toHaveClass(/hidden/, { timeout: 5000 });
 
       await tvPage.close();
       await controllerPage.close();
