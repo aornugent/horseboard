@@ -26,15 +26,11 @@
           - button "−" [ref=e24] [cursor=pointer]
           - generic [ref=e25]: 7 horses
           - button "+" [ref=e26] [cursor=pointer]
-      - generic [ref=e28]:
-        - generic [ref=e30] [cursor=pointer]: Spider
-        - generic [ref=e31]: Oats
-        - generic [ref=e32] [cursor=pointer]: "1"
-        - generic [ref=e33]: Notes
-      - generic [ref=e35]:
-        - button "‹" [disabled] [ref=e36]
-        - generic [ref=e37]: Page 1 of 1
-        - button "›" [disabled] [ref=e38]
-  - contentinfo [ref=e39]:
-    - generic [ref=e40]: Ready
+      - generic [ref=e29]: No horses yet. Add horses in the Horses tab.
+      - generic [ref=e30]:
+        - button "‹" [disabled] [ref=e31]
+        - generic [ref=e32]: Page 1 of 1
+        - button "›" [disabled] [ref=e33]
+  - contentinfo [ref=e34]:
+    - generic [ref=e35]: Ready
 ```

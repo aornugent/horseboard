@@ -96,7 +96,7 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for initial feed to appear on display
-      await tvPage.locator('.grid-cell.feed-name:has-text(/Initial Feed/)').waitFor({ timeout: 5000 });
+      await tvPage.locator('.grid-cell.feed-name').filter({ hasText: 'Initial Feed' }).waitFor({ timeout: 5000 });
 
       // Verify display shows initial feed
       let feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
@@ -116,7 +116,7 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for updated feed name to appear on display
-      await tvPage.locator('.grid-cell.feed-name:has-text(/Updated Feed/)').waitFor({ timeout: 5000 });
+      await tvPage.locator('.grid-cell.feed-name').filter({ hasText: 'Updated Feed' }).waitFor({ timeout: 5000 });
 
       // Verify display shows updated feed
       feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
@@ -170,7 +170,11 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for initial time mode to render
-      await tvPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
+      await tvPage.locator('#time-mode').waitFor({ timeout: 5000 });
+      await tvPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.trim().length > 0;
+      }, { timeout: 5000 });
 
       // Change to PM mode
       testData.settings.timeMode = 'PM';
@@ -179,7 +183,10 @@ test.describe('End-to-End Workflows', () => {
       });
 
       // Wait for time mode to update to PM
-      await tvPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
+      await tvPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.includes('PM');
+      }, { timeout: 5000 });
 
       // Verify TV displays PM
       const timeModeText = await tvPage.locator('#time-mode').textContent();
@@ -310,8 +317,9 @@ test.describe('End-to-End Workflows', () => {
 
       await tvPage.waitForTimeout(1000);
 
-      // Final state should be synced
-      const tvGridText = await tvPage.locator('#feed-grid').textContent();
+      // Final state should be synced - check feed name cells specifically
+      const feedNameCells = await tvPage.locator('.grid-cell.feed-name').allTextContents();
+      const tvGridText = feedNameCells.join(' ');
       expect(tvGridText).toContain('Feed 4');
 
       await tvPage.close();
@@ -544,7 +552,9 @@ test.describe('End-to-End Workflows', () => {
 
       await tvPage.waitForTimeout(500);
 
-      const gridText = await tvPage.locator('#feed-grid').textContent();
+      // Check note cells specifically instead of entire grid
+      const noteCells = await tvPage.locator('.grid-cell.note').allTextContents();
+      const gridText = noteCells.join(' ');
       expect(gridText).toContain('Turn out early');
 
       await tvPage.close();

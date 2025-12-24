@@ -47,15 +47,14 @@ test.describe('TV Display App', () => {
       // Wait for SSE connection
       await page.waitForTimeout(1000);
 
-      // Check if empty screen is shown (since we haven't added any data)
-      const emptyScreen = page.locator('#empty-screen');
-      const tableScreen = page.locator('#table-screen');
+      // On initial load, pairing screen should be visible
+      const pairingScreen = page.locator('#pairing-screen');
+      await expect(pairingScreen).toBeVisible();
 
-      // Either empty or table screen should be visible
-      const emptyVisible = await emptyScreen.isVisible();
-      const tableVisible = await tableScreen.isVisible();
-
-      expect(emptyVisible || tableVisible).toBeTruthy();
+      // Pair code should be displayed
+      const pairCode = page.locator('#pair-code');
+      const code = await pairCode.textContent();
+      expect(code).toMatch(/^\d{6}$/);
     });
 
     test('accepts valid domain data structure', async ({ page, context }) => {
@@ -231,8 +230,15 @@ test.describe('TV Display App', () => {
         data: { tableData: testData }
       });
 
-      // Wait for time mode element to have text content
-      await displayPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
+      // Wait for time mode element to appear and have text
+      const timeModeElement = displayPage.locator('#time-mode');
+      await timeModeElement.waitFor({ timeout: 5000 });
+
+      // Wait for it to have actual text content (not just empty)
+      await displayPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.trim().length > 0;
+      }, { timeout: 5000 });
 
       const timeModeIndicator = displayPage.locator('#time-mode');
       await expect(timeModeIndicator).toBeVisible();
@@ -270,7 +276,11 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for initial time mode to render
-      await displayPage.locator('#time-mode:has-text(/./)').waitFor({ timeout: 5000 });
+      await displayPage.locator('#time-mode').waitFor({ timeout: 5000 });
+      await displayPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.trim().length > 0;
+      }, { timeout: 5000 });
 
       // Change to PM
       testData.settings.timeMode = 'PM';
@@ -279,7 +289,10 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for time mode to update to PM
-      await displayPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
+      await displayPage.waitForFunction(() => {
+        const el = document.getElementById('time-mode');
+        return el && el.textContent && el.textContent.includes('PM');
+      }, { timeout: 5000 });
 
       const timeModeIndicator = displayPage.locator('#time-mode');
       const modeText = await timeModeIndicator.textContent();
@@ -323,7 +336,7 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for initial feed name to appear
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Initial Feed/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Initial Feed' }).waitFor({ timeout: 5000 });
 
       // Update the feed name
       testData.feeds[0].name = 'Updated Feed';
@@ -333,7 +346,7 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for updated feed name to appear
-      await displayPage.locator('.grid-cell.feed-name:has-text(/Updated Feed/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.feed-name').filter({ hasText: 'Updated Feed' }).waitFor({ timeout: 5000 });
 
       const feedNameCells = await displayPage.locator('.grid-cell.feed-name').allTextContents();
       const gridText = feedNameCells.join(' ');
@@ -474,7 +487,7 @@ test.describe('TV Display App', () => {
       });
 
       // Wait for the note to appear in the grid
-      await displayPage.locator('.grid-cell.note:has-text(/Turn out early/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.note').filter({ hasText: 'Turn out early' }).waitFor({ timeout: 5000 });
 
       const noteCells = await displayPage.locator('.grid-cell.note').allTextContents();
       const gridText = noteCells.join(' ');

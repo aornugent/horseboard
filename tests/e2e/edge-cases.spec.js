@@ -303,6 +303,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       const controller2Page = await context.newPage();
       await controller2Page.goto('/controller');
 
+      // Wait for pairing screen to be ready before filling inputs
+      await controller2Page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
+
       for (let i = 0; i < 6; i++) {
         await controller2Page.locator(`.code-digit[data-index="${i}"]`).fill(codeDigits[i]);
       }
@@ -335,7 +338,7 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
         data: { tableData: initialData }
       });
 
-      await displayPage.locator('.grid-cell.horse-name:has-text(/Spider/)').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.horse-name').filter({ hasText: 'Spider' }).waitFor({ timeout: 5000 });
 
       // User A (Controller 1) changes Spider's Hay AM to 2.0
       let data1 = { ...initialData, diet: { h1: { f1: { am: 2.0, pm: 1 } } } };
@@ -392,6 +395,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
       // Controller 2
       const controller2Page = await context.newPage();
       await controller2Page.goto('/controller');
+
+      // Wait for pairing screen to be ready before filling inputs
+      await controller2Page.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       for (let i = 0; i < 6; i++) {
         await controller2Page.locator(`.code-digit[data-index="${i}"]`).fill(codeDigits[i]);
@@ -485,6 +491,9 @@ test.describe('Edge Cases & Hostile User Scenarios', () => {
 
       const controllerPage = await context.newPage();
       await controllerPage.goto('/controller');
+
+      // Wait for pairing screen to be ready
+      await controllerPage.locator('#pairing-screen').waitFor({ state: 'visible', timeout: 5000 });
 
       const codeDigits = pairCode.split('');
       for (let i = 0; i < 6; i++) {

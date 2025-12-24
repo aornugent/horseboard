@@ -133,9 +133,14 @@ test.describe('Controller App', () => {
       expect(await tabButtons.count()).toBeGreaterThan(0);
 
       // Check all expected tabs exist
-      const tabNames = ['Board', 'Horses', 'Feeds', 'Reports'];
-      for (const name of tabNames) {
-        const tab = page.locator(`text=${name}`);
+      const tabNames = [
+        { name: 'Board', tab: 'board' },
+        { name: 'Horses', tab: 'horses' },
+        { name: 'Feeds', tab: 'feeds' },
+        { name: 'Reports', tab: 'reports' }
+      ];
+      for (const item of tabNames) {
+        const tab = page.locator(`.tab-btn[data-tab="${item.tab}"]`);
         await expect(tab).toBeVisible();
       }
     });

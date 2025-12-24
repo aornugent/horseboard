@@ -18,8 +18,8 @@ test.describe('Accessibility Audit (A11y)', () => {
     test('pairing screen has semantic headings and visible text', async ({ page }) => {
       await page.goto('/display');
 
-      // Should have an h1
-      const heading = page.locator('h1');
+      // Should have an h1 in pairing screen
+      const heading = page.locator('#pairing-screen h1');
       await expect(heading).toBeVisible();
 
       const headingText = await heading.textContent();
@@ -115,7 +115,9 @@ test.describe('Accessibility Audit (A11y)', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.locator('#time-mode:has-text(/PM/)').waitFor({ timeout: 5000 });
+      // Wait for time mode to render with PM
+      await displayPage.locator('#time-mode').waitFor({ timeout: 5000 });
+      await expect(displayPage.locator('#time-mode')).toContainText('PM');
 
       // Time indicator should be visible
       const timeIndicator = displayPage.locator('.time-indicator');
@@ -421,10 +423,10 @@ test.describe('Accessibility Audit (A11y)', () => {
         data: { tableData: testData }
       });
 
-      await displayPage.locator('.grid-cell.header').waitFor({ timeout: 5000 });
+      await displayPage.locator('.grid-cell.header.feed-label').waitFor({ timeout: 5000 });
 
       // Headers should have distinct styling
-      const headerCell = displayPage.locator('.grid-cell.header').first();
+      const headerCell = displayPage.locator('.grid-cell.header.feed-label');
       const headerBgColor = await headerCell.evaluate(el => window.getComputedStyle(el).backgroundColor);
       const headerTextColor = await headerCell.evaluate(el => window.getComputedStyle(el).color);
 
@@ -597,8 +599,8 @@ test.describe('Accessibility Audit (A11y)', () => {
         data: { tableData: testData }
       });
 
-      // Wait for grid to render
-      await displayPage.locator('.grid-cell.horse-name').waitFor({ timeout: 5000 });
+      // Wait for grid to render (first horse name cell)
+      await displayPage.locator('.grid-cell.horse-name').first().waitFor({ timeout: 5000 });
 
       // Pagination should be visible
       const pagination = displayPage.locator('#pagination');
