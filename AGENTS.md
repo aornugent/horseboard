@@ -6,88 +6,99 @@ Instructions for AI agents working on this codebase.
 
 - **What:** Horse feed management system (edit feeding schedules on phone, display on stable TV)
 - **Domain:** Horses (columns) × Feeds (rows) = Quantities (AM/PM values)
-- **Stack:** Node.js, Express, SQLite, SSE, vanilla JS
+- **Stack:** Vite + Preact + Signals (frontend), Node/Express (backend), SQLite (relational, 3NF)
 - **Tasks:** See `IMPLEMENTATION_PLAN.md` for pending work
 - **Reference:** See `TECHNICAL_SPECIFICATION.md` for API and data formats
 
-## Domain Model
+## Domain Model (SQL Tables)
 
 ```
-Horses (columns)     Spider    Lightning   Thunder
-                     ───────   ─────────   ───────
-Feeds (rows)
-  Easisport          ½ scoop   1 scoop     —
-  Bute               1 sachet  —           2 sachets
-  Chaff              2 scoops  1½ scoops   2 scoops
-
-Notes (footer)       Turn out  —           Vet visit
-                     early                 tomorrow
+┌─────────────────────────────────────────────────────────────┐
+│  horses              │  feeds                │  diet_entries│
+├─────────────────────────────────────────────────────────────┤
+│  id (PK)             │  id (PK)              │  id (PK)     │
+│  name                │  name                 │  horse_id FK │
+│  note                │  unit                 │  feed_id FK  │
+│  note_expires_at     │  rank                 │  am_quantity │
+│  created_at          │  created_at           │  pm_quantity │
+│  updated_at          │  updated_at           │  created_at  │
+│                      │                       │  updated_at  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **Key concepts:**
 - **Feed:** A supplement with a name and unit (scoop, ml, sachet, biscuit)
 - **Horse:** An animal with optional notes (can have expiry)
-- **Diet:** The intersection - quantity of each feed per horse for AM and PM
+- **Diet Entry:** The intersection - quantity of each feed per horse for AM and PM
 - **Time Mode:** AUTO detects morning/afternoon; can be manually overridden
 
-## Design Principles
+## Architecture (V3)
 
-### 1. Domain-First Data
+### 1. Stack
 
-Data is structured around the domain model, not generic tables:
-- Feeds have units and usage-based ranking
-- Horses have notes with optional expiry
-- Diet entries are typed (AM/PM quantities, not free text)
-- Reports calculate weekly consumption automatically
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| Frontend | Vite + Preact + Signals | Fast builds, fine-grained reactivity |
+| Backend | Node.js + Express | Business logic owner |
+| Database | SQLite (3NF relational) | No JSON blobs, proper foreign keys |
+| Validation | Zod | Shared schemas between client/server |
+| Real-time | SSE | Instant updates, no polling |
 
-### 2. Simplicity First
+### 2. Shared Logic (`src/shared/`)
 
-- Vanilla JS, no build step, ES Modules
-- Minimal dependencies - question every package
-- CSS Grid for layout (not heavy frameworks)
-- Single SQLite database with JSON blob storage
+All business logic and data schemas must live in `src/shared/` and be imported by both client and server:
 
-### 3. TV is Dumb, Controller is Smart
+```
+src/shared/
+├── schemas/          # Zod schemas (Horse, Feed, DietEntry)
+├── time-mode.ts      # AM/PM calculation logic
+├── fractions.ts      # Fraction formatting (0.5 → ½)
+└── validation.ts     # Input validation utilities
+```
+
+**Why:** Single source of truth prevents drift between client and server logic.
+
+### 3. State Management (Preact Signals)
+
+- Use Signals for reactive state, not prop drilling
+- UI reacts to fine-grained updates automatically
+- Derived state via computed signals
+- Global app state in dedicated signal stores
+
+### 4. Database Pattern
+
+- **No JSON blobs** - use normalized SQL tables
+- **Foreign keys** enforce referential integrity
+- **Atomic transactions** for multi-table writes
+- **Timestamps** on all tables: `created_at`, `updated_at`
+
+### 5. TV is Dumb, Controller is Smart
 
 - **TV Display:** Pure renderer, listens to SSE, no editing logic
 - **Controller:** Command center, all editing happens here
 - **Server:** Business logic owner (time mode, feed ranking, note expiry)
 
-### 4. Real-Time by Default
+### 6. Real-Time by Default
 
 - SSE provides instant updates
 - Settings changes (`state` events) are lightweight
 - Data changes (`data` events) include full payload
 - No polling, no refresh needed
 
-### 5. Test-Driven
+## Development Practices
+
+### Test-Driven
 
 - Write tests alongside implementation
 - Run `npm test` frequently
-- Fix failing tests immediately
 - Domain logic needs comprehensive test coverage
-
-## Development Practices
-
-### Start Simple, Add Complexity Later
-
-- Prefer built-in tools (`node:test`) over frameworks
-- If Node can do it, don't add a package
-- We test with just `supertest`
-
-### Build Tests Alongside Code
-
-- Write tests as you implement
-- Test success cases, error cases, and edge cases
-- Domain logic (ranking, time mode, expiry) needs thorough testing
 
 ### Keep Documentation in Sync
 
 After completing work:
 1. Re-read the technical specification
-2. List discrepancies (missing endpoints, different formats)
-3. Update the spec to match reality
-4. Add discovered issues to "Future Considerations"
+2. Update the spec to match reality
+3. Add discovered issues to "Future Considerations"
 
 ### Commit Workflow
 
@@ -102,13 +113,13 @@ After completing work:
 
 | User Input | Stored Value | Report Calculation |
 |------------|--------------|-------------------|
-| Empty/clear | `null` (key deleted) | 0 |
+| Empty/clear | `NULL` | 0 |
 | `0` | `0` | 0 |
 | `0.5` | `0.5` | 0.5 |
 
 ### Fraction Display
 
-TV displays fractions nicely:
+TV displays fractions nicely (logic in `src/shared/fractions.ts`):
 - 0.25 → ¼
 - 0.5 → ½
 - 0.75 → ¾
@@ -116,7 +127,7 @@ TV displays fractions nicely:
 
 ### Feed Ranking
 
-Feeds are sorted by popularity (usage count across all horses). When implementing:
+Feeds are sorted by popularity (usage count across all horses):
 1. Count horses using each feed (AM or PM > 0)
 2. Sort descending by count
 3. Update `rank` field
@@ -124,28 +135,17 @@ Feeds are sorted by popularity (usage count across all horses). When implementin
 
 ### Time Mode
 
-- AUTO: 04:00-11:59 = AM, 12:00-03:59 = PM (in display's configured timezone)
+Logic in `src/shared/time-mode.ts`:
+- AUTO: 04:00-11:59 = AM, 12:00-03:59 = PM
 - Override: User forces AM/PM, expires after 1 hour
 - Server broadcasts state change, TV updates immediately
-
-## Testing
-
-```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-```
-
-**Patterns:**
-- Use `:memory:` SQLite for integration tests
-- Clean state in `beforeEach`, close connections in `after`
-- Test success cases, error cases, and input validation
 
 ## Quick Commands
 
 ```bash
 npm install           # Install dependencies
-npm start             # Start server (port 3000)
-npm run dev           # Start with auto-reload
+npm run dev           # Start Vite dev server + backend
+npm run build         # Production build
 npm test              # Run tests
 ```
 
