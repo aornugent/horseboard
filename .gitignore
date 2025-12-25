@@ -11,3 +11,6 @@ playwright-report/
 # SQLite temporary files
 *.db-shm
 *.db-wal
+
+# Build output
+dist/
