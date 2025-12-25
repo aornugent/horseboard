@@ -72,6 +72,53 @@ export const selectors = {
   boardTab: '[data-testid="board-tab"]',
 
   // ============================================
+  // FeedsTab (Mobile Controller - Feeds List)
+  // ============================================
+  feedsTab: '[data-testid="feeds-tab"]',
+  feedSearch: '[data-testid="feed-search"]',
+  feedList: '[data-testid="feed-list"]',
+  feedListEmpty: '[data-testid="feed-list-empty"]',
+  addFeedBtn: '[data-testid="add-feed-btn"]',
+
+  // FeedCard
+  feedCard: (id: string) => `[data-testid="feed-card-${id}"]`,
+  feedCardName: (id: string) => `[data-testid="feed-card-name-${id}"]`,
+  feedCardMeta: (id: string) => `[data-testid="feed-card-meta-${id}"]`,
+  feedCardDelete: (id: string) => `[data-testid="feed-card-delete-${id}"]`,
+
+  // Feed Modals
+  addFeedModal: '[data-testid="add-feed-modal"]',
+  editFeedModal: '[data-testid="edit-feed-modal"]',
+  deleteFeedModal: '[data-testid="delete-feed-modal"]',
+  newFeedName: '[data-testid="new-feed-name"]',
+  newFeedUnit: '[data-testid="new-feed-unit"]',
+  editFeedName: '[data-testid="edit-feed-name"]',
+  editFeedUnit: '[data-testid="edit-feed-unit"]',
+  unitBtn: (unit: string) => `[data-testid="unit-btn-${unit}"]`,
+  editUnitBtn: (unit: string) => `[data-testid="edit-unit-btn-${unit}"]`,
+  cancelAddFeed: '[data-testid="cancel-add-feed"]',
+  confirmAddFeed: '[data-testid="confirm-add-feed"]',
+  cancelEditFeed: '[data-testid="cancel-edit-feed"]',
+  confirmEditFeed: '[data-testid="confirm-edit-feed"]',
+  cancelDeleteFeed: '[data-testid="cancel-delete-feed"]',
+  confirmDeleteFeed: '[data-testid="confirm-delete-feed"]',
+
+  // ============================================
+  // SettingsTab (Mobile Controller - Settings)
+  // ============================================
+  settingsTab: '[data-testid="settings-tab"]',
+  effectiveTimeMode: '[data-testid="effective-time-mode"]',
+  timeModeSelector: '[data-testid="time-mode-selector"]',
+  timeModeAuto: '[data-testid="time-mode-auto"]',
+  timeModeAm: '[data-testid="time-mode-am"]',
+  timeModePm: '[data-testid="time-mode-pm"]',
+  zoomSelector: '[data-testid="zoom-selector"]',
+  zoomLevel: (level: number) => `[data-testid="zoom-level-${level}"]`,
+  timezoneSelector: '[data-testid="timezone-selector"]',
+  displayPairCode: '[data-testid="display-pair-code"]',
+  displayId: '[data-testid="display-id"]',
+
+  // ============================================
   // Display View (TV)
   // ============================================
   displayView: '[data-testid="display-view"]',

@@ -8,21 +8,20 @@ This document outlines the phased migration from the current vanilla JS + JSON b
 - **Phase 1:** Cleanup & Scaffold - Vite + Preact + Signals infrastructure ready
 - **Phase 2:** The Data Layer - Normalized SQLite schema with repositories and API routes
 - **Phase 3:** The Shared Kernel - Business logic consolidated in `src/shared/`
-- **Phase 4:** Frontend Re-architecture - Core components and views implemented (MOSTLY COMPLETE)
+- **Phase 4:** Frontend Re-architecture - All components and views implemented ✅ COMPLETE
 
 **📋 Remaining:**
-- **Phase 4 (partial):** FeedsTab, SettingsTab, SSE integration, PWA setup
 - **Phase 5:** Test Hardening - E2E test migration to new selectors
 
 **Phase 4 Implementation Status:**
 - ✅ Signal stores created (`src/client/stores/`)
-- ✅ Core components implemented (FeedPad, SwimLaneGrid, HorseCard)
+- ✅ Core components implemented (FeedPad, SwimLaneGrid, HorseCard, FeedCard)
 - ✅ Primary views created (Display, HorsesTab, HorseDetail, BoardTab)
 - ✅ Test selectors defined (`tests/e2e/selectors.ts`)
-- ❌ FeedsTab not yet implemented
-- ❌ SettingsTab not yet implemented
-- ❌ SSE integration not yet implemented
-- ❌ PWA (`vite-plugin-pwa`) not yet configured
+- ✅ FeedsTab implemented (`src/client/views/Controller/FeedsTab.tsx`)
+- ✅ SettingsTab implemented (`src/client/views/Controller/SettingsTab.tsx`)
+- ✅ SSE client implemented (`src/client/services/sse.ts`)
+- ✅ PWA configured with `vite-plugin-pwa` (manifest, icons, workbox)
 
 ---
 
@@ -396,11 +395,11 @@ export function validate(schema: ZodSchema) {
 
 ---
 
-### Phase 4: Frontend Re-architecture ✅ MOSTLY COMPLETE
+### Phase 4: Frontend Re-architecture ✅ COMPLETE
 
 **Goal:** Preact + Signals frontend with design system components following "Modern Equestrian Utility" philosophy.
 
-**Status:** Core infrastructure and main components completed. Missing: FeedsTab, SettingsTab, SSE integration, PWA configuration.
+**Status:** All components implemented including FeedsTab, SettingsTab, SSE client, and PWA configuration.
 
 #### 4.1 Theming Foundation
 
@@ -462,7 +461,7 @@ export const dietByKey = computed(() => {
 **Deliverables:**
 - [x] Create Signal stores for display, horses, feeds, diet (`src/client/stores/`)
 - [x] Implement computed signals for derived state (dietByKey, effectiveTimeMode)
-- [ ] Configure SSE client to update Signal stores (NOT YET IMPLEMENTED)
+- [x] Configure SSE client to update Signal stores (`src/client/services/sse.ts`)
 
 #### 4.3 Core Design System Components ✅ COMPLETED
 
@@ -845,9 +844,9 @@ export function BoardTab() {
 - [x] Implement HorsesTab with searchable `<HorseCard />` list (`src/client/views/Controller/HorsesTab.tsx`)
 - [x] Implement HorseDetail view with large tappable feed tiles and `<FeedPad />` (`src/client/views/Controller/HorseDetail.tsx`)
 - [x] Implement BoardTab as read-only scaled-down TV mirror (`src/client/views/Controller/BoardTab.tsx`)
-- [ ] Implement FeedsTab for feed management (NOT YET IMPLEMENTED)
-- [ ] Implement SettingsTab for display controls (NOT YET IMPLEMENTED)
-- [ ] Implement PWA with `vite-plugin-pwa` (NOT YET IMPLEMENTED)
+- [x] Implement FeedsTab for feed management (`src/client/views/Controller/FeedsTab.tsx`)
+- [x] Implement SettingsTab for display controls (`src/client/views/Controller/SettingsTab.tsx`)
+- [x] Implement PWA with `vite-plugin-pwa` (`vite.config.ts`, `public/` icons)
 
 #### 4.5 Test ID Strategy for E2E Migration ✅ COMPLETED
 
@@ -1019,7 +1018,7 @@ The V3 architecture lays foundations for planned features:
 **Pending:**
 - [ ] All existing E2E tests pass with new selectors (Phase 5)
 - [ ] API response times remain under 100ms (needs performance testing)
-- [ ] Lighthouse PWA score > 90 (PWA not yet implemented)
+- [ ] Lighthouse PWA score > 90 (PWA configured, needs testing)
 
 ---
 
@@ -1027,21 +1026,22 @@ The V3 architecture lays foundations for planned features:
 
 To complete the V3 migration, the next agent should:
 
-1. **Complete Phase 4 (Remaining Items):**
-   - Implement FeedsTab for feed management (CRUD operations for feeds)
-   - Implement SettingsTab for display controls (time mode, zoom, timezone)
-   - Integrate SSE (Server-Sent Events) for real-time updates
-   - Configure PWA with `vite-plugin-pwa` for offline support
+1. **Phase 4 is complete!** All components implemented:
+   - ✅ FeedsTab for feed management (`src/client/views/Controller/FeedsTab.tsx`)
+   - ✅ SettingsTab for display controls (`src/client/views/Controller/SettingsTab.tsx`)
+   - ✅ SSE client for real-time updates (`src/client/services/sse.ts`)
+   - ✅ PWA configured with `vite-plugin-pwa` (manifest, icons, workbox)
 
 2. **Complete Phase 5 (Test Hardening):**
    - Migrate all E2E Playwright tests to use new `data-testid` selectors from `tests/e2e/selectors.ts`
-   - Add new test cases for Phase 4 components (FeedPad, HorseCard, SwimLaneGrid)
+   - Add new test cases for Phase 4 components (FeedPad, HorseCard, SwimLaneGrid, FeedCard)
+   - Add test cases for FeedsTab and SettingsTab
    - Verify all existing test scenarios pass with new component structure
    - Run full test suite and fix any failures
 
 3. **Integration Testing:**
    - Test SSE real-time synchronization between controller and display
-   - Test PWA offline functionality
+   - Test PWA offline functionality and install experience
    - Verify theming transitions work smoothly
    - Test on actual mobile devices with "dirty hands" scenarios
 
