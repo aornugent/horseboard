@@ -8,7 +8,10 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "test": "node --test $(find tests -name '*.test.js')",
-    "test:watch": "node --test --watch $(find tests -name '*.test.js')"
+    "test:watch": "node --test --watch $(find tests -name '*.test.js')",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
