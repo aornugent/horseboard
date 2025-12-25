@@ -1,105 +1,59 @@
 import { signal, computed } from '@preact/signals';
 import type { DietEntry } from '@shared/types';
 
-// Diet entries signal
 export const dietEntries = signal<DietEntry[]>([]);
 
-// Derived: diet entry lookup by composite key (horseId:feedId)
-export const dietByKey = computed(() => {
-  const map = new Map<string, DietEntry>();
-  for (const entry of dietEntries.value) {
-    map.set(`${entry.horseId}:${entry.feedId}`, entry);
-  }
-  return map;
-});
+const makeKey = (h: string, f: string) => `${h}:${f}`;
 
-// Derived: get all entries for a specific horse
+export const dietByKey = computed(() => new Map(dietEntries.value.map(e => [makeKey(e.horseId, e.feedId), e])));
+
 export const dietByHorse = computed(() => {
   const map = new Map<string, DietEntry[]>();
-  for (const entry of dietEntries.value) {
-    const existing = map.get(entry.horseId) ?? [];
-    existing.push(entry);
-    map.set(entry.horseId, existing);
-  }
+  for (const e of dietEntries.value) (map.get(e.horseId) ?? map.set(e.horseId, []).get(e.horseId)!).push(e);
   return map;
 });
 
-// Derived: get all entries for a specific feed
 export const dietByFeed = computed(() => {
   const map = new Map<string, DietEntry[]>();
-  for (const entry of dietEntries.value) {
-    const existing = map.get(entry.feedId) ?? [];
-    existing.push(entry);
-    map.set(entry.feedId, existing);
-  }
+  for (const e of dietEntries.value) (map.get(e.feedId) ?? map.set(e.feedId, []).get(e.feedId)!).push(e);
   return map;
 });
 
-// Actions
-export function setDietEntries(entries: DietEntry[]) {
-  dietEntries.value = entries;
-}
+export const setDietEntries = (list: DietEntry[]) => { dietEntries.value = list; };
+export const getDietEntry = (h: string, f: string) => dietByKey.value.get(makeKey(h, f));
+export const removeDietEntry = (h: string, f: string) => {
+  dietEntries.value = dietEntries.value.filter(e => !(e.horseId === h && e.feedId === f));
+};
 
 export function upsertDietEntry(entry: DietEntry) {
-  const key = `${entry.horseId}:${entry.feedId}`;
-  const existing = dietByKey.value.get(key);
-
-  if (existing) {
+  const exists = dietByKey.value.has(makeKey(entry.horseId, entry.feedId));
+  if (exists) {
     dietEntries.value = dietEntries.value.map(e =>
       e.horseId === entry.horseId && e.feedId === entry.feedId
-        ? { ...entry, updatedAt: new Date().toISOString() }
-        : e
+        ? { ...entry, updatedAt: new Date().toISOString() } : e
     );
   } else {
     dietEntries.value = [...dietEntries.value, entry];
   }
 }
 
-export function updateDietAmount(
-  horseId: string,
-  feedId: string,
-  field: 'amAmount' | 'pmAmount',
-  value: number | null
-) {
-  const key = `${horseId}:${feedId}`;
-  const existing = dietByKey.value.get(key);
-
+export function updateDietAmount(horseId: string, feedId: string, field: 'amAmount' | 'pmAmount', value: number | null) {
+  const existing = getDietEntry(horseId, feedId);
   if (existing) {
     dietEntries.value = dietEntries.value.map(e =>
       e.horseId === horseId && e.feedId === feedId
-        ? { ...e, [field]: value, updatedAt: new Date().toISOString() }
-        : e
+        ? { ...e, [field]: value, updatedAt: new Date().toISOString() } : e
     );
   } else {
-    // Create new entry if it doesn't exist
     const now = new Date().toISOString();
-    const newEntry: DietEntry = {
-      horseId,
-      feedId,
-      amAmount: field === 'amAmount' ? value : null,
-      pmAmount: field === 'pmAmount' ? value : null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    dietEntries.value = [...dietEntries.value, newEntry];
+    dietEntries.value = [...dietEntries.value, {
+      horseId, feedId, amAmount: field === 'amAmount' ? value : null,
+      pmAmount: field === 'pmAmount' ? value : null, createdAt: now, updatedAt: now,
+    }];
   }
 }
 
-export function removeDietEntry(horseId: string, feedId: string) {
-  dietEntries.value = dietEntries.value.filter(
-    e => !(e.horseId === horseId && e.feedId === feedId)
-  );
-}
-
-export function getDietEntry(horseId: string, feedId: string): DietEntry | undefined {
-  return dietByKey.value.get(`${horseId}:${feedId}`);
-}
-
-// Count active feeds for a horse (feeds with non-null, non-zero amounts)
 export function countActiveFeeds(horseId: string): number {
   const entries = dietByHorse.value.get(horseId) ?? [];
-  return entries.filter(e =>
-    (e.amAmount !== null && e.amAmount !== 0) ||
-    (e.pmAmount !== null && e.pmAmount !== 0)
-  ).length;
+  return entries.filter(e => (e.amAmount !== null && e.amAmount !== 0) || (e.pmAmount !== null && e.pmAmount !== 0)).length;
 }
