@@ -39,7 +39,7 @@ describe('SSE API', () => {
           assert.match(res.headers['content-type'], /text\/event-stream/);
 
           let received = '';
-          res.on('data', chunk => {
+          res.on('data', (chunk) => {
             received += chunk.toString();
             if (received.includes('data:')) {
               req.destroy();
@@ -67,16 +67,29 @@ describe('SSE API', () => {
     it('sends initial data on connection', async () => {
       const display = await request(app).post('/api/displays');
 
-      // Update with some data first
+      // Update with domain format data
       await request(app)
         .put(`/api/displays/${display.body.id}`)
-        .send({ tableData: { headers: ['Test'], rows: [['Value']] } });
+        .send({
+          tableData: {
+            settings: {
+              timezone: 'Australia/Sydney',
+              timeMode: 'AUTO',
+              overrideUntil: null,
+              zoomLevel: 2,
+              currentPage: 0,
+            },
+            horses: [{ id: 'h1', name: 'Thunder' }],
+            feeds: [],
+            diet: {},
+          },
+        });
 
       // Use raw http for SSE
       const data = await new Promise((resolve, reject) => {
         const req = http.get(`${baseUrl}/api/displays/${display.body.id}/events`, (res) => {
           let received = '';
-          res.on('data', chunk => {
+          res.on('data', (chunk) => {
             received += chunk.toString();
             if (received.includes('\n\n')) {
               req.destroy();
@@ -97,7 +110,10 @@ describe('SSE API', () => {
       assert.ok(match, 'should have data line');
 
       const eventData = JSON.parse(match[1]);
-      assert.deepStrictEqual(eventData.tableData.headers, ['Test']);
+      // Check domain format - should have horses array
+      assert.ok(eventData.tableData.horses, 'should have horses in tableData');
+      assert.strictEqual(eventData.tableData.horses.length, 1);
+      assert.strictEqual(eventData.tableData.horses[0].name, 'Thunder');
     });
 
     it('broadcasts updates to connected clients', async () => {
@@ -109,7 +125,7 @@ describe('SSE API', () => {
 
       await new Promise((resolve, reject) => {
         const req = http.get(`${baseUrl}/api/displays/${displayId}/events`, (res) => {
-          res.on('data', chunk => {
+          res.on('data', (chunk) => {
             const text = chunk.toString();
             // Parse each SSE message
             const lines = text.split('\n');
@@ -138,7 +154,20 @@ describe('SSE API', () => {
           setTimeout(async () => {
             await request(app)
               .put(`/api/displays/${displayId}`)
-              .send({ tableData: { headers: ['Updated'], rows: [] } });
+              .send({
+                tableData: {
+                  settings: {
+                    timezone: 'Australia/Sydney',
+                    timeMode: 'AUTO',
+                    overrideUntil: null,
+                    zoomLevel: 2,
+                    currentPage: 0,
+                  },
+                  horses: [{ id: 'h1', name: 'Updated' }],
+                  feeds: [],
+                  diet: {},
+                },
+              });
           }, 100);
         });
 
@@ -168,7 +197,7 @@ describe('SSEManager', () => {
   it('tracks client connections', () => {
     const mockRes = {
       on: () => {},
-      write: () => {}
+      write: () => {},
     };
 
     sseManager.addClient('display1', mockRes);
@@ -182,11 +211,11 @@ describe('SSEManager', () => {
     const received = [];
     const mockRes1 = {
       on: () => {},
-      write: (data) => received.push({ client: 1, data })
+      write: (data) => received.push({ client: 1, data }),
     };
     const mockRes2 = {
       on: () => {},
-      write: (data) => received.push({ client: 2, data })
+      write: (data) => received.push({ client: 2, data }),
     };
 
     sseManager.addClient('display2', mockRes1);

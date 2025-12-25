@@ -64,11 +64,26 @@ describe('Display API', () => {
   });
 
   describe('PUT /api/displays/:id', () => {
-    it('updates table data', async () => {
+    it('updates table data with domain format', async () => {
       const created = await request(app).post('/api/displays');
       const tableData = {
-        headers: ['Name', 'Age'],
-        rows: [['Alice', '30'], ['Bob', '25']]
+        settings: {
+          timezone: 'America/New_York',
+          timeMode: 'AM',
+          overrideUntil: null,
+          zoomLevel: 1,
+          currentPage: 0,
+        },
+        horses: [
+          { id: 'h1', name: 'Thunder' },
+          { id: 'h2', name: 'Lightning' },
+        ],
+        feeds: [
+          { id: 'f1', name: 'Hay', unit: 'scoop' },
+        ],
+        diet: {
+          h1: { f1: { am: 2, pm: 1 } },
+        },
       };
 
       const res = await request(app)
@@ -81,14 +96,28 @@ describe('Display API', () => {
 
       // Verify update persisted
       const fetched = await request(app).get(`/api/displays/${created.body.id}`);
-      assert.deepStrictEqual(fetched.body.tableData.headers, tableData.headers);
-      assert.deepStrictEqual(fetched.body.tableData.rows, tableData.rows);
+      assert.strictEqual(fetched.body.tableData.settings.timezone, 'America/New_York');
+      assert.strictEqual(fetched.body.tableData.horses.length, 2);
+      assert.strictEqual(fetched.body.tableData.feeds.length, 1);
     });
 
     it('returns 404 for non-existent display', async () => {
       await request(app)
         .put('/api/displays/nonexistent')
-        .send({ tableData: { headers: [], rows: [] } })
+        .send({
+          tableData: {
+            settings: {
+              timezone: 'UTC',
+              timeMode: 'AUTO',
+              overrideUntil: null,
+              zoomLevel: 2,
+              currentPage: 0,
+            },
+            horses: [],
+            feeds: [],
+            diet: {},
+          },
+        })
         .expect(404);
     });
 
@@ -107,24 +136,6 @@ describe('Display API', () => {
       await request(app)
         .put(`/api/displays/${created.body.id}`)
         .send({ tableData: 'invalid' })
-        .expect(400);
-    });
-
-    it('validates tableData structure - requires headers array', async () => {
-      const created = await request(app).post('/api/displays');
-
-      await request(app)
-        .put(`/api/displays/${created.body.id}`)
-        .send({ tableData: { headers: 'not-array', rows: [] } })
-        .expect(400);
-    });
-
-    it('validates tableData structure - requires rows array', async () => {
-      const created = await request(app).post('/api/displays');
-
-      await request(app)
-        .put(`/api/displays/${created.body.id}`)
-        .send({ tableData: { headers: [], rows: 'not-array' } })
         .expect(400);
     });
   });

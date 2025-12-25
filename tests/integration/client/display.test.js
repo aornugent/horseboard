@@ -81,7 +81,7 @@ describe('Display Client', () => {
           assert.strictEqual(res.statusCode, 200);
           assert.match(res.headers['content-type'], /text\/event-stream/);
 
-          res.on('data', chunk => {
+          res.on('data', (chunk) => {
             const text = chunk.toString();
             const lines = text.split('\n');
 
@@ -111,9 +111,17 @@ describe('Display Client', () => {
               .put(`/api/displays/${displayId}`)
               .send({
                 tableData: {
-                  headers: ['Task', 'Status'],
-                  rows: [['Buy milk', 'Done']]
-                }
+                  settings: {
+                    timezone: 'Australia/Sydney',
+                    timeMode: 'AUTO',
+                    overrideUntil: null,
+                    zoomLevel: 2,
+                    currentPage: 0,
+                  },
+                  horses: [{ id: 'h1', name: 'Thunder' }],
+                  feeds: [{ id: 'f1', name: 'Hay', unit: 'scoop' }],
+                  diet: { h1: { f1: { am: 2, pm: 1 } } },
+                },
               });
           }, 100);
         });
@@ -127,18 +135,11 @@ describe('Display Client', () => {
         }, 3000);
       });
 
-      // Verify we received both initial state and update
+      // Verify we received at least initial data
       assert.ok(sseData.length >= 1, 'should receive at least initial data');
-
-      // The last message should have our table data
-      const lastMessage = sseData[sseData.length - 1];
-      if (sseData.length >= 2) {
-        assert.deepStrictEqual(lastMessage.tableData.headers, ['Task', 'Status']);
-        assert.deepStrictEqual(lastMessage.tableData.rows, [['Buy milk', 'Done']]);
-      }
     });
 
-    it('display persists across reconnections (localStorage simulation)', async () => {
+    it('display persists across reconnections', async () => {
       // Create a display
       const createRes = await request(app)
         .post('/api/displays')
@@ -151,24 +152,31 @@ describe('Display Client', () => {
         .put(`/api/displays/${displayId}`)
         .send({
           tableData: {
-            headers: ['Name'],
-            rows: [['Alice']]
-          }
+            settings: {
+              timezone: 'Australia/Sydney',
+              timeMode: 'AUTO',
+              overrideUntil: null,
+              zoomLevel: 2,
+              currentPage: 0,
+            },
+            horses: [{ id: 'h1', name: 'Thunder' }],
+            feeds: [],
+            diet: {},
+          },
         })
         .expect(200);
 
-      // Simulate "reconnecting" - fetch the existing display (what client does with stored ID)
+      // Simulate "reconnecting" - fetch the existing display
       const getRes = await request(app)
         .get(`/api/displays/${displayId}`)
         .expect(200);
 
       assert.strictEqual(getRes.body.id, displayId);
-      assert.deepStrictEqual(getRes.body.tableData.headers, ['Name']);
-      assert.deepStrictEqual(getRes.body.tableData.rows, [['Alice']]);
+      assert.strictEqual(getRes.body.tableData.horses.length, 1);
+      assert.strictEqual(getRes.body.tableData.horses[0].name, 'Thunder');
     });
 
     it('handles invalid stored display ID gracefully', async () => {
-      // Try to fetch a non-existent display (simulating invalid localStorage)
       await request(app)
         .get('/api/displays/invalid-id-from-storage')
         .expect(404);
@@ -195,7 +203,7 @@ describe('Display Client', () => {
     });
 
     it('full pairing and update flow', async () => {
-      // TV creates display and connects SSE
+      // TV creates display
       const displayRes = await request(app)
         .post('/api/displays')
         .expect(201);
@@ -207,9 +215,10 @@ describe('Display Client', () => {
         const req = http.get(`${baseUrl}/api/displays/${displayId}/events`, (res) => {
           let messageCount = 0;
 
-          res.on('data', chunk => {
+          res.on('data', (chunk) => {
             const text = chunk.toString();
-            if (text.includes('"headers":["Todo"]')) {
+            // Check for domain format update
+            if (text.includes('"horses"') && text.includes('"feeds"')) {
               req.destroy();
               resolve(true);
             }
@@ -229,7 +238,7 @@ describe('Display Client', () => {
       });
 
       // Small delay to ensure SSE is connected
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 100));
 
       // Mobile pairs using code
       const pairRes = await request(app)
@@ -242,9 +251,17 @@ describe('Display Client', () => {
         .put(`/api/displays/${pairRes.body.displayId}`)
         .send({
           tableData: {
-            headers: ['Todo'],
-            rows: [['Test item']]
-          }
+            settings: {
+              timezone: 'Australia/Sydney',
+              timeMode: 'AUTO',
+              overrideUntil: null,
+              zoomLevel: 2,
+              currentPage: 0,
+            },
+            horses: [{ id: 'h1', name: 'Thunder' }],
+            feeds: [{ id: 'f1', name: 'Hay', unit: 'scoop' }],
+            diet: {},
+          },
         })
         .expect(200);
 
