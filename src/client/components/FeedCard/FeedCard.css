@@ -1,0 +1,79 @@
+/* FeedCard - Mobile controller feed list item */
+
+.feed-card {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  transition: transform 0.1s ease;
+}
+
+.feed-card:active {
+  transform: scale(0.98);
+}
+
+.feed-card-content {
+  flex: 1;
+  cursor: pointer;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.feed-card-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.feed-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.feed-card-unit {
+  background: var(--color-bg-primary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.feed-card-usage {
+  font-size: 0.875rem;
+}
+
+.feed-card-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.feed-card-delete:hover {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.feed-card-delete:active {
+  background: rgba(231, 76, 60, 0.2);
+}

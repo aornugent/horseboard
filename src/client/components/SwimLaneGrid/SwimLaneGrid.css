@@ -1,0 +1,146 @@
+/* SwimLaneGrid - Vertical zebra-striped grid for TV display */
+
+.swim-lane-grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  font-size: 1rem;
+}
+
+/* Vertical swim lanes (zebra striping by column) */
+.swim-lane-primary {
+  background-color: var(--color-bg-primary);
+}
+
+.swim-lane-alt {
+  background-color: var(--color-swim-lane-alt);
+}
+
+/* Header row */
+.grid-header {
+  display: flex;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.corner-cell {
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.horse-header {
+  flex: 1;
+  min-width: 100px;
+  padding: 1rem 0.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
+/* Feed rows */
+.feed-row {
+  display: flex;
+  border-bottom: 1px solid var(--color-bg-secondary);
+}
+
+.feed-name {
+  min-width: 120px;
+  flex-shrink: 0;
+  padding: 0.75rem 0.5rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+/* Grid cells */
+.grid-cell {
+  flex: 1;
+  min-width: 100px;
+  min-height: 60px;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-cell--editable {
+  cursor: pointer;
+}
+
+.grid-cell--editable:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+/* Scoop Badge - rounded square container for values */
+.scoop-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  border-radius: 8px;
+  font-weight: 600;
+  min-width: 48px;
+}
+
+.badge-value {
+  /* Monospace numbers for alignment */
+  font-variant-numeric: tabular-nums;
+  font-size: 1.125rem;
+}
+
+/* Footer row (notes) */
+.grid-footer {
+  display: flex;
+  border-top: 2px solid var(--color-accent);
+  margin-top: auto;
+}
+
+.horse-note {
+  flex: 1;
+  min-width: 100px;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* Responsive adjustments for TV display */
+@media (min-width: 1200px) {
+  .swim-lane-grid {
+    font-size: 1.25rem;
+  }
+
+  .corner-cell {
+    min-width: 180px;
+  }
+
+  .horse-header {
+    min-width: 140px;
+    font-size: 1.5rem;
+  }
+
+  .feed-name {
+    min-width: 180px;
+    font-size: 1.25rem;
+  }
+
+  .grid-cell {
+    min-width: 140px;
+    min-height: 80px;
+  }
+
+  .badge-value {
+    font-size: 1.5rem;
+  }
+
+  .scoop-badge {
+    padding: 0.75rem 1rem;
+    min-width: 64px;
+  }
+}

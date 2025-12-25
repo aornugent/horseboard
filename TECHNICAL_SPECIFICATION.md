@@ -1,1142 +1,340 @@
-# Technical Specification: Horse Feed Management System (V3)
+# Technical Specification: HorseBoard Behavioral Contract
 
-## 1. Overview
+## 1. System Purpose
 
-HorseBoard is a feed management system for equine care. It displays feeding schedules on a stable TV and allows editing via a mobile controller (PWA).
+HorseBoard is a feed management system for equine care. It displays feeding schedules on a stable TV and allows editing via a mobile controller.
 
 **Core experience:** Update feeding quantities on your phone, see them instantly on the stable TV.
 
-**Domain Model:**
-- **Columns** = Horses
-- **Rows** = Feeds/Supplements
-- **Cells** = Quantities (AM/PM values with units)
+**Domain model:** Columns represent Horses, rows represent Feeds, and cells contain Quantities displayed as AM or PM values with units.
 
-**Scoping:** One display = one stable. All horses, feeds, and diets belong to that display. Creating a new display starts a fresh stable with no shared data.
+**Scoping:** One display equals one stable. All horses, feeds, and diet entries belong exclusively to that display. Creating a new display starts a fresh stable with no shared data.
 
-## 2. System Architecture
+---
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Mobile Web    │────▶│     Backend     │◀────│    TV Web App   │
-│  (Vite+Preact)  │     │  (Node/Express) │ SSE │  (Vite+Preact)  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-     Controller              API + SSE              Display
-         │                       │                      │
-         └───────────┬───────────┘                      │
-                     ▼                                  │
-              ┌─────────────┐                           │
-              │ src/shared/ │◀──────────────────────────┘
-              │ Zod Schemas │
-              │ Time Logic  │
-              │ Formatting  │
-              └─────────────┘
-```
+## 2. Architecture Principles
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Backend | Node.js + Express | API, SSE, SQLite (3NF), business logic |
-| TV Display | Vite + Preact + Signals | Renders feed grid, listens for updates |
-| Mobile Controller | Vite + Preact + Signals (PWA) | Pairing, editing, display control |
-| Shared | TypeScript + Zod | Schemas, validation, utilities |
+The system comprises three components that share validation schemas and formatting logic:
+
+- **TV Display:** A passive renderer that receives state and displays it. It never initiates edits.
+- **Mobile Controller:** The command center where all editing occurs. It is a Progressive Web App optimized for offline-capable, touch-first interaction.
+- **Backend Server:** Owns all business logic including ranking, time mode calculations, and scheduled data expiry. Persists data in a normalized relational database.
 
 **Design principles:**
-- TV is a "dumb renderer" - receives state, renders it
-- Controller is the "command center" - all editing happens here
-- Server owns business logic - ranking, time mode, note expiry
-- Shared code prevents client/server drift
+- The TV is a "dumb renderer" that receives state and renders it without transformation.
+- The Controller is the sole interface for data modification.
+- The Server is the single source of truth and enforces all business rules.
+- Shared validation schemas prevent client-server drift.
 
-## 3. Data Architecture
+---
 
-### 3.1 Database Schema
+## 3. Data Model
 
-**SQLite Database:** `./data/horseboard.db`
+### 3.1 Display
 
-All tables include `created_at` and `updated_at` timestamps for future audit/history features.
+A Display represents a stable instance and its settings.
 
-```sql
--- Display represents a stable instance
-CREATE TABLE displays (
-  id TEXT PRIMARY KEY,
-  pair_code TEXT UNIQUE NOT NULL,
-  timezone TEXT NOT NULL DEFAULT 'UTC',
-  time_mode TEXT NOT NULL DEFAULT 'AUTO' CHECK (time_mode IN ('AUTO', 'AM', 'PM')),
-  override_until TEXT,  -- ISO 8601 timestamp
-  zoom_level INTEGER NOT NULL DEFAULT 2 CHECK (zoom_level BETWEEN 1 AND 3),
-  current_page INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+**Fields:**
+- Unique identifier (UUID)
+- Six-digit pairing code (unique across all displays)
+- Timezone (IANA format, e.g., "Australia/Sydney")
+- Time mode: one of AUTO, AM, or PM
+- Override expiry timestamp (nullable, ISO 8601)
+- Zoom level: integer 1-3, determining horses per page (1=10, 2=7, 3=5)
+- Current page index (zero-based)
+- Creation and modification timestamps
 
--- Feeds belong to a display
-CREATE TABLE feeds (
-  id TEXT PRIMARY KEY,  -- UUID
-  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  unit TEXT NOT NULL CHECK (unit IN ('scoop', 'ml', 'sachet', 'biscuit')),
-  rank INTEGER NOT NULL DEFAULT 0,
-  stock_level REAL NOT NULL DEFAULT 0,         -- Future: inventory tracking
-  low_stock_threshold REAL NOT NULL DEFAULT 0, -- Future: low stock alerts
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(display_id, name)
-);
+**Constraints:**
+- Pairing code must be exactly six digits and globally unique.
+- Zoom level must be between 1 and 3 inclusive.
 
--- Horses belong to a display
-CREATE TABLE horses (
-  id TEXT PRIMARY KEY,  -- UUID
-  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  note TEXT,
-  note_expiry TEXT,     -- ISO 8601 timestamp
-  archived INTEGER NOT NULL DEFAULT 0,  -- Future: history feature (0=active, 1=archived)
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(display_id, name)
-);
+**Cascade behavior:** Deleting a display removes all associated horses, feeds, and diet entries.
 
--- Diet entries link horses to feeds with quantities
-CREATE TABLE diet_entries (
-  horse_id TEXT NOT NULL REFERENCES horses(id) ON DELETE CASCADE,
-  feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
-  am_amount REAL,  -- NULL = not assigned, 0 = deliberate zero
-  pm_amount REAL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (horse_id, feed_id)
-);
+### 3.2 Horse
 
--- Indexes for common queries
-CREATE INDEX idx_feeds_display ON feeds(display_id);
-CREATE INDEX idx_horses_display ON horses(display_id);
-CREATE INDEX idx_diet_horse ON diet_entries(horse_id);
-CREATE INDEX idx_diet_feed ON diet_entries(feed_id);
-```
+A Horse belongs to exactly one display.
 
-### 3.2 Entity Definitions
+**Fields:**
+- Unique identifier (UUID)
+- Display reference (foreign key)
+- Name (1-50 characters, unique within display)
+- Note text (optional, max 200 characters)
+- Note expiry timestamp (nullable, ISO 8601)
+- Archived flag (reserved for future history feature)
+- Creation and modification timestamps
 
-#### Display (Settings)
+**Constraints:**
+- Name must be unique within the parent display.
+- Note expiry is only meaningful when note text exists.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | UUID primary key |
-| `pair_code` | `string` | 6-digit pairing code |
-| `timezone` | `string` | IANA timezone (e.g., "Australia/Sydney") |
-| `time_mode` | `"AUTO" \| "AM" \| "PM"` | Current display mode |
-| `override_until` | `string \| null` | ISO 8601 timestamp when manual override expires |
-| `zoom_level` | `1 \| 2 \| 3` | Columns per page (1=10, 2=7, 3=5 horses) |
-| `current_page` | `number` | Pagination index (0-based) |
+**Cascade behavior:** Deleting a horse removes all associated diet entries.
 
-#### Feed
+### 3.3 Feed
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | UUID primary key |
-| `display_id` | `string` | Foreign key to displays |
-| `name` | `string` | Display name |
-| `unit` | `string` | Unit of measure (scoop, ml, sachet, biscuit) |
-| `rank` | `number` | Usage-based ranking (lower = more popular) |
-| `stock_level` | `number` | Current stock (future use, default 0) |
-| `low_stock_threshold` | `number` | Alert threshold (future use, default 0) |
+A Feed belongs to exactly one display.
 
-#### Horse
+**Fields:**
+- Unique identifier (UUID)
+- Display reference (foreign key)
+- Name (1-50 characters, unique within display)
+- Unit: one of scoop, ml, sachet, or biscuit
+- Rank: non-negative integer (lower = more frequently used)
+- Stock level (reserved for future inventory tracking)
+- Low stock threshold (reserved for future alerts)
+- Creation and modification timestamps
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | UUID primary key |
-| `display_id` | `string` | Foreign key to displays |
-| `name` | `string` | Horse name |
-| `note` | `string \| null` | Optional note text |
-| `note_expiry` | `string \| null` | ISO 8601 timestamp when note auto-clears |
-| `archived` | `boolean` | Soft delete for history (future use) |
+**Constraints:**
+- Name must be unique within the parent display.
+- Rank must be zero or positive.
 
-#### Diet Entry
+**Cascade behavior:** Deleting a feed removes all associated diet entries.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `horse_id` | `string` | Foreign key to horses (composite PK) |
-| `feed_id` | `string` | Foreign key to feeds (composite PK) |
-| `am_amount` | `number \| null` | Morning quantity |
-| `pm_amount` | `number \| null` | Afternoon quantity |
+### 3.4 Diet Entry
+
+A Diet Entry links a Horse and a Feed with quantity values.
+
+**Fields:**
+- Horse reference (composite primary key)
+- Feed reference (composite primary key)
+- AM amount (nullable, 0-100)
+- PM amount (nullable, 0-100)
+- Creation and modification timestamps
+
+**Constraints:**
+- The combination of horse and feed must be unique (enforced composite primary key).
+- Amounts must be between 0 and 100 inclusive when present.
 
 **Value semantics:**
-- `NULL` = Feed not assigned to horse
-- `0` = Deliberate zero (horse gets none of this feed)
-- Both calculate as 0 in reports
-
-### 3.3 Cascade Behavior
-
-- Deleting a display cascades to all feeds, horses, and diet entries
-- Deleting a feed cascades to all diet entries for that feed
-- Deleting a horse cascades to all diet entries for that horse
-
-## 4. API Reference
-
-### 4.1 Bootstrap
-
-#### `GET /api/bootstrap/:displayId`
-
-Returns full relational state joined for frontend initialization. Single request to hydrate the entire UI.
-
-*Response (200):*
-```json
-{
-  "display": {
-    "id": "d_abc123",
-    "pairCode": "847291",
-    "timezone": "Australia/Sydney",
-    "timeMode": "AUTO",
-    "overrideUntil": null,
-    "zoomLevel": 2,
-    "currentPage": 0
-  },
-  "feeds": [
-    {
-      "id": "f_uuid1",
-      "name": "Easisport",
-      "unit": "scoop",
-      "rank": 1
-    }
-  ],
-  "horses": [
-    {
-      "id": "h_uuid1",
-      "name": "Spider",
-      "note": "Turn out early",
-      "noteExpiry": "2024-01-16T10:00:00Z",
-      "archived": false
-    }
-  ],
-  "diet": [
-    {
-      "horseId": "h_uuid1",
-      "feedId": "f_uuid1",
-      "amAmount": 0.5,
-      "pmAmount": 0.5
-    }
-  ]
-}
-```
-
-### 4.2 Display Lifecycle
-
-#### `POST /api/displays`
-
-Create a new display (stable).
-
-*Response (201):*
-```json
-{
-  "id": "d_abc123def456",
-  "pairCode": "847291"
-}
-```
-
-#### `PATCH /api/displays/:id`
-
-Update display settings (timezone, zoom, page).
-
-*Request:*
-```json
-{
-  "timezone": "Europe/London",
-  "zoomLevel": 3,
-  "currentPage": 1
-}
-```
-
-*Response (200):*
-```json
-{
-  "success": true,
-  "updatedAt": "2024-01-15T10:35:00Z"
-}
-```
-
-#### `DELETE /api/displays/:id`
-
-Remove a display and all associated data (cascades).
-
-*Response (200):*
-```json
-{
-  "success": true
-}
-```
-
-### 4.3 Horses
-
-#### `POST /api/displays/:displayId/horses`
-
-Create a new horse.
-
-*Request:*
-```json
-{
-  "name": "Thunder"
-}
-```
-
-*Response (201):*
-```json
-{
-  "id": "h_uuid123",
-  "name": "Thunder",
-  "note": null,
-  "noteExpiry": null,
-  "archived": false
-}
-```
-
-#### `PATCH /api/horses/:id`
-
-Partial update to a horse. Only include fields to update.
-
-*Request:*
-```json
-{
-  "note": "Vet visit tomorrow",
-  "noteExpiry": "2024-01-17T12:00:00Z"
-}
-```
-
-*Response (200):*
-```json
-{
-  "success": true,
-  "updatedAt": "2024-01-15T10:35:00Z"
-}
-```
-
-#### `DELETE /api/horses/:id`
-
-Delete a horse and its diet entries.
-
-*Response (200):*
-```json
-{
-  "success": true
-}
-```
-
-### 4.4 Feeds
-
-#### `POST /api/displays/:displayId/feeds`
-
-Create a new feed.
-
-*Request:*
-```json
-{
-  "name": "Easisport",
-  "unit": "scoop"
-}
-```
-
-*Response (201):*
-```json
-{
-  "id": "f_uuid123",
-  "name": "Easisport",
-  "unit": "scoop",
-  "rank": 0
-}
-```
-
-#### `PATCH /api/feeds/:id`
-
-Partial update to a feed.
-
-*Request:*
-```json
-{
-  "name": "Easisport Plus",
-  "unit": "ml"
-}
-```
-
-*Response (200):*
-```json
-{
-  "success": true,
-  "updatedAt": "2024-01-15T10:35:00Z"
-}
-```
-
-#### `DELETE /api/feeds/:id`
-
-Delete a feed and its diet entries.
-
-*Response (200):*
-```json
-{
-  "success": true
-}
-```
-
-### 4.5 Diet
-
-#### `PUT /api/diet`
-
-Upsert diet entries. Creates if not exists, updates if exists.
-
-*Request:*
-```json
-{
-  "entries": [
-    {
-      "horseId": "h_uuid1",
-      "feedId": "f_uuid1",
-      "amAmount": 0.5,
-      "pmAmount": 1
-    },
-    {
-      "horseId": "h_uuid1",
-      "feedId": "f_uuid2",
-      "amAmount": null,
-      "pmAmount": 0
-    }
-  ]
-}
-```
-
-**Behavior:**
-- If entry exists: UPDATE amounts
-- If entry doesn't exist: INSERT new row
-- If both amounts are `null`: DELETE the entry
-- Operation is atomic (wrapped in transaction)
-
-*Response (200):*
-```json
-{
-  "success": true,
-  "updatedAt": "2024-01-15T10:35:00Z",
-  "affectedRows": 2
-}
-```
-
-### 4.6 Time Mode
-
-#### `PUT /api/displays/:id/time-mode`
-
-Set time mode with optional override.
-
-*Request:*
-```json
-{
-  "mode": "PM"
-}
-```
-
-**Behavior:**
-- If mode is "AM" or "PM": sets `override_until` to now + 1 hour
-- If mode is "AUTO": clears `override_until`
-
-*Response (200):*
-```json
-{
-  "success": true,
-  "timeMode": "PM",
-  "overrideUntil": "2024-01-15T11:35:00Z"
-}
-```
-
-### 4.7 Pairing
-
-#### `POST /api/pair`
-
-Pair a controller with a display using the 6-digit code.
-
-*Request:*
-```json
-{
-  "code": "847291"
-}
-```
-
-*Validation:* Code must be exactly 6 digits (Zod validated).
-
-*Response (200):*
-```json
-{
-  "success": true,
-  "displayId": "d_abc123def456"
-}
-```
-
-*Response (404):*
-```json
-{
-  "success": false,
-  "error": "Invalid pairing code"
-}
-```
-
-### 4.8 Server-Sent Events
-
-#### `GET /api/displays/:id/events`
-
-SSE endpoint for real-time updates.
-
-*Headers:*
-```
-Content-Type: text/event-stream
-Cache-Control: no-cache
-Connection: keep-alive
-```
-
-*Event types:*
-
-| Event | Payload | When |
-|-------|---------|------|
-| `bootstrap` | Full state (see 4.1) | Initial connection |
-| `settings` | Display settings only | Settings change |
-| `horses` | Updated horses array | Horse add/edit/delete |
-| `feeds` | Updated feeds array | Feed add/edit/delete |
-| `diet` | Updated diet entries | Diet change |
-| (comment) | `: keepalive` | Every 30 seconds |
-
-*Example:*
-```
-event: bootstrap
-data: {"display":{...},"feeds":[...],"horses":[...],"diet":[...]}
-
-event: diet
-data: [{"horseId":"h1","feedId":"f1","amAmount":0.5,"pmAmount":1}]
-
-: keepalive
-```
-
-### 4.9 Health Check
-
-#### `GET /health`
-
-*Response (200):*
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-## 5. Validation (Zod Schemas)
-
-All validation schemas live in `src/shared/schemas/` and are used by both API middleware and frontend forms.
-
-### 5.1 Schema Definitions
-
-```typescript
-// src/shared/schemas/feed.ts
-import { z } from 'zod';
-
-export const UnitSchema = z.enum(['scoop', 'ml', 'sachet', 'biscuit']);
-
-export const FeedSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(50),
-  unit: UnitSchema,
-  rank: z.number().int().min(0),
-});
-
-export const CreateFeedSchema = FeedSchema.pick({ name: true, unit: true });
-export const UpdateFeedSchema = FeedSchema.partial().omit({ id: true });
-
-// src/shared/schemas/horse.ts
-export const HorseSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(50),
-  note: z.string().max(200).nullable(),
-  noteExpiry: z.string().datetime().nullable(),
-  archived: z.boolean(),
-});
-
-export const CreateHorseSchema = HorseSchema.pick({ name: true });
-export const UpdateHorseSchema = HorseSchema.partial().omit({ id: true });
-
-// src/shared/schemas/diet.ts
-export const DietEntrySchema = z.object({
-  horseId: z.string().uuid(),
-  feedId: z.string().uuid(),
-  amAmount: z.number().min(0).max(100).nullable(),
-  pmAmount: z.number().min(0).max(100).nullable(),
-});
-
-export const UpsertDietSchema = z.object({
-  entries: z.array(DietEntrySchema),
-});
-
-// src/shared/schemas/pair-code.ts
-export const PairCodeSchema = z.string().regex(/^\d{6}$/, 'Must be exactly 6 digits');
-```
-
-### 5.2 API Middleware
-
-```typescript
-// src/server/middleware/validate.ts
-import { ZodSchema } from 'zod';
-import { Request, Response, NextFunction } from 'express';
-
-export function validate(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: result.error.flatten(),
-      });
-    }
-    req.body = result.data;
-    next();
-  };
-}
-```
-
-### 5.3 Frontend Form Validation
-
-```typescript
-// Example: Horse edit form
-import { UpdateHorseSchema } from '@shared/schemas/horse';
-
-function handleSubmit(formData: unknown) {
-  const result = UpdateHorseSchema.safeParse(formData);
-  if (!result.success) {
-    setErrors(result.error.flatten().fieldErrors);
-    return;
-  }
-  await api.updateHorse(horseId, result.data);
-}
-```
-
-## 6. Frontend Architecture
-
-### 6.1 Project Structure
-
-```
-src/
-├── shared/                    # Shared between client and server
-│   ├── schemas/               # Zod schemas
-│   │   ├── feed.ts
-│   │   ├── horse.ts
-│   │   ├── diet.ts
-│   │   └── index.ts
-│   ├── time-mode.ts           # AM/PM calculation logic
-│   ├── fractions.ts           # Decimal to fraction formatting
-│   └── types.ts               # TypeScript interfaces
-├── client/
-│   ├── components/
-│   │   ├── Grid/              # Shared grid component
-│   │   │   ├── Grid.tsx       # Main grid (accepts isEditable prop)
-│   │   │   ├── GridCell.tsx
-│   │   │   ├── GridHeader.tsx
-│   │   │   └── GridFooter.tsx
-│   │   ├── NumericKeypad.tsx
-│   │   └── ...
-│   ├── views/
-│   │   ├── Display.tsx        # TV view (uses Grid with isEditable=false)
-│   │   └── Controller/
-│   │       ├── Board.tsx      # Uses Grid with isEditable=true
-│   │       ├── Horses.tsx
-│   │       ├── Feeds.tsx
-│   │       └── Reports.tsx
-│   ├── stores/                # Preact Signal stores
-│   │   ├── display.ts
-│   │   ├── horses.ts
-│   │   ├── feeds.ts
-│   │   └── diet.ts
-│   └── main.tsx
-└── server/
-    ├── routes/
-    ├── middleware/
-    └── db/
-```
-
-### 6.2 Shared Grid Component
-
-The Grid component is designed for reuse across TV Display and Controller.
-
-```typescript
-// src/client/components/Grid/Grid.tsx
-import { Signal } from '@preact/signals';
-
-interface GridProps {
-  horses: Signal<Horse[]>;
-  feeds: Signal<Feed[]>;
-  diet: Signal<DietEntry[]>;
-  timeMode: Signal<TimeMode>;
-  currentPage: Signal<number>;
-  horsesPerPage: number;
-  isEditable: boolean;  // Key prop for TV vs Controller
-  onCellClick?: (horseId: string, feedId: string) => void;
-  onNoteClick?: (horseId: string) => void;
-}
-
-export function Grid({
-  horses,
-  feeds,
-  diet,
-  timeMode,
-  isEditable,
-  onCellClick,
-  onNoteClick,
-}: GridProps) {
-  // Render grid with conditional editing UI
-  return (
-    <div class="grid">
-      <GridHeader horses={horses} />
-      <GridBody
-        horses={horses}
-        feeds={feeds}
-        diet={diet}
-        timeMode={timeMode}
-        isEditable={isEditable}
-        onCellClick={onCellClick}
-      />
-      <GridFooter
-        horses={horses}
-        isEditable={isEditable}
-        onNoteClick={onNoteClick}
-      />
-    </div>
-  );
-}
-```
-
-**Usage:**
-
-```typescript
-// TV Display (read-only)
-<Grid
-  horses={horses}
-  feeds={feeds}
-  diet={diet}
-  timeMode={timeMode}
-  isEditable={false}
-/>
-
-// Controller Board (editable)
-<Grid
-  horses={horses}
-  feeds={feeds}
-  diet={diet}
-  timeMode={timeMode}
-  isEditable={true}
-  onCellClick={handleCellClick}
-  onNoteClick={handleNoteClick}
-/>
-```
-
-### 6.3 State Management (Preact Signals)
-
-```typescript
-// src/client/stores/diet.ts
-import { signal, computed } from '@preact/signals';
-import type { DietEntry } from '@shared/types';
-
-// Raw state
-export const dietEntries = signal<DietEntry[]>([]);
-
-// Derived state: diet indexed by horse and feed for O(1) lookup
-export const dietByHorseAndFeed = computed(() => {
-  const map = new Map<string, DietEntry>();
-  for (const entry of dietEntries.value) {
-    map.set(`${entry.horseId}:${entry.feedId}`, entry);
-  }
-  return map;
-});
-
-// Actions
-export function updateDietEntry(horseId: string, feedId: string, field: 'amAmount' | 'pmAmount', value: number | null) {
-  const key = `${horseId}:${feedId}`;
-  const existing = dietByHorseAndFeed.value.get(key);
-
-  if (existing) {
-    dietEntries.value = dietEntries.value.map(e =>
-      e.horseId === horseId && e.feedId === feedId
-        ? { ...e, [field]: value }
-        : e
-    );
-  } else {
-    dietEntries.value = [
-      ...dietEntries.value,
-      { horseId, feedId, amAmount: null, pmAmount: null, [field]: value }
-    ];
-  }
-}
-```
-
-### 6.4 Time Mode Logic (Shared)
-
-```typescript
-// src/shared/time-mode.ts
-export type TimeMode = 'AUTO' | 'AM' | 'PM';
-
-export interface TimeModeState {
-  mode: TimeMode;
-  overrideUntil: string | null;
-}
-
-/**
- * Calculate effective time mode based on current time and override.
- */
-export function getEffectiveTimeMode(
-  state: TimeModeState,
-  timezone: string,
-  now: Date = new Date()
-): 'AM' | 'PM' {
-  // Check if override is still valid
-  if (state.mode !== 'AUTO' && state.overrideUntil) {
-    if (new Date(state.overrideUntil) > now) {
-      return state.mode as 'AM' | 'PM';
-    }
-  }
-
-  // Auto-detect based on timezone
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    hour: 'numeric',
-    hour12: false,
-  });
-  const hour = parseInt(formatter.format(now), 10);
-
-  // 04:00 - 11:59 = AM, 12:00 - 03:59 = PM
-  return (hour >= 4 && hour < 12) ? 'AM' : 'PM';
-}
-
-/**
- * Check if override has expired.
- */
-export function isOverrideExpired(overrideUntil: string | null, now: Date = new Date()): boolean {
-  if (!overrideUntil) return true;
-  return new Date(overrideUntil) <= now;
-}
-```
-
-### 6.5 Fraction Formatting (Shared)
-
-```typescript
-// src/shared/fractions.ts
-const FRACTION_MAP: Record<number, string> = {
-  0.25: '¼',
-  0.33: '⅓',
-  0.5: '½',
-  0.67: '⅔',
-  0.75: '¾',
-};
-
-/**
- * Format a decimal quantity for display.
- */
-export function formatQuantity(value: number | null, unit: string): string {
-  if (value === null || value === 0) return '';
-
-  const intPart = Math.floor(value);
-  const decPart = value - intPart;
-
-  // Check for known fractions
-  const fraction = FRACTION_MAP[Math.round(decPart * 100) / 100];
-
-  if (fraction) {
-    if (intPart === 0) return fraction;
-    return `${intPart}${fraction}`;
-  }
-
-  // Fall back to decimal with unit
-  return `${value} ${unit}`;
-}
-```
-
-## 7. Server Business Logic
-
-### 7.1 Feed Ranking
-
-After any diet change, recalculate ranks:
-
-```sql
-UPDATE feeds SET rank = (
-  SELECT COUNT(DISTINCT horse_id)
-  FROM diet_entries
-  WHERE feed_id = feeds.id
-    AND (am_amount > 0 OR pm_amount > 0)
-)
-WHERE display_id = ?;
-```
-
-Feeds with higher usage get lower rank numbers (rank 1 = most used).
-
-### 7.2 Time Mode Expiry
-
-Server checks every minute:
-
-```typescript
-// Check all displays for expired overrides
-const expired = await db.all(`
-  SELECT id FROM displays
-  WHERE time_mode != 'AUTO'
-    AND override_until IS NOT NULL
-    AND override_until < datetime('now')
-`);
-
-for (const display of expired) {
-  await db.run(`
-    UPDATE displays
-    SET time_mode = 'AUTO', override_until = NULL, updated_at = datetime('now')
-    WHERE id = ?
-  `, display.id);
-
-  broadcast(display.id, 'settings', { timeMode: 'AUTO', overrideUntil: null });
-}
-```
-
-### 7.3 Note Expiry
-
-Server checks hourly:
-
-```typescript
-const expired = await db.all(`
-  SELECT id, display_id FROM horses
-  WHERE note IS NOT NULL
-    AND note_expiry IS NOT NULL
-    AND note_expiry < datetime('now')
-`);
-
-for (const horse of expired) {
-  await db.run(`
-    UPDATE horses
-    SET note = NULL, note_expiry = NULL, updated_at = datetime('now')
-    WHERE id = ?
-  `, horse.id);
-
-  broadcastHorseUpdate(horse.display_id);
-}
-```
-
-### 7.4 Atomic Transactions
-
-Diet upserts are wrapped in transactions:
-
-```typescript
-async function upsertDiet(entries: DietEntry[]) {
-  await db.run('BEGIN TRANSACTION');
-  try {
-    for (const entry of entries) {
-      if (entry.amAmount === null && entry.pmAmount === null) {
-        await db.run(
-          'DELETE FROM diet_entries WHERE horse_id = ? AND feed_id = ?',
-          entry.horseId, entry.feedId
-        );
-      } else {
-        await db.run(`
-          INSERT INTO diet_entries (horse_id, feed_id, am_amount, pm_amount)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(horse_id, feed_id) DO UPDATE SET
-            am_amount = excluded.am_amount,
-            pm_amount = excluded.pm_amount,
-            updated_at = datetime('now')
-        `, entry.horseId, entry.feedId, entry.amAmount, entry.pmAmount);
-      }
-    }
-    await db.run('COMMIT');
-  } catch (error) {
-    await db.run('ROLLBACK');
-    throw error;
-  }
-}
-```
-
-## 8. TV Display (The Canvas)
-
-### 8.1 Layout
-
-**CSS Grid with Vertical Swim Lanes:**
-- Every 2nd horse column has a 3% darker background (zebra-striping by column, not row)
-- Prevents reading errors when scanning down a horse's diet
-- **Header row:** Horse names
-- **Body rows:** One per feed (showing AM or PM value based on time mode)
-- **Footer row:** Horse notes
-
-Only show feeds that have at least one non-zero value across visible horses.
-
-### 8.2 Visuals
-
-**Scoop Badges:**
-- Values are enclosed in rounded square badges
-- Clear visual containers for quantities
-- Enhance scannability at distance
-
-### 8.3 Empty State
-
-**Strictly Blank Cells:**
-- Zero values (`0`) and null values (`NULL`) render as completely blank cells
-- No dashes, no "0" text, no placeholders
-- Creates recognizable "shape patterns" for diets (e.g., gaps indicate specific feeding regimens)
-- Reduces visual noise and improves clarity
-
-### 8.4 Transitions
-
-**Theme Changes:**
-- AM/PM theme transitions use slow CSS transitions (3 seconds)
-- Smooth, calming aesthetic for stable environment
-- No jarring color shifts
-
-### 8.5 Behavior
-
-1. Check localStorage for `displayId`
-2. If none, `POST /api/displays` to create session
-3. Show pairing code until data arrives
-4. Connect to SSE, render grid on `bootstrap` event
-5. Update reactively on subsequent events
-6. Auto-reconnect on disconnect (exponential backoff)
-
-**URL:** `/display`
-
-## 9. Mobile Controller (The Remote)
-
-### 9.1 Navigation
-
-**Bottom Tabs:** `[Horses] [Feeds] [Board] [Settings]`
-
-Touch targets must be at least 48px for "dirty hands" use.
-
-### 9.2 Horses Tab (Home)
-
-**Searchable Status Cards:**
-- List view with one card per horse
-- Each card shows:
-  - **Horse name** (large, bold)
-  - **"3 Feeds" summary pill** (e.g., "3 Feeds" or "No feeds assigned")
-- Tapping a card opens the Horse Detail view
-
-**Search:**
-- Filter horses by name in real-time
-- No system keyboard required for basic navigation
-
-### 9.3 Horse Detail View
-
-**Large Tappable Feed Tiles:**
-- Lists all active feeds for the selected horse
-- Each tile shows:
-  - Feed name
-  - Current AM/PM quantity
-- Tapping a value opens the Feed Pad (custom drawer)
-
-**Feed Pad Component** (`<FeedPad />`):
-- Custom slide-up drawer replacing system keyboard
-- Designed for "dirty hands" use
-- **Row 1 - Presets:** `[Empty] [½] [1] [2]`
-- **Row 2 - Stepper:** `[-] [Current Value] [+]` (increments in 0.25 steps)
-- Large touch targets (minimum 48px)
-- No need for precise typing
-
-### 9.4 Feeds Tab
-
-Manage master feed list:
-- Create, rename, delete feeds
-- Set unit (Scoop, ml, Biscuit, Sachet)
-- Delete confirmation (cascades to diet entries)
-- Uses custom Feed Pad for numeric input where applicable
-
-### 9.5 Board Tab
-
-**Read-Only Verification View:**
-- Scaled-down mirror of the TV Display
-- For verification only - no editing
-- Shows same grid layout as TV (with vertical swim lanes)
-- Allows users to preview what's on the stable TV
-
-### 9.6 Settings Tab
-
-Display controls:
-- **Time Mode:** AM/PM/AUTO toggle
-- **Zoom:** Adjust columns per page (1-3)
-- **Timezone:** Set display timezone
-- **Unpair:** Disconnect from current display
-
-**URL:** `/controller`
-
-## 10. Data Flow
-
-### 10.1 Pairing
-
-```
-TV: POST /api/displays → receives displayId + pairCode
-TV: Shows "847291" on screen
-TV: Connects to /api/displays/:id/events
-TV: Receives "bootstrap" event, renders grid
-
-Mobile: User enters "847291"
-Mobile: POST /api/pair {code} → receives displayId
-Mobile: GET /api/bootstrap/:displayId → hydrates state
-Mobile: Connects to SSE for updates
-```
-
-### 10.2 Editing
-
-```
-Mobile: User changes Spider's Easisport to 0.5
-Mobile: PUT /api/diet { entries: [{ horseId, feedId, amAmount: 0.5, pmAmount: null }] }
-
-Server: Validates with Zod schema
-Server: Runs atomic transaction
-Server: Recalculates feed rankings
-Server: Broadcasts "diet" event to SSE clients
-
-TV: Receives "diet" event
-TV: Signal updates, Grid re-renders affected cells only
-```
-
-## 11. Error Handling
-
-### 11.1 HTTP Status Codes
-
-| Code | Meaning |
-|------|---------|
-| 200 | Success (GET, PUT, PATCH, DELETE) |
-| 201 | Created (POST) |
-| 400 | Validation error (Zod) |
-| 404 | Not found |
-| 500 | Server error |
-
-### 11.2 Error Response Format
-
-```json
-{
-  "success": false,
-  "error": "Human-readable message",
-  "details": {
-    "fieldErrors": {
-      "name": ["String must contain at least 1 character(s)"]
-    }
-  }
-}
-```
-
-### 11.3 Client-Side Error Handling
+- A null amount means the feed is not assigned to the horse for that time slot.
+- A zero amount means the horse deliberately receives none of this feed.
+- Both null and zero display as blank and calculate as zero in reports.
+
+**Cascade behavior:** Diet entries are automatically removed when either their parent horse or feed is deleted.
+
+---
+
+## 4. Business Logic Rules
+
+### 4.1 Feed Ranking
+
+Feeds are ranked by usage frequency to optimize the display order.
+
+**Rule:** After any diet change, recalculate the rank for each feed as the count of distinct horses that receive a non-zero amount of that feed (either AM or PM). Feeds with more horses assigned receive lower rank numbers (rank 1 = most popular).
+
+### 4.2 Time Mode Auto-Detection
+
+The display shows either AM or PM values based on the current time mode.
+
+**Rules:**
+- When time mode is AUTO, determine the effective mode from the display's timezone:
+  - Hours 04:00 through 11:59 local time resolve to AM.
+  - Hours 12:00 through 03:59 local time resolve to PM.
+- When time mode is AM or PM with an active override, use that mode until the override expires.
+- When an override expires, automatically revert to AUTO mode.
+
+**Override behavior:**
+- Setting time mode to AM or PM creates an override that expires in one hour.
+- Setting time mode to AUTO immediately clears any active override.
+- The server checks for expired overrides every minute and broadcasts changes to connected clients.
+
+### 4.3 Note Expiry
+
+Horse notes can be set to auto-clear after a specified time.
+
+**Rules:**
+- When a note has an expiry timestamp and that timestamp passes, the server clears both the note text and expiry timestamp.
+- The server checks for expired notes hourly.
+- When a note expires, the change is broadcast to all connected clients.
+
+### 4.4 Quantity Formatting
+
+Quantities are displayed using fraction symbols for common values.
+
+**Rules:**
+- The fractions 0.25, 0.33, 0.5, 0.67, and 0.75 render as their Unicode equivalents (¼, ⅓, ½, ⅔, ¾).
+- Whole numbers with fractional remainders combine (e.g., 1.5 displays as "1½").
+- Values that don't match known fractions display as decimals with the unit suffix.
+- Zero and null values render as completely blank cells (no dashes, no "0" text, no placeholders).
+
+---
+
+## 5. API Capabilities
+
+### 5.1 Required Operations
+
+The system must support these atomic operations:
+
+**Display lifecycle:**
+- Create a new display, returning its identifier and generated pairing code.
+- Update display settings (timezone, zoom level, current page).
+- Delete a display and cascade to all child data.
+
+**Entity management:**
+- Create, update, and delete horses within a display.
+- Create, update, and delete feeds within a display.
+
+**Diet management:**
+- Atomic upsert of diet entries: if an entry exists, update it; if not, create it; if both amounts become null, delete it.
+- All diet changes within a single request must succeed or fail together (transaction).
+
+**Time mode control:**
+- Set time mode with automatic override expiry calculation.
+
+**Pairing:**
+- Validate a six-digit pairing code and return the associated display identifier.
+
+**Bootstrap:**
+- Retrieve complete display state (settings, all horses, all feeds, all diet entries) in a single request for client initialization.
+
+### 5.2 Validation Requirements
+
+All input must be validated using shared schemas between client and server:
+
+- Pairing codes must be exactly six digits.
+- Names must be 1-50 characters.
+- Notes must not exceed 200 characters.
+- Amounts must be between 0 and 100 when present.
+- Units must be one of the allowed values.
+- Timestamps must be valid ISO 8601 format.
+
+Validation errors must return structured feedback identifying which fields failed and why.
+
+### 5.3 Real-Time Broadcasting
+
+The system must support Server-Sent Events (SSE) for real-time updates.
+
+**Connection lifecycle:**
+- Upon connection, immediately send the complete bootstrap state.
+- Send keepalive comments every 30 seconds to prevent connection timeout.
+
+**Event types:**
+- Bootstrap: full state on initial connection.
+- Settings: when display settings change.
+- Horses: when horses are added, modified, or deleted.
+- Feeds: when feeds are added, modified, or deleted.
+- Diet: when diet entries change.
+
+**Reconnection:** Clients must implement exponential backoff (1s, 2s, 4s, 8s, up to 30s maximum) when connections fail.
+
+---
+
+## 6. UI/UX Contracts
+
+### 6.1 TV Display Behaviors
+
+**Layout:**
+- Render as a CSS grid with horses as columns and feeds as rows.
+- Apply vertical swim lanes: every second horse column has a slightly darker background to aid vertical scanning.
+- Only show feeds that have at least one non-zero value across visible horses.
+- Header row displays horse names; footer row displays horse notes.
+
+**Pagination:**
+- Zoom level determines horses per page (level 1=10, level 2=7, level 3=5).
+- Current page index determines which horses are visible.
+
+**Visual rendering:**
+- Values appear inside rounded badge containers.
+- Zero and null values render as completely blank cells to create recognizable "shape patterns" for diets.
+- Theme transitions between AM and PM use slow CSS transitions (3 seconds) for a calming aesthetic.
+
+**Pairing state:**
+- Display the six-digit pairing code prominently until data arrives.
+- Show a "Connection Lost" overlay during SSE disconnection.
+
+### 6.2 Mobile Controller Behaviors
+
+**Navigation:**
+- Bottom tab bar with four tabs: Horses, Feeds, Board, Settings.
+- All touch targets must be at least 48 pixels for "dirty hands" use.
+
+**Horses Tab (home):**
+- Display a searchable list of status cards, one per horse.
+- Each card shows the horse name (large, bold) and a feed count summary pill.
+- Tapping a card navigates to the horse detail view.
+- Search filters horses by name in real-time.
+
+**Horse Detail View:**
+- Display large tappable tiles for each active feed assigned to the horse.
+- Each tile shows the feed name and current AM/PM quantity.
+- Tapping a quantity value opens the Feed Pad.
+
+**Feed Pad:**
+- A custom slide-up drawer that replaces the system keyboard for numeric input.
+- Must never trigger the system keyboard.
+- First row: preset buttons for Empty, ½, 1, and 2.
+- Second row: stepper with minus button, current value display, and plus button.
+- Stepper increments and decrements in 0.25 steps.
+- All buttons must be at least 48 pixels.
+
+**Feeds Tab:**
+- List all feeds with options to create, rename, and delete.
+- Unit selection from the allowed values.
+- Delete requires confirmation (warns about cascade to diet entries).
+
+**Board Tab:**
+- A scaled-down, read-only mirror of the TV display.
+- For verification only; no editing capability.
+- Shows the same grid layout with vertical swim lanes.
+
+**Settings Tab:**
+- Time mode toggle: AM, PM, or AUTO.
+- Zoom level selector: 1, 2, or 3.
+- Timezone picker.
+- Unpair button to disconnect from current display.
+
+### 6.3 Status Indicators
+
+**Controller sync status:** Display one of Ready, Saving, Saved, or Error to indicate current state.
+
+**Form validation:** Highlight fields with inline error messages when validation fails.
+
+**Network errors:** Display toast notifications for transient failures.
+
+---
+
+## 7. Error Handling Contracts
+
+### 7.1 Response Expectations
+
+- Successful reads return status 200.
+- Successful creates return status 201.
+- Validation failures return status 400 with structured field errors.
+- Missing resources return status 404.
+- Server errors return status 500.
+
+All error responses must include a human-readable message and, for validation errors, a details object with field-level error arrays.
+
+### 7.2 Client Resilience
 
 **TV Display:**
-- SSE connection failures trigger "Connection Lost" overlay
-- Exponential backoff reconnection: 1s, 2s, 4s, 8s... up to 30s max
-- Overlay auto-hides when connection restores
+- SSE disconnection triggers a visible overlay.
+- Reconnection uses exponential backoff.
+- Overlay auto-hides when connection restores.
 
 **Mobile Controller:**
-- Network failures show toast notifications
-- Form validation errors highlight fields inline
-- Sync status indicator: Ready, Saving, Saved, Error
+- Network failures show toast notifications.
+- Optimistic updates with rollback on failure are acceptable.
+- Form errors highlight affected fields inline.
 
-## 12. Configuration
+---
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | Server port |
-| `DB_PATH` | `./data/horseboard.db` | Database path |
-| `NODE_ENV` | `development` | Environment |
+## 8. Configuration
 
-## 13. Future Considerations
+The server requires these environment settings:
 
-| Feature | Prepared By |
-|---------|-------------|
-| Inventory tracking | `stock_level`, `low_stock_threshold` columns |
-| Horse history | `archived` column, `created_at`/`updated_at` timestamps |
-| Audit log | All tables have timestamps |
-| Offline editing | Signal-based state enables local-first architecture |
-| Multiple controllers | Granular endpoints reduce conflict scope |
-| User authentication | Display ownership via user FK (future migration) |
+- Server port (default: 3000)
+- Database file path (default: ./data/horseboard.db)
+- Environment mode (development or production)
+
+---
+
+## 9. Future Extension Points
+
+The data model includes reserved fields for planned features:
+
+- **Inventory tracking:** Stock level and low stock threshold fields on feeds.
+- **Horse history:** Archived flag and timestamps on horses.
+- **Audit logging:** Creation and modification timestamps on all entities.
+- **Offline editing:** Signal-based state architecture enables local-first patterns.
+- **Multiple controllers:** Granular endpoints reduce conflict scope.
+- **User authentication:** Display ownership can be extended via user foreign key.
