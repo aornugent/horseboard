@@ -943,17 +943,42 @@ async function upsertDiet(entries: DietEntry[]) {
 }
 ```
 
-## 8. TV Display
+## 8. TV Display (The Canvas)
 
-### 8.1 Grid Layout
+### 8.1 Layout
 
+**CSS Grid with Vertical Swim Lanes:**
+- Every 2nd horse column has a 3% darker background (zebra-striping by column, not row)
+- Prevents reading errors when scanning down a horse's diet
 - **Header row:** Horse names
 - **Body rows:** One per feed (showing AM or PM value based on time mode)
 - **Footer row:** Horse notes
 
 Only show feeds that have at least one non-zero value across visible horses.
 
-### 8.2 Behavior
+### 8.2 Visuals
+
+**Scoop Badges:**
+- Values are enclosed in rounded square badges
+- Clear visual containers for quantities
+- Enhance scannability at distance
+
+### 8.3 Empty State
+
+**Strictly Blank Cells:**
+- Zero values (`0`) and null values (`NULL`) render as completely blank cells
+- No dashes, no "0" text, no placeholders
+- Creates recognizable "shape patterns" for diets (e.g., gaps indicate specific feeding regimens)
+- Reduces visual noise and improves clarity
+
+### 8.4 Transitions
+
+**Theme Changes:**
+- AM/PM theme transitions use slow CSS transitions (3 seconds)
+- Smooth, calming aesthetic for stable environment
+- No jarring color shifts
+
+### 8.5 Behavior
 
 1. Check localStorage for `displayId`
 2. If none, `POST /api/displays` to create session
@@ -964,33 +989,43 @@ Only show feeds that have at least one non-zero value across visible horses.
 
 **URL:** `/display`
 
-## 9. Mobile Controller
+## 9. Mobile Controller (The Remote)
 
 ### 9.1 Navigation
 
-Tab bar: **[Board] [Horses] [Feeds] [Reports]**
+**Bottom Tabs:** `[Horses] [Feeds] [Board] [Settings]`
 
-### 9.2 Board Tab
+Touch targets must be at least 48px for "dirty hands" use.
 
-Uses shared Grid component with `isEditable={true}`:
+### 9.2 Horses Tab (Home)
 
-- Tap cell → Numeric keypad for quantity
-- Tap horse name → Navigate to horse detail
-- Tap note → Edit note inline
+**Searchable Status Cards:**
+- List view with one card per horse
+- Each card shows:
+  - **Horse name** (large, bold)
+  - **"3 Feeds" summary pill** (e.g., "3 Feeds" or "No feeds assigned")
+- Tapping a card opens the Horse Detail view
 
-**Controls:**
-- AM/PM/AUTO toggle
-- Zoom: [-] [+]
-- Page: [<] [Page X of Y] [>]
+**Search:**
+- Filter horses by name in real-time
+- No system keyboard required for basic navigation
 
-### 9.3 Horses Tab
+### 9.3 Horse Detail View
 
-List of horse cards. Tapping opens detail view:
+**Large Tappable Feed Tiles:**
+- Lists all active feeds for the selected horse
+- Each tile shows:
+  - Feed name
+  - Current AM/PM quantity
+- Tapping a value opens the Feed Pad (custom drawer)
 
-- **Header:** Name + "Clone Diet From" dropdown
-- **Notes:** Text field + expiry (None, 24h, 48h)
-- **Warning:** Highlight if note >24h old without expiry
-- **Feeds:** Active feeds (editable) + inactive feeds (tap to add)
+**Feed Pad Component** (`<FeedPad />`):
+- Custom slide-up drawer replacing system keyboard
+- Designed for "dirty hands" use
+- **Row 1 - Presets:** `[Empty] [½] [1] [2]`
+- **Row 2 - Stepper:** `[-] [Current Value] [+]` (increments in 0.25 steps)
+- Large touch targets (minimum 48px)
+- No need for precise typing
 
 ### 9.4 Feeds Tab
 
@@ -998,30 +1033,23 @@ Manage master feed list:
 - Create, rename, delete feeds
 - Set unit (Scoop, ml, Biscuit, Sachet)
 - Delete confirmation (cascades to diet entries)
+- Uses custom Feed Pad for numeric input where applicable
 
-### 9.5 Reports Tab
+### 9.5 Board Tab
 
-Weekly consumption per feed:
+**Read-Only Verification View:**
+- Scaled-down mirror of the TV Display
+- For verification only - no editing
+- Shows same grid layout as TV (with vertical swim lanes)
+- Allows users to preview what's on the stable TV
 
-```typescript
-// Calculate from diet entries
-const weeklyConsumption = feeds.map(feed => {
-  const entries = dietEntries.filter(e => e.feedId === feed.id);
-  const dailyTotal = entries.reduce((sum, e) =>
-    sum + (e.amAmount ?? 0) + (e.pmAmount ?? 0), 0
-  );
-  return {
-    feed: feed.name,
-    weekly: Math.round(dailyTotal * 7 * 100) / 100,
-    unit: feed.unit + 's',
-  };
-});
-```
+### 9.6 Settings Tab
 
-| Feed | Weekly | Unit |
-|------|--------|------|
-| Easisport | 45.50 | scoops |
-| Bute | 14.00 | sachets |
+Display controls:
+- **Time Mode:** AM/PM/AUTO toggle
+- **Zoom:** Adjust columns per page (1-3)
+- **Timezone:** Set display timezone
+- **Unpair:** Disconnect from current display
 
 **URL:** `/controller`
 
