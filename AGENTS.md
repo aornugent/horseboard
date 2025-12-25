@@ -32,6 +32,28 @@ Instructions for AI agents working on this codebase.
 - **Diet Entry:** The intersection - quantity of each feed per horse for AM and PM
 - **Time Mode:** AUTO detects morning/afternoon; can be manually overridden
 
+## Design Philosophy: Modern Equestrian Utility
+
+### Aesthetic: "Calm Utility"
+
+- Use high contrast and high comfort whitespace
+- Avoid generic "Tech Blue"
+- Color palettes:
+  - **Morning Mist** (Off-white/Hunter Green) for AM
+  - **Tack Room** (Dark Grey/Amber) for PM
+
+### TV Display: Designed for Distance Reading
+
+- **Vertical Swim Lanes:** Zebra-striped columns (not rows) to prevent reading errors
+- **Zero Values:** Must be strictly blank (no dashes, no '0') to create recognizable "shape patterns" for diets
+- **Monospace Numbers:** For alignment
+
+### Mobile Controller: Designed for "Dirty Hands"
+
+- **No System Keyboards:** Use a custom "Feed Pad" drawer for data entry
+- **No Grids on Mobile:** Use Task-Based "Status Card" lists
+- **Touch Targets:** Must be at least 48px
+
 ## Architecture (V3)
 
 ### 1. Stack
