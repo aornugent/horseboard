@@ -1,0 +1,53 @@
+/* Morning Mist (AM) - Off-white/Hunter Green */
+[data-theme="am"] {
+  --color-bg-primary: #f8f9fa;
+  --color-bg-secondary: #e8ebe9;
+  --color-text-primary: #2d4a3e;
+  --color-text-secondary: #5a7a6b;
+  --color-accent: #3d5a4d;
+  --color-swim-lane-alt: rgba(0, 0, 0, 0.03);
+}
+
+/* Tack Room (PM) - Dark Grey/Amber */
+[data-theme="pm"] {
+  --color-bg-primary: #2c2c2e;
+  --color-bg-secondary: #3a3a3c;
+  --color-text-primary: #f5a623;
+  --color-text-secondary: #d4922a;
+  --color-accent: #e09615;
+  --color-swim-lane-alt: rgba(0, 0, 0, 0.15);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: background-color 3s ease, color 3s ease;
+}
+
+#app {
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background-color: var(--color-accent);
+  color: var(--color-bg-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 48px;
+}
+
+button:hover {
+  opacity: 0.9;
+}
