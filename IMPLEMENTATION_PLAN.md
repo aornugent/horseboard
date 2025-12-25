@@ -370,9 +370,48 @@ export function validate(schema: ZodSchema) {
 
 ### Phase 4: Frontend Re-architecture
 
-**Goal:** Preact + Signals frontend with shared Grid component.
+**Goal:** Preact + Signals frontend with design system components following "Modern Equestrian Utility" philosophy.
 
-#### 4.1 Signal Stores
+#### 4.1 Theming Foundation
+
+Create CSS variable-based theming system for AM/PM modes:
+
+```css
+/* src/client/styles/theme.css */
+
+/* Morning Mist (AM) - Off-white/Hunter Green */
+[data-theme="am"] {
+  --color-bg-primary: #f8f9fa;        /* Off-white */
+  --color-bg-secondary: #e8ebe9;      /* Lighter grey */
+  --color-text-primary: #2d4a3e;      /* Hunter Green */
+  --color-text-secondary: #5a7a6b;    /* Muted Hunter Green */
+  --color-accent: #3d5a4d;            /* Deep Hunter Green */
+  --color-swim-lane-alt: rgba(0,0,0,0.03);  /* 3% darker for zebra striping */
+}
+
+/* Tack Room (PM) - Dark Grey/Amber */
+[data-theme="pm"] {
+  --color-bg-primary: #2c2c2e;        /* Dark Grey */
+  --color-bg-secondary: #3a3a3c;      /* Medium Grey */
+  --color-text-primary: #f5a623;      /* Amber */
+  --color-text-secondary: #d4922a;    /* Muted Amber */
+  --color-accent: #e09615;            /* Deep Amber */
+  --color-swim-lane-alt: rgba(0,0,0,0.15); /* 3% darker for zebra striping */
+}
+
+/* Transition smoothly between themes (3s for calm aesthetic) */
+* {
+  transition: background-color 3s ease, color 3s ease;
+}
+```
+
+**Deliverables:**
+- [ ] Create `src/client/styles/theme.css` with AM/PM CSS variables
+- [ ] Implement theme switcher that applies `data-theme` attribute to `<body>`
+- [ ] Test smooth 3s transitions between AM/PM themes
+- [ ] Ensure high contrast for distance reading
+
+#### 4.2 Signal Stores
 
 ```typescript
 // src/client/stores/diet.ts
@@ -390,11 +429,89 @@ export const dietByKey = computed(() => {
 });
 ```
 
-#### 4.2 Shared Grid Component
+**Deliverables:**
+- [ ] Create Signal stores for display, horses, feeds, diet
+- [ ] Implement computed signals for derived state (dietByKey, effectiveTimeMode)
+- [ ] Configure SSE client to update Signal stores
+
+#### 4.3 Core Design System Components
+
+##### 4.3.1 `<FeedPad />` - Custom Touch-Friendly Input Drawer
+
+Custom numeric input component designed for "dirty hands" use (replaces system keyboard).
 
 ```tsx
-// src/client/components/Grid/Grid.tsx
-interface GridProps {
+// src/client/components/FeedPad/FeedPad.tsx
+interface FeedPadProps {
+  isOpen: boolean;
+  currentValue: number | null;
+  onValueChange: (value: number | null) => void;
+  onClose: () => void;
+  feedName: string;
+  unit: string;
+}
+
+export function FeedPad({ isOpen, currentValue, onValueChange, onClose, feedName, unit }: FeedPadProps) {
+  return (
+    <div
+      class="feed-pad-drawer"
+      data-testid="feed-pad"
+      aria-hidden={!isOpen}
+    >
+      <div class="feed-pad-header">
+        <h3>{feedName}</h3>
+        <button data-testid="feed-pad-close" onClick={onClose}>×</button>
+      </div>
+
+      {/* Row 1: Presets (large touch targets, min 48px) */}
+      <div class="feed-pad-presets" data-testid="feed-pad-presets">
+        <button data-testid="preset-empty" onClick={() => onValueChange(null)}>Empty</button>
+        <button data-testid="preset-half" onClick={() => onValueChange(0.5)}>½</button>
+        <button data-testid="preset-one" onClick={() => onValueChange(1)}>1</button>
+        <button data-testid="preset-two" onClick={() => onValueChange(2)}>2</button>
+      </div>
+
+      {/* Row 2: Stepper (increments in 0.25 steps) */}
+      <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
+        <button
+          data-testid="stepper-decrement"
+          onClick={() => onValueChange(Math.max(0, (currentValue ?? 0) - 0.25))}
+        >
+          −
+        </button>
+        <div class="stepper-value" data-testid="stepper-value">
+          {formatQuantity(currentValue, unit)}
+        </div>
+        <button
+          data-testid="stepper-increment"
+          onClick={() => onValueChange((currentValue ?? 0) + 0.25)}
+        >
+          +
+        </button>
+      </div>
+
+      <button class="feed-pad-confirm" data-testid="feed-pad-confirm" onClick={onClose}>
+        Done
+      </button>
+    </div>
+  );
+}
+```
+
+**Deliverables:**
+- [ ] Implement `<FeedPad />` component with slide-up drawer animation
+- [ ] Ensure all touch targets are minimum 48px
+- [ ] Add `data-testid` attributes for E2E testing
+- [ ] Style with CSS variables for theming
+- [ ] Test on mobile devices with gloves
+
+##### 4.3.2 `<SwimLaneGrid />` - Vertical Zebra-Striped Grid
+
+Grid component with vertical swim lanes (zebra-striped columns, not rows).
+
+```tsx
+// src/client/components/SwimLaneGrid/SwimLaneGrid.tsx
+interface SwimLaneGridProps {
   horses: Signal<Horse[]>;
   feeds: Signal<Feed[]>;
   diet: Signal<DietEntry[]>;
@@ -403,87 +520,385 @@ interface GridProps {
   onCellClick?: (horseId: string, feedId: string) => void;
 }
 
-export function Grid({ horses, feeds, diet, timeMode, isEditable, onCellClick }: GridProps) {
+export function SwimLaneGrid({ horses, feeds, diet, timeMode, isEditable, onCellClick }: SwimLaneGridProps) {
   return (
-    <div class="grid" data-testid="feed-grid">
-      <GridHeader horses={horses} />
+    <div class="swim-lane-grid" data-testid="swim-lane-grid">
+      {/* Header row: Horse names */}
+      <div class="grid-header" data-testid="grid-header">
+        <div class="corner-cell"></div>
+        {horses.value.map((horse, idx) => (
+          <div
+            key={horse.id}
+            class={`horse-header ${idx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'}`}
+            data-testid={`horse-header-${horse.id}`}
+          >
+            {horse.name}
+          </div>
+        ))}
+      </div>
+
+      {/* Body: Feed rows */}
       {feeds.value.map(feed => (
-        <GridRow
-          key={feed.id}
-          feed={feed}
-          horses={horses}
-          diet={diet}
-          timeMode={timeMode}
-          isEditable={isEditable}
-          onCellClick={onCellClick}
-        />
+        <div key={feed.id} class="feed-row" data-testid={`feed-row-${feed.id}`}>
+          <div class="feed-name" data-testid={`feed-name-${feed.id}`}>
+            {feed.name}
+          </div>
+          {horses.value.map((horse, idx) => {
+            const entry = dietByKey.value.get(`${horse.id}:${feed.id}`);
+            const value = timeMode.value === 'AM' ? entry?.amAmount : entry?.pmAmount;
+
+            return (
+              <div
+                key={horse.id}
+                class={`grid-cell ${idx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'}`}
+                data-testid={`cell-${horse.id}-${feed.id}`}
+                onClick={() => isEditable && onCellClick?.(horse.id, feed.id)}
+              >
+                {/* Scoop Badge: rounded square container */}
+                {(value !== null && value !== 0) && (
+                  <div class="scoop-badge" data-testid={`badge-${horse.id}-${feed.id}`}>
+                    <span class="badge-value" style="font-variant-numeric: tabular-nums">
+                      {formatQuantity(value, feed.unit)}
+                    </span>
+                  </div>
+                )}
+                {/* Zero/null renders as strictly blank (no dash, no "0") */}
+              </div>
+            );
+          })}
+        </div>
       ))}
-      <GridFooter horses={horses} isEditable={isEditable} />
+
+      {/* Footer: Horse notes */}
+      <div class="grid-footer" data-testid="grid-footer">
+        <div class="corner-cell"></div>
+        {horses.value.map((horse, idx) => (
+          <div
+            key={horse.id}
+            class={`horse-note ${idx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'}`}
+            data-testid={`note-${horse.id}`}
+          >
+            {horse.note}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 ```
 
-#### 4.3 Test IDs for E2E
-
-Every interactive element gets a `data-testid`:
-
-```tsx
-// Grid cells
-<div data-testid={`cell-${horseId}-${feedId}`}>
-
-// Horse headers
-<div data-testid={`horse-header-${horse.id}`}>
-
-// Feed rows
-<div data-testid={`feed-row-${feed.id}`}>
-
-// Notes
-<div data-testid={`note-${horse.id}`}>
-
-// Time mode buttons
-<button data-testid={`time-mode-${mode}`}>
-```
-
-#### 4.4 View Composition
-
-```tsx
-// src/client/views/Display.tsx (TV - read-only)
-export function Display() {
-  return (
-    <Grid
-      horses={horses}
-      feeds={feeds}
-      diet={diet}
-      timeMode={effectiveTimeMode}
-      isEditable={false}
-    />
-  );
+**CSS for Vertical Swim Lanes:**
+```css
+/* src/client/components/SwimLaneGrid/SwimLaneGrid.css */
+.swim-lane-primary {
+  background-color: var(--color-bg-primary);
 }
 
-// src/client/views/Controller/Board.tsx (Mobile - editable)
-export function Board() {
+.swim-lane-alt {
+  background-color: var(--color-swim-lane-alt);
+}
+
+.scoop-badge {
+  display: inline-block;
+  padding: 8px 12px;
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.badge-value {
+  /* Monospace numbers for alignment */
+  font-variant-numeric: tabular-nums;
+}
+```
+
+**Deliverables:**
+- [ ] Implement `<SwimLaneGrid />` with vertical zebra striping (every 2nd horse column)
+- [ ] Implement "Scoop Badges" for non-zero values (rounded squares)
+- [ ] Ensure zero/null values render as **strictly blank** (no dashes, no "0")
+- [ ] Use `font-variant-numeric: tabular-nums` for monospace number alignment
+- [ ] Add `data-testid` attributes for all cells, headers, and badges
+- [ ] Verify swim lanes use CSS variables for theming
+
+##### 4.3.3 `<HorseCard />` - Mobile Status Card
+
+List item component for Horses Tab (mobile controller).
+
+```tsx
+// src/client/components/HorseCard/HorseCard.tsx
+interface HorseCardProps {
+  horse: Horse;
+  feedCount: number;
+  onClick: () => void;
+}
+
+export function HorseCard({ horse, feedCount, onClick }: HorseCardProps) {
   return (
-    <Grid
-      horses={horses}
-      feeds={feeds}
-      diet={diet}
-      timeMode={effectiveTimeMode}
-      isEditable={true}
-      onCellClick={handleCellClick}
-    />
+    <div
+      class="horse-card"
+      data-testid={`horse-card-${horse.id}`}
+      onClick={onClick}
+      style={{ minHeight: '48px' }}  // Minimum touch target
+    >
+      <div class="horse-card-name" data-testid={`horse-card-name-${horse.id}`}>
+        {horse.name}
+      </div>
+      <div class="horse-card-summary" data-testid={`horse-card-summary-${horse.id}`}>
+        <span class="feed-count-pill">
+          {feedCount === 0 ? 'No feeds assigned' : `${feedCount} Feed${feedCount !== 1 ? 's' : ''}`}
+        </span>
+      </div>
+      {horse.note && (
+        <div class="horse-card-note" data-testid={`horse-card-note-${horse.id}`}>
+          ℹ️ {horse.note}
+        </div>
+      )}
+    </div>
   );
 }
 ```
 
 **Deliverables:**
-- [ ] Create Signal stores for display, horses, feeds, diet
-- [ ] Implement shared Grid component with `isEditable` prop
-- [ ] Build Display view (TV) using Grid with `isEditable={false}`
-- [ ] Build Controller views (Board, Horses, Feeds, Reports)
-- [ ] Add `data-testid` attributes to all interactive elements
-- [ ] Configure SSE client to update Signal stores
+- [ ] Implement `<HorseCard />` with name and feed count summary pill
+- [ ] Ensure minimum 48px height for touch targets
+- [ ] Add optional note preview
+- [ ] Add `data-testid` attributes
+- [ ] Style for high contrast and readability on mobile
+
+#### 4.4 View Assembly
+
+##### 4.4.1 TV Display (Canvas)
+
+Read-only view using `<SwimLaneGrid />`:
+
+```tsx
+// src/client/views/Display.tsx
+export function Display() {
+  return (
+    <div data-theme={effectiveTimeMode.value.toLowerCase()}>
+      <SwimLaneGrid
+        horses={horses}
+        feeds={feeds}
+        diet={diet}
+        timeMode={effectiveTimeMode}
+        isEditable={false}
+      />
+    </div>
+  );
+}
+```
+
+##### 4.4.2 Mobile Controller - Horses Tab (Home)
+
+Searchable list of `<HorseCard />` components:
+
+```tsx
+// src/client/views/Controller/HorsesTab.tsx
+export function HorsesTab() {
+  const filteredHorses = computed(() => {
+    const query = searchQuery.value.toLowerCase();
+    return horses.value.filter(h => h.name.toLowerCase().includes(query));
+  });
+
+  return (
+    <div class="horses-tab" data-testid="horses-tab">
+      <input
+        type="search"
+        placeholder="Search horses..."
+        data-testid="horse-search"
+        onInput={(e) => searchQuery.value = e.currentTarget.value}
+      />
+
+      <div class="horse-list" data-testid="horse-list">
+        {filteredHorses.value.map(horse => (
+          <HorseCard
+            key={horse.id}
+            horse={horse}
+            feedCount={countActiveFeeds(horse.id)}
+            onClick={() => navigateToHorseDetail(horse.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+##### 4.4.3 Mobile Controller - Horse Detail View
+
+Uses `<FeedPad />` for touch-friendly editing:
+
+```tsx
+// src/client/views/Controller/HorseDetail.tsx
+export function HorseDetail({ horseId }: { horseId: string }) {
+  const [selectedFeed, setSelectedFeed] = useState<{ feedId: string; field: 'amAmount' | 'pmAmount' } | null>(null);
+
+  return (
+    <div class="horse-detail" data-testid="horse-detail">
+      <h2>{horse.value?.name}</h2>
+
+      {/* Active feeds as large tappable tiles */}
+      <div class="feed-tiles" data-testid="feed-tiles">
+        {activeFeeds.value.map(feed => {
+          const entry = dietByKey.value.get(`${horseId}:${feed.id}`);
+
+          return (
+            <div key={feed.id} class="feed-tile" data-testid={`feed-tile-${feed.id}`}>
+              <div class="feed-tile-name">{feed.name}</div>
+              <div class="feed-tile-values">
+                {/* AM value */}
+                <button
+                  class="value-button"
+                  data-testid={`feed-tile-am-${feed.id}`}
+                  onClick={() => setSelectedFeed({ feedId: feed.id, field: 'amAmount' })}
+                >
+                  AM: {formatQuantity(entry?.amAmount, feed.unit) || '—'}
+                </button>
+
+                {/* PM value */}
+                <button
+                  class="value-button"
+                  data-testid={`feed-tile-pm-${feed.id}`}
+                  onClick={() => setSelectedFeed({ feedId: feed.id, field: 'pmAmount' })}
+                >
+                  PM: {formatQuantity(entry?.pmAmount, feed.unit) || '—'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* FeedPad drawer for editing */}
+      {selectedFeed && (
+        <FeedPad
+          isOpen={!!selectedFeed}
+          currentValue={getCurrentValue(selectedFeed)}
+          onValueChange={(value) => updateDiet(horseId, selectedFeed.feedId, selectedFeed.field, value)}
+          onClose={() => setSelectedFeed(null)}
+          feedName={getFeedName(selectedFeed.feedId)}
+          unit={getFeedUnit(selectedFeed.feedId)}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+##### 4.4.4 Mobile Controller - Board Tab
+
+Read-only scaled-down mirror of TV for verification:
+
+```tsx
+// src/client/views/Controller/BoardTab.tsx
+export function BoardTab() {
+  return (
+    <div class="board-tab" data-testid="board-tab">
+      <div class="board-label">TV Preview (Read-Only)</div>
+      <div class="board-preview" style={{ transform: 'scale(0.6)', transformOrigin: 'top left' }}>
+        <SwimLaneGrid
+          horses={horses}
+          feeds={feeds}
+          diet={diet}
+          timeMode={effectiveTimeMode}
+          isEditable={false}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+**Deliverables:**
+- [ ] Implement Display view (TV) using `<SwimLaneGrid />` with `isEditable={false}`
+- [ ] Implement HorsesTab with searchable `<HorseCard />` list
+- [ ] Implement HorseDetail view with large tappable feed tiles and `<FeedPad />`
+- [ ] Implement BoardTab as read-only scaled-down TV mirror
+- [ ] Implement FeedsTab for feed management
+- [ ] Implement SettingsTab for display controls
 - [ ] Implement PWA with `vite-plugin-pwa`
+
+#### 4.5 Test ID Strategy for E2E Migration
+
+**Critical:** Old DOM structure (`.grid-cell`) will change significantly. All Playwright tests must migrate to `data-testid` selectors.
+
+**Updated Test Selector Map:**
+
+```typescript
+// tests/e2e/selectors.ts
+export const selectors = {
+  // Grid (now SwimLaneGrid)
+  swimLaneGrid: '[data-testid="swim-lane-grid"]',
+  gridHeader: '[data-testid="grid-header"]',
+  gridFooter: '[data-testid="grid-footer"]',
+
+  // Cells and badges
+  horseHeader: (id: string) => `[data-testid="horse-header-${id}"]`,
+  feedRow: (id: string) => `[data-testid="feed-row-${id}"]`,
+  feedName: (id: string) => `[data-testid="feed-name-${id}"]`,
+  cell: (horseId: string, feedId: string) => `[data-testid="cell-${horseId}-${feedId}"]`,
+  badge: (horseId: string, feedId: string) => `[data-testid="badge-${horseId}-${feedId}"]`,
+  note: (id: string) => `[data-testid="note-${id}"]`,
+
+  // FeedPad
+  feedPad: '[data-testid="feed-pad"]',
+  feedPadClose: '[data-testid="feed-pad-close"]',
+  feedPadPresets: '[data-testid="feed-pad-presets"]',
+  presetEmpty: '[data-testid="preset-empty"]',
+  presetHalf: '[data-testid="preset-half"]',
+  presetOne: '[data-testid="preset-one"]',
+  presetTwo: '[data-testid="preset-two"]',
+  feedPadStepper: '[data-testid="feed-pad-stepper"]',
+  stepperDecrement: '[data-testid="stepper-decrement"]',
+  stepperValue: '[data-testid="stepper-value"]',
+  stepperIncrement: '[data-testid="stepper-increment"]',
+  feedPadConfirm: '[data-testid="feed-pad-confirm"]',
+
+  // HorseCard
+  horseCard: (id: string) => `[data-testid="horse-card-${id}"]`,
+  horseCardName: (id: string) => `[data-testid="horse-card-name-${id}"]`,
+  horseCardSummary: (id: string) => `[data-testid="horse-card-summary-${id}"]`,
+
+  // Horse Detail
+  horseDetail: '[data-testid="horse-detail"]',
+  feedTiles: '[data-testid="feed-tiles"]',
+  feedTile: (id: string) => `[data-testid="feed-tile-${id}"]`,
+  feedTileAM: (id: string) => `[data-testid="feed-tile-am-${id}"]`,
+  feedTilePM: (id: string) => `[data-testid="feed-tile-pm-${id}"]`,
+
+  // Navigation
+  horsesTab: '[data-testid="horses-tab"]',
+  horseSearch: '[data-testid="horse-search"]',
+  horseList: '[data-testid="horse-list"]',
+  boardTab: '[data-testid="board-tab"]',
+
+  // Other
+  timeMode: (mode: string) => `[data-testid="time-mode-${mode}"]`,
+  pairingCode: '[data-testid="pairing-code"]',
+};
+```
+
+**Migration Checklist for Playwright Tests:**
+
+| Test File | Old Selector | New Selector | Status |
+|-----------|--------------|--------------|--------|
+| `display.spec.js` | `.grid-cell.header.horse-name` | `selectors.horseHeader(id)` | ⬜ Update |
+| `display.spec.js` | `.grid-cell.value` | `selectors.cell(horseId, feedId)` | ⬜ Update |
+| `display.spec.js` | `.grid-cell.feed-name` | `selectors.feedName(id)` | ⬜ Update |
+| `display.spec.js` | `.grid-cell.note` | `selectors.note(id)` | ⬜ Update |
+| `controller.spec.js` | `.grid-cell.value` (keypad) | `selectors.feedPad` + preset/stepper | ⬜ Update |
+| `workflows.spec.js` | `.grid-cell.feed-name` | `selectors.feedName(id)` | ⬜ Update |
+| `workflows.spec.js` | `.grid-cell.note` | `selectors.note(id)` | ⬜ Update |
+
+**Deliverables:**
+- [ ] Create `tests/e2e/selectors.ts` with all `data-testid` mappings
+- [ ] Update all Playwright tests to use new selectors
+- [ ] Add new tests for `<FeedPad />` interaction flows
+- [ ] Add new tests for `<HorseCard />` and Horse Detail view
+- [ ] Add tests for vertical swim lane rendering
+- [ ] Add tests for blank cell rendering (zero/null values)
+- [ ] Verify all existing test scenarios pass with new component structure
 
 ---
 
