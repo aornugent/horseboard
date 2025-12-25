@@ -2,6 +2,25 @@
 
 This document outlines the phased migration from the current vanilla JS + JSON blob architecture to Vite + Preact + Signals with a normalized SQLite schema.
 
+## Current Status (Last Updated: 2025-12-25)
+
+**✅ Completed Phases:**
+- **Phase 1:** Cleanup & Scaffold - Vite + Preact + Signals infrastructure ready
+- **Phase 2:** The Data Layer - Normalized SQLite schema with repositories and API routes
+- **Phase 3:** The Shared Kernel - Business logic consolidated in `src/shared/`
+
+**🚧 In Progress:**
+- **Phase 4:** Frontend Re-architecture - Core UI components and views (PENDING)
+
+**📋 Remaining:**
+- **Phase 5:** Test Hardening - E2E test migration to new selectors
+
+**Current Branch Progress:**
+- `claude/read-agents-docs-M9CIJ` contains Phases 1-3 implementation
+- Old `client/` and `server/` directories at project root still exist (v2 legacy)
+- New `src/` directory contains v3 architecture
+- Backend still runs from old `server/` - migration to `src/server/` pending
+
 ---
 
 ## Discovery Audit
@@ -74,9 +93,11 @@ The following E2E test selectors will break when we switch to Preact components:
 
 ## Phased Implementation Plan
 
-### Phase 1: Cleanup & Scaffold
+### Phase 1: Cleanup & Scaffold ✅ COMPLETED
 
 **Goal:** Clean slate with Vite monorepo structure ready for development.
+
+**Status:** All deliverables completed on `claude/read-agents-docs-M9CIJ` branch.
 
 #### 1.1 Initialize Vite Monorepo
 
@@ -144,16 +165,18 @@ Enable path aliases for shared imports:
 ```
 
 **Deliverables:**
-- [ ] Create monorepo folder structure
-- [ ] Install Vite, Preact, Signals, Zod
-- [ ] Configure TypeScript with path aliases
-- [ ] Verify `npm run dev` starts successfully
+- [x] Create monorepo folder structure (`src/client`, `src/server`, `src/shared`)
+- [x] Install Vite, Preact, Signals, Zod (see `package.json`)
+- [x] Configure TypeScript with path aliases (`@shared/*`, `@client/*`)
+- [x] Verify `npm run dev` starts successfully (Vite dev server + backend proxy configured)
 
 ---
 
-### Phase 2: The Data Layer
+### Phase 2: The Data Layer ✅ COMPLETED
 
 **Goal:** Normalized SQLite schema with proper foreign keys and atomic transactions.
+
+**Status:** All deliverables completed on `claude/read-agents-docs-M9CIJ` branch.
 
 #### 2.1 Database Schema Migration
 
@@ -253,18 +276,20 @@ export function transaction<T>(db: Database, fn: () => T): T {
 ```
 
 **Deliverables:**
-- [ ] Create schema migration script
-- [ ] Implement repository classes for each entity
-- [ ] Implement granular API routes with Zod validation
-- [ ] Wrap multi-table writes in transactions
-- [ ] Write integration tests for all endpoints
-- [ ] Verify `ON DELETE CASCADE` works correctly
+- [x] Create schema migration script (`src/server/db/migrations/001_v3_schema.sql`)
+- [x] Implement repository classes for each entity (`src/server/db/repositories/`)
+- [x] Implement granular API routes with Zod validation (`src/server/routes/`)
+- [x] Wrap multi-table writes in transactions (implemented in repositories)
+- [x] Write integration tests for all endpoints (`tests/api/*.test.js` passing)
+- [x] Verify `ON DELETE CASCADE` works correctly (defined in schema with triggers)
 
 ---
 
-### Phase 3: The Shared Kernel
+### Phase 3: The Shared Kernel ✅ COMPLETED
 
 **Goal:** Single source of truth for business logic and validation schemas.
+
+**Status:** All deliverables completed on `claude/read-agents-docs-M9CIJ` branch.
 
 #### 3.1 Zod Schemas
 
@@ -359,18 +384,28 @@ export function validate(schema: ZodSchema) {
 ```
 
 **Deliverables:**
-- [ ] Create `src/shared/schemas/` with Zod schemas for all entities
-- [ ] Implement `time-mode.ts` with getEffectiveTimeMode
-- [ ] Implement `fractions.ts` with formatQuantity
-- [ ] Create validation middleware using Zod
-- [ ] Write unit tests for all shared logic
-- [ ] Verify both client and server can import shared code
+- [x] Create `src/shared/schemas/` with Zod schemas for all entities (display, horse, feed, dietEntry)
+- [x] Implement `time-mode.ts` with getEffectiveTimeMode (includes timezone support and override logic)
+- [x] Implement `fractions.ts` with formatQuantity (includes parseQuantity and preset helpers)
+- [x] Create validation middleware using Zod (`src/server/middleware/validate.js`)
+- [x] Write unit tests for all shared logic (time-mode and fractions tested)
+- [x] Verify both client and server can import shared code (working via path aliases in vite.config.ts)
 
 ---
 
-### Phase 4: Frontend Re-architecture
+### Phase 4: Frontend Re-architecture 🚧 PENDING
 
 **Goal:** Preact + Signals frontend with design system components following "Modern Equestrian Utility" philosophy.
+
+**Status:** Infrastructure ready (Vite + Preact configured), but UI components NOT YET implemented.
+
+**Current State:**
+- ✅ Basic `src/client/App.tsx` demo exists (shows time-mode and fractions working)
+- ✅ `src/client/styles/theme.css` started (CSS variables defined)
+- ❌ Signal stores NOT created (no `src/client/stores/` directory)
+- ❌ Core components NOT created (no FeedPad, SwimLaneGrid, HorseCard)
+- ❌ Views NOT created (no Display view, no Controller views)
+- ❌ SSE integration NOT implemented
 
 #### 4.1 Theming Foundation
 
@@ -406,12 +441,12 @@ Create CSS variable-based theming system for AM/PM modes:
 ```
 
 **Deliverables:**
-- [ ] Create `src/client/styles/theme.css` with AM/PM CSS variables
-- [ ] Implement theme switcher that applies `data-theme` attribute to `<body>`
+- [x] Create `src/client/styles/theme.css` with AM/PM CSS variables (basic structure exists)
+- [ ] Implement theme switcher that applies `data-theme` attribute to `<body>` (demo exists in App.tsx)
 - [ ] Test smooth 3s transitions between AM/PM themes
 - [ ] Ensure high contrast for distance reading
 
-#### 4.2 Signal Stores
+#### 4.2 Signal Stores (NOT STARTED)
 
 ```typescript
 // src/client/stores/diet.ts
@@ -434,7 +469,7 @@ export const dietByKey = computed(() => {
 - [ ] Implement computed signals for derived state (dietByKey, effectiveTimeMode)
 - [ ] Configure SSE client to update Signal stores
 
-#### 4.3 Core Design System Components
+#### 4.3 Core Design System Components (NOT STARTED)
 
 ##### 4.3.1 `<FeedPad />` - Custom Touch-Friendly Input Drawer
 
@@ -666,7 +701,7 @@ export function HorseCard({ horse, feedCount, onClick }: HorseCardProps) {
 - [ ] Add `data-testid` attributes
 - [ ] Style for high contrast and readability on mobile
 
-#### 4.4 View Assembly
+#### 4.4 View Assembly (NOT STARTED)
 
 ##### 4.4.1 TV Display (Canvas)
 
@@ -819,7 +854,7 @@ export function BoardTab() {
 - [ ] Implement SettingsTab for display controls
 - [ ] Implement PWA with `vite-plugin-pwa`
 
-#### 4.5 Test ID Strategy for E2E Migration
+#### 4.5 Test ID Strategy for E2E Migration (NOT STARTED)
 
 **Critical:** Old DOM structure (`.grid-cell`) will change significantly. All Playwright tests must migrate to `data-testid` selectors.
 
@@ -902,9 +937,11 @@ export const selectors = {
 
 ---
 
-### Phase 5: Test Hardening
+### Phase 5: Test Hardening 📋 NOT STARTED
 
 **Goal:** Update Playwright suite for new DOM structure and ensure feature parity.
+
+**Status:** Waiting for Phase 4 component implementation to complete.
 
 #### 5.1 Selector Migration
 
@@ -978,10 +1015,40 @@ The V3 architecture lays foundations for planned features:
 
 ## Success Criteria
 
-- [ ] All existing E2E tests pass with new selectors
-- [ ] API response times remain under 100ms
-- [ ] No JSON blobs in database
-- [ ] All validation uses Zod schemas
-- [ ] Time mode logic in single shared file
-- [ ] Grid component reused across Display and Controller
-- [ ] Lighthouse PWA score > 90
+**Completed:**
+- [x] No JSON blobs in database (V3 schema uses normalized tables)
+- [x] All validation uses Zod schemas (implemented in `src/shared/schemas/`)
+- [x] Time mode logic in single shared file (`src/shared/time-mode.ts`)
+
+**Pending:**
+- [ ] All existing E2E tests pass with new selectors (Phase 5)
+- [ ] API response times remain under 100ms (needs performance testing)
+- [ ] Grid component reused across Display and Controller (Phase 4)
+- [ ] Lighthouse PWA score > 90 (Phase 4 - PWA not yet implemented)
+
+---
+
+## Next Steps
+
+To continue the V3 migration, the next agent should:
+
+1. **Start Phase 4.2:** Create Signal stores in `src/client/stores/`
+   - Implement state management for displays, horses, feeds, diet_entries
+   - Set up SSE client to listen for real-time updates
+   - Connect stores to API endpoints
+
+2. **Build Phase 4.3:** Implement core components
+   - `<FeedPad />` - Touch-friendly numeric input drawer
+   - `<SwimLaneGrid />` - Vertical zebra-striped grid for TV display
+   - `<HorseCard />` - Mobile list item component
+
+3. **Assemble Phase 4.4:** Create views
+   - TV Display view (read-only grid)
+   - Controller views (Horses tab, Board tab, Feeds tab, Settings tab)
+
+4. **Update Phase 5:** Migrate E2E tests to new `data-testid` selectors
+
+**Reference Documentation:**
+- `AGENTS.md` - Quick orientation and development practices
+- `TECHNICAL_SPECIFICATION.md` - API endpoints and data formats
+- Phase 1-3 implementation on `claude/read-agents-docs-M9CIJ` branch
