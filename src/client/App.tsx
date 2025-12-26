@@ -18,7 +18,7 @@ const demoQuantities = [0.25, 0.5, 1, 1.5, 2.75, null, 0];
 export function App() {
   return (
     <div data-theme={effectiveTimeMode.value.toLowerCase()}>
-      <h1>HorseBoard V3</h1>
+      <h1>HorseBoard</h1>
       <p>Preact + Signals + Shared Kernel ready</p>
 
       <section style={{ marginTop: '1rem' }}>

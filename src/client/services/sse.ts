@@ -1,4 +1,4 @@
-import { setDisplay, display, setHorses, setFeeds, setDietEntries } from '../stores';
+import { setDisplay, setHorses, setFeeds, setDietEntries } from '../stores';
 import type { Display, Horse, Feed, DietEntry } from '@shared/resources';
 
 /**
@@ -24,13 +24,7 @@ interface SSEFullEvent {
   dietEntries: DietEntry[];
 }
 
-// Legacy event format (for backwards compatibility with existing server)
-interface SSELegacyEvent {
-  tableData?: unknown;
-  updatedAt?: string;
-}
-
-type SSEEvent = SSEStateEvent | SSEDataEvent | SSEFullEvent | SSELegacyEvent;
+type SSEEvent = SSEStateEvent | SSEDataEvent | SSEFullEvent;
 
 /**
  * SSE Client for real-time updates
@@ -100,33 +94,21 @@ class SSEClient {
    * Handle incoming SSE event
    */
   private handleEvent(data: SSEEvent): void {
-    // Handle typed events
-    if ('type' in data) {
-      switch (data.type) {
-        case 'state':
-          setDisplay(data.display);
-          break;
-        case 'data':
-          setHorses(data.horses);
-          setFeeds(data.feeds);
-          setDietEntries(data.dietEntries);
-          break;
-        case 'full':
-          setDisplay(data.display);
-          setHorses(data.horses);
-          setFeeds(data.feeds);
-          setDietEntries(data.dietEntries);
-          break;
-      }
-    }
-
-    // Handle legacy events (backwards compatibility)
-    // The current server sends { tableData, updatedAt } format
-    if ('tableData' in data || 'updatedAt' in data) {
-      // Legacy format - just update the timestamp in display if we have one
-      if (display.value && data.updatedAt) {
-        setDisplay({ ...display.value, updatedAt: data.updatedAt });
-      }
+    switch (data.type) {
+      case 'state':
+        setDisplay(data.display);
+        break;
+      case 'data':
+        setHorses(data.horses);
+        setFeeds(data.feeds);
+        setDietEntries(data.dietEntries);
+        break;
+      case 'full':
+        setDisplay(data.display);
+        setHorses(data.horses);
+        setFeeds(data.feeds);
+        setDietEntries(data.dietEntries);
+        break;
     }
   }
 

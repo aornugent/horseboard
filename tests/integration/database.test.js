@@ -13,14 +13,14 @@ function initializeTestDatabase() {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  const migrationPath = join(__dirname, '../../src/server/db/migrations/001_v3_schema.sql');
+  const migrationPath = join(__dirname, '../../src/server/db/migrations/001_initial_schema.sql');
   const migration = readFileSync(migrationPath, 'utf-8');
   db.exec(migration);
 
   return db;
 }
 
-describe('V3 Database Integration Tests', () => {
+describe('Database Integration Tests', () => {
   let db;
   let displayRepo;
   let horseRepo;
