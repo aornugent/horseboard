@@ -90,7 +90,7 @@ class SSEClient {
    * Connect to SSE endpoint for a display
    */
   connect(displayId: string): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       if (this.eventSource) {
         this.disconnect();
       }
