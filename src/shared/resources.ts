@@ -226,3 +226,37 @@ export const RESOURCES = {
 } as const;
 
 export type ResourceName = keyof typeof RESOURCES;
+
+// =============================================================================
+// TYPE UTILITIES FOR STRICT TYPE PROPAGATION
+// =============================================================================
+
+/**
+ * Extract the API type (camelCase) from a resource's schema
+ */
+export type ApiType<R extends ResourceName> = z.infer<(typeof RESOURCES)[R]['schema']>;
+
+/**
+ * Extract the column mapping type for a resource
+ */
+export type ColumnMapping<R extends ResourceName> = (typeof RESOURCES)[R]['columns'];
+
+/**
+ * Database row type - generic record returned by SQLite
+ * The actual structure maps snake_case column names to values
+ */
+export type DbRow = Record<string, unknown>;
+
+/**
+ * Type guard to check if a string is a valid resource name
+ */
+export function isResourceName(name: string): name is ResourceName {
+  return name in RESOURCES;
+}
+
+/**
+ * Get resource configuration with proper typing
+ */
+export function getResourceConfig<R extends ResourceName>(name: R): (typeof RESOURCES)[R] {
+  return RESOURCES[name];
+}

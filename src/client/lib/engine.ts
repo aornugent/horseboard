@@ -1,8 +1,5 @@
 import { signal, computed, Signal, ReadonlySignal } from '@preact/signals';
-import type { z } from 'zod';
 import { RESOURCES, type ResourceName } from '@shared/resources';
-
-type InferSchema<T> = T extends z.ZodType<infer U> ? U : never;
 
 /**
  * Generic resource store interface
