@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { batch } from '@preact/signals';
 import { setDisplay, setHorses, setFeeds, setDietEntries } from '../stores';
 import {
   DisplaySchema,
@@ -39,16 +40,41 @@ const SSEFullEventSchema = z.object({
   timestamp: z.string().optional(),
 });
 
+// Granular update events for individual resources
+const SSEHorsesEventSchema = z.object({
+  type: z.literal('horses'),
+  data: z.array(HorseSchema).optional(),
+  timestamp: z.string().optional(),
+});
+
+const SSEFeedsEventSchema = z.object({
+  type: z.literal('feeds'),
+  data: z.array(FeedSchema).optional(),
+  timestamp: z.string().optional(),
+});
+
+const SSEDietEventSchema = z.object({
+  type: z.literal('diet'),
+  data: z.array(DietEntrySchema).optional(),
+  timestamp: z.string().optional(),
+});
+
 const SSEEventSchema = z.discriminatedUnion('type', [
   SSEStateEventSchema,
   SSEDataEventSchema,
   SSEFullEventSchema,
+  SSEHorsesEventSchema,
+  SSEFeedsEventSchema,
+  SSEDietEventSchema,
 ]);
 
 type SSEEvent = z.infer<typeof SSEEventSchema>;
 
 /**
  * SSE Client for real-time updates
+ *
+ * All store updates from SSE use source='sse' to ensure they
+ * take precedence over potentially stale API responses.
  */
 class SSEClient {
   private eventSource: EventSource | null = null;
@@ -118,23 +144,100 @@ class SSEClient {
 
   /**
    * Handle incoming SSE event (validated by Zod schema)
+   *
+   * Uses batch() to group multiple store updates into a single
+   * reactive update cycle, and passes 'sse' as the source to
+   * ensure server data takes precedence over local state.
    */
   private handleEvent(event: SSEEvent): void {
-    switch (event.type) {
-      case 'state':
-        setDisplay(event.data.display);
-        break;
-      case 'data':
-        setHorses(event.data.horses);
-        setFeeds(event.data.feeds);
-        setDietEntries(event.data.dietEntries);
-        break;
-      case 'full':
-        setDisplay(event.data.display);
-        setHorses(event.data.horses);
-        setFeeds(event.data.feeds);
-        setDietEntries(event.data.dietEntries);
-        break;
+    // Use batch to minimize re-renders when updating multiple stores
+    batch(() => {
+      switch (event.type) {
+        case 'state':
+          // Display state update only
+          setDisplay(event.data.display, 'sse');
+          break;
+
+        case 'data':
+          // Full data update (horses, feeds, diet)
+          setHorses(event.data.horses, 'sse');
+          setFeeds(event.data.feeds, 'sse');
+          setDietEntries(event.data.dietEntries, 'sse');
+          break;
+
+        case 'full':
+          // Complete state + data update
+          setDisplay(event.data.display, 'sse');
+          setHorses(event.data.horses, 'sse');
+          setFeeds(event.data.feeds, 'sse');
+          setDietEntries(event.data.dietEntries, 'sse');
+          break;
+
+        case 'horses':
+          // Granular horses update - refetch if no data provided
+          if (event.data) {
+            setHorses(event.data, 'sse');
+          } else {
+            this.refetchResource('horses');
+          }
+          break;
+
+        case 'feeds':
+          // Granular feeds update - refetch if no data provided
+          if (event.data) {
+            setFeeds(event.data, 'sse');
+          } else {
+            this.refetchResource('feeds');
+          }
+          break;
+
+        case 'diet':
+          // Granular diet update - refetch if no data provided
+          if (event.data) {
+            setDietEntries(event.data, 'sse');
+          } else {
+            this.refetchResource('diet');
+          }
+          break;
+      }
+    });
+  }
+
+  /**
+   * Refetch a specific resource when SSE event doesn't include data
+   */
+  private async refetchResource(resource: 'horses' | 'feeds' | 'diet'): Promise<void> {
+    if (!this.displayId) return;
+
+    try {
+      let url: string;
+      if (resource === 'diet') {
+        url = `/api/diet?displayId=${this.displayId}`;
+      } else {
+        url = `/api/displays/${this.displayId}/${resource}`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) return;
+
+      const { data } = await response.json();
+
+      // Use 'sse' source since this was triggered by SSE
+      batch(() => {
+        switch (resource) {
+          case 'horses':
+            setHorses(data, 'sse');
+            break;
+          case 'feeds':
+            setFeeds(data, 'sse');
+            break;
+          case 'diet':
+            setDietEntries(data, 'sse');
+            break;
+        }
+      });
+    } catch (err) {
+      console.error(`Failed to refetch ${resource}:`, err);
     }
   }
 
