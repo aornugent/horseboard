@@ -3,7 +3,16 @@
  *
  * Centralized data-testid selectors for Playwright tests.
  * These selectors are stable and won't break when CSS classes change.
+ *
+ * Uses shared constants from resources.ts to ensure selectors stay
+ * in sync with component implementation.
  */
+
+import { UNITS, TIME_MODES, type Unit, type TimeMode } from '../../src/shared/resources';
+
+// =============================================================================
+// STATIC SELECTORS
+// =============================================================================
 
 export const selectors = {
   // ============================================
@@ -94,8 +103,6 @@ export const selectors = {
   newFeedUnit: '[data-testid="new-feed-unit"]',
   editFeedName: '[data-testid="edit-feed-name"]',
   editFeedUnit: '[data-testid="edit-feed-unit"]',
-  unitBtn: (unit: string) => `[data-testid="unit-btn-${unit}"]`,
-  editUnitBtn: (unit: string) => `[data-testid="edit-unit-btn-${unit}"]`,
   cancelAddFeed: '[data-testid="cancel-add-feed"]',
   confirmAddFeed: '[data-testid="confirm-add-feed"]',
   cancelEditFeed: '[data-testid="cancel-edit-feed"]',
@@ -109,9 +116,6 @@ export const selectors = {
   settingsTab: '[data-testid="settings-tab"]',
   effectiveTimeMode: '[data-testid="effective-time-mode"]',
   timeModeSelector: '[data-testid="time-mode-selector"]',
-  timeModeAuto: '[data-testid="time-mode-auto"]',
-  timeModeAm: '[data-testid="time-mode-am"]',
-  timeModePm: '[data-testid="time-mode-pm"]',
   zoomSelector: '[data-testid="zoom-selector"]',
   zoomLevel: (level: number) => `[data-testid="zoom-level-${level}"]`,
   timezoneSelector: '[data-testid="timezone-selector"]',
@@ -127,13 +131,46 @@ export const selectors = {
   // ============================================
   // General / Navigation
   // ============================================
-  timeMode: (mode: string) => `[data-testid="time-mode-${mode}"]`,
   pairingCode: '[data-testid="pairing-code"]',
   codeInput: (index: number) => `[data-testid="code-input-${index}"]`,
   connectBtn: '[data-testid="connect-btn"]',
   quantityModal: '[data-testid="quantity-modal"]',
   quantityInput: '[data-testid="quantity-input"]',
 };
+
+// =============================================================================
+// DYNAMIC SELECTORS DERIVED FROM SHARED CONSTANTS
+// These ensure tests stay in sync with component implementation
+// =============================================================================
+
+/**
+ * Unit button selectors - generated from shared UNITS constant
+ * If a unit is renamed in resources.ts, tests using this will fail loudly
+ * rather than silently passing with a stale selector.
+ */
+export const unitSelectors = {
+  /** Get selector for a unit button in the add feed modal */
+  unitBtn: (unit: Unit) => `[data-testid="unit-btn-${unit}"]`,
+  /** Get selector for a unit button in the edit feed modal */
+  editUnitBtn: (unit: Unit) => `[data-testid="edit-unit-btn-${unit}"]`,
+  /** All valid unit values for iteration */
+  allUnits: UNITS,
+} as const;
+
+/**
+ * Time mode selectors - generated from shared TIME_MODES constant
+ * If a time mode is renamed in resources.ts, tests using this will fail loudly.
+ */
+export const timeModeSelectors = {
+  /** Get selector for a time mode button */
+  timeMode: (mode: TimeMode) => `[data-testid="time-mode-${mode.toLowerCase()}"]`,
+  /** All valid time mode values for iteration */
+  allModes: TIME_MODES,
+  /** Convenience selectors for common modes */
+  auto: '[data-testid="time-mode-auto"]',
+  am: '[data-testid="time-mode-am"]',
+  pm: '[data-testid="time-mode-pm"]',
+} as const;
 
 /**
  * Migration Checklist for Playwright Tests
@@ -146,7 +183,8 @@ export const selectors = {
  * | display.spec.js     | .grid-cell.note                  | selectors.note(id)                    |
  * | controller.spec.js  | .grid-cell.value (keypad)        | selectors.feedPad + preset/stepper    |
  * | controller.spec.js  | .code-digit[data-index="N"]      | selectors.codeInput(N)                |
- * | controller.spec.js  | .mode-btn[data-mode="..."]       | selectors.timeMode(mode)              |
+ * | controller.spec.js  | .mode-btn[data-mode="..."]       | timeModeSelectors.timeMode(mode)      |
+ * | controller.spec.js  | unit-btn-scoop                   | unitSelectors.unitBtn('scoop')        |
  * | workflows.spec.js   | .grid-cell.feed-name             | selectors.feedName(id)                |
  * | workflows.spec.js   | .grid-cell.note                  | selectors.note(id)                    |
  */

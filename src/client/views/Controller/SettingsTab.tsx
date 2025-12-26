@@ -7,7 +7,12 @@ import {
   updateTimeMode,
   setZoomLevel,
 } from '../../stores';
-import type { TimeMode } from '@shared/resources';
+import {
+  TIME_MODES,
+  TIME_MODE,
+  TIME_MODE_CONFIG,
+  type TimeMode,
+} from '@shared/resources';
 import './SettingsTab.css';
 
 // Common timezones for horse farms
@@ -23,11 +28,11 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC' },
 ];
 
-const TIME_MODES: Array<{ value: TimeMode; label: string; description: string }> = [
-  { value: 'AUTO', label: 'Auto', description: 'AM 4:00-11:59, PM 12:00-3:59' },
-  { value: 'AM', label: 'AM', description: 'Force morning feed display' },
-  { value: 'PM', label: 'PM', description: 'Force evening feed display' },
-];
+// Generate time mode options from shared constants
+const TIME_MODE_OPTIONS = TIME_MODES.map(mode => ({
+  value: mode,
+  ...TIME_MODE_CONFIG[mode],
+}));
 
 const ZOOM_LEVELS: Array<{ value: 1 | 2 | 3; label: string; description: string }> = [
   { value: 1, label: 'Small', description: 'More horses visible' },
@@ -38,7 +43,7 @@ const ZOOM_LEVELS: Array<{ value: 1 | 2 | 3; label: string; description: string 
 async function saveTimeMode(mode: TimeMode) {
   if (!display.value) return;
 
-  const overrideUntil = mode !== 'AUTO'
+  const overrideUntil = mode !== TIME_MODE.AUTO
     ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour override
     : null;
 
@@ -102,7 +107,7 @@ export function SettingsTab() {
           Current: <strong data-testid="effective-time-mode">{effectiveTimeMode.value}</strong>
         </p>
         <div class="settings-button-group" data-testid="time-mode-selector">
-          {TIME_MODES.map(mode => (
+          {TIME_MODE_OPTIONS.map(mode => (
             <button
               key={mode.value}
               class={`settings-btn ${configuredMode.value === mode.value ? 'active' : ''}`}

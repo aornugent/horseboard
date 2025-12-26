@@ -1,5 +1,13 @@
 import { signal, computed, batch, Signal, ReadonlySignal } from '@preact/signals';
-import { RESOURCES, type ResourceName } from '@shared/resources';
+import {
+  RESOURCES,
+  DEFAULT_TIME_MODE,
+  TIME_MODE,
+  type ResourceName,
+  type TimeMode,
+  type EffectiveTimeMode,
+  type Unit,
+} from '@shared/resources';
 
 // =============================================================================
 // TYPES
@@ -440,7 +448,7 @@ export interface DisplayStore {
   overrideUntil: ReadonlySignal<string | null>;
   zoomLevel: ReadonlySignal<number>;
   currentPage: ReadonlySignal<number>;
-  effectiveTimeMode: ReadonlySignal<'AM' | 'PM'>;
+  effectiveTimeMode: ReadonlySignal<EffectiveTimeMode>;
 
   set: (display: Display, source?: UpdateSource) => void;
   update: (updates: Partial<Display>, source?: UpdateSource) => void;
@@ -448,8 +456,6 @@ export interface DisplayStore {
   setZoomLevel: (level: 1 | 2 | 3) => void;
   setCurrentPage: (page: number) => void;
 }
-
-type TimeMode = 'AUTO' | 'AM' | 'PM';
 
 interface Display {
   id: string;
@@ -483,13 +489,13 @@ export function createDisplayStore(): DisplayStore {
     return incomingTime >= existingTime;
   };
 
-  const configuredMode = computed<TimeMode>(() => display.value?.timeMode ?? 'AUTO');
+  const configuredMode = computed<TimeMode>(() => display.value?.timeMode ?? DEFAULT_TIME_MODE);
   const timezone = computed(() => display.value?.timezone ?? 'UTC');
   const overrideUntil = computed(() => display.value?.overrideUntil ?? null);
   const zoomLevel = computed(() => display.value?.zoomLevel ?? 2);
   const currentPage = computed(() => display.value?.currentPage ?? 0);
 
-  const effectiveTimeMode = computed<'AM' | 'PM'>(() => {
+  const effectiveTimeMode = computed<EffectiveTimeMode>(() => {
     return getEffectiveTimeMode(
       configuredMode.value,
       overrideUntil.value,
@@ -617,7 +623,7 @@ interface Feed {
   id: string;
   displayId: string;
   name: string;
-  unit: 'scoop' | 'ml' | 'sachet' | 'biscuit';
+  unit: Unit;
   rank: number;
   stockLevel: number;
   lowStockThreshold: number;
