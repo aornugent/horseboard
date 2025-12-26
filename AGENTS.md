@@ -54,7 +54,7 @@ Instructions for AI agents working on this codebase.
 - **No Grids on Mobile:** Use Task-Based "Status Card" lists
 - **Touch Targets:** Must be at least 48px
 
-## Architecture (V3)
+## Architecture
 
 ### 1. Stack
 
