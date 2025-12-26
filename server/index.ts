@@ -10,7 +10,7 @@ import {
   createRepository,
   SSEManager,
   recalculateFeedRankings,
-} from '../src/server/lib/engine.js';
+} from '@server/lib/engine';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;

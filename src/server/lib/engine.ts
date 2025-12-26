@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { RESOURCES } from '../../shared/resources.js';
+import { RESOURCES } from '@shared/resources';
 
 /**
  * Generate a unique ID with prefix
