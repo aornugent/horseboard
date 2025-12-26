@@ -55,7 +55,7 @@ const hooks = {
 let displayRepo, horseRepo, feedRepo, dietRepo;
 
 // Broadcast helper for resources - reuses module-scoped repositories
-const broadcast = (displayId, type) => {
+const broadcast = (displayId) => {
   const display = displayRepo.getById(displayId);
   if (!display) return;
 
@@ -70,7 +70,7 @@ const broadcast = (displayId, type) => {
 displayRepo = mountResource(app, db, 'displays', { broadcast });
 horseRepo = mountResource(app, db, 'horses', { broadcast });
 feedRepo = mountResource(app, db, 'feeds', { broadcast, hooks });
-dietRepo = mountResource(app, db, 'diet', { broadcast, hooks });
+dietRepo = mountResource(app, db, 'diet', { broadcast, hooks, repos: { horses: horseRepo } });
 
 // =============================================================================
 // SPECIAL ENDPOINTS
@@ -95,30 +95,11 @@ app.get('/api/bootstrap/:displayId', (req, res) => {
 
 // Pair by code - returns full state
 app.get('/api/bootstrap/pair/:code', (req, res) => {
-  const display = db
-    .prepare(
-      `SELECT id, pair_code, timezone, time_mode, override_until,
-              zoom_level, current_page, created_at, updated_at
-       FROM displays WHERE pair_code = ?`
-    )
-    .get(req.params.code);
+  const display = displayRepo.getByPairCode(req.params.code);
 
   if (!display) {
     return res.status(404).json({ success: false, error: 'Invalid pairing code' });
   }
-
-  // Transform to API format
-  const displayData = {
-    id: display.id,
-    pairCode: display.pair_code,
-    timezone: display.timezone,
-    timeMode: display.time_mode,
-    overrideUntil: display.override_until,
-    zoomLevel: display.zoom_level,
-    currentPage: display.current_page,
-    createdAt: display.created_at,
-    updatedAt: display.updated_at,
-  };
 
   const horses = horseRepo.getByParent(display.id);
   const feeds = feedRepo.getByParent(display.id);
@@ -126,7 +107,7 @@ app.get('/api/bootstrap/pair/:code', (req, res) => {
 
   res.json({
     success: true,
-    data: { display: displayData, horses, feeds, dietEntries },
+    data: { display, horses, feeds, dietEntries },
   });
 });
 
@@ -139,12 +120,11 @@ app.put('/api/displays/:id/time-mode', (req, res) => {
     return res.status(404).json({ success: false, error: 'Display not found' });
   }
 
-  db.prepare(
-    `UPDATE displays SET time_mode = ?, override_until = ? WHERE id = ?`
-  ).run(timeMode, overrideUntil ?? null, req.params.id);
-
-  const updated = displayRepo.getById(req.params.id);
-  broadcast(req.params.id, 'settings');
+  const updated = displayRepo.update(
+    { timeMode, overrideUntil: overrideUntil ?? null },
+    req.params.id
+  );
+  broadcast(req.params.id);
 
   res.json({ success: true, data: updated });
 });
@@ -157,7 +137,7 @@ app.post('/api/displays/:displayId/feeds/recalculate-rankings', (req, res) => {
   }
 
   const count = recalculateFeedRankings(db, req.params.displayId);
-  broadcast(req.params.displayId, 'feeds');
+  broadcast(req.params.displayId);
 
   res.json({ success: true, data: { feedsRanked: count } });
 });
@@ -201,6 +181,7 @@ app.get('/api/displays/:displayId/events', (req, res) => {
 
 // Check for expired time mode overrides every minute
 setInterval(() => {
+  // Query for expired overrides (internal task, raw SQL acceptable)
   const expired = db
     .prepare(
       `SELECT id FROM displays
@@ -209,15 +190,14 @@ setInterval(() => {
     .all();
 
   for (const { id } of expired) {
-    db.prepare(
-      `UPDATE displays SET time_mode = 'AUTO', override_until = NULL WHERE id = ?`
-    ).run(id);
-    broadcast(id, 'settings');
+    displayRepo.update({ timeMode: 'AUTO', overrideUntil: null }, id);
+    broadcast(id);
   }
 }, 60000);
 
 // Check for expired notes every hour
 setInterval(() => {
+  // Query for expired notes (internal task, raw SQL acceptable)
   const expired = db
     .prepare(
       `SELECT id, display_id FROM horses
@@ -226,8 +206,8 @@ setInterval(() => {
     .all();
 
   for (const { id, display_id } of expired) {
-    db.prepare(`UPDATE horses SET note = NULL, note_expiry = NULL WHERE id = ?`).run(id);
-    broadcast(display_id, 'horses');
+    horseRepo.update({ note: null, noteExpiry: null }, id);
+    broadcast(display_id);
   }
 }, 3600000);
 

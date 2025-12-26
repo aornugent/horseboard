@@ -134,6 +134,13 @@ export function createRepository(db, resourceName) {
     stmts.upsertCols = dietInsertCols;
   }
 
+  // For displays, add getByPairCode query
+  if (resourceName === 'displays') {
+    stmts.getByPairCode = db.prepare(
+      `SELECT ${selectCols} FROM ${table} WHERE pair_code = ?`
+    );
+  }
+
   return {
     getById(...pkValues) {
       const row = stmts.getById.get(...pkValues);
@@ -156,6 +163,14 @@ export function createRepository(db, resourceName) {
         throw new Error(`Resource ${resourceName} does not support getByDisplayId`);
       }
       return stmts.getByDisplayId.all(displayId).map((row) => toApiFormat(row, columns));
+    },
+
+    getByPairCode(pairCode) {
+      if (!stmts.getByPairCode) {
+        throw new Error(`Resource ${resourceName} does not support getByPairCode`);
+      }
+      const row = stmts.getByPairCode.get(pairCode);
+      return toApiFormat(row, columns);
     },
 
     create(data, parentId = null) {
@@ -262,9 +277,10 @@ export function mountResource(app, db, resourceName, options = {}) {
   const config = RESOURCES[resourceName];
   if (!config) throw new Error(`Unknown resource: ${resourceName}`);
 
+  const { broadcast, hooks = {}, repos = {} } = options;
+
   const repo = createRepository(db, resourceName);
   const router = Router();
-  const { broadcast, hooks = {} } = options;
 
   const isComposite = Array.isArray(config.primaryKey);
 
@@ -308,10 +324,9 @@ export function mountResource(app, db, resourceName, options = {}) {
       const entry = repo.upsert(req.body);
 
       // Trigger onWrite hook (recalculate feed rankings)
-      if (hooks.recalculateFeedRankings) {
-        // Need to get the displayId from the horse
-        const horseRepo = createRepository(db, 'horses');
-        const horse = horseRepo.getById(req.body.horseId);
+      if (hooks.recalculateFeedRankings && repos.horses) {
+        // Get the displayId from the horse using passed-in repository
+        const horse = repos.horses.getById(req.body.horseId);
         if (horse) {
           hooks.recalculateFeedRankings(db, horse.displayId);
           notify(horse.displayId, 'feeds');
@@ -468,9 +483,14 @@ export class SSEManager {
   }
 
   sendKeepalive() {
-    for (const [, clients] of this.clients) {
+    for (const [displayId, clients] of this.clients) {
       for (const client of clients) {
-        client.write(': keepalive\n\n');
+        try {
+          client.write(': keepalive\n\n');
+        } catch {
+          // Client connection failed, remove it
+          clients.delete(client);
+        }
       }
     }
   }
