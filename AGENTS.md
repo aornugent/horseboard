@@ -38,7 +38,7 @@ Schema in `src/server/db/migrations/001_initial_schema.sql`. No JSON blobs. Fore
 
 ### 5. Repository Pattern
 
-All DB access via `createRepository()` in `src/server/lib/engine.js`. Automatic camelCase↔snake_case mapping. No raw SQL in routes. No ORMs.
+All DB access via `createRepository()` in `src/server/lib/engine.ts`. Automatic camelCase↔snake_case mapping. No raw SQL in routes. No ORMs.
 
 ---
 

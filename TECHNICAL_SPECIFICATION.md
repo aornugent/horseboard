@@ -150,7 +150,7 @@ The display shows either AM or PM values based on the effective time mode.
 
 Feeds are ranked by usage to optimize display order.
 
-**Algorithm (from `src/server/lib/engine.js`):**
+**Algorithm (from `src/server/lib/engine.ts`):**
 
 ```sql
 SELECT f.id, COUNT(DISTINCT d.horse_id) as usage_count

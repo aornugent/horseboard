@@ -40,24 +40,6 @@ app.use(express.json());
 // SSE Manager for real-time updates
 const sse = new SSEManager();
 
-// Broadcast helper for resources
-const broadcast = (displayId, type) => {
-  // Refresh all data for this display
-  const displayRepo = createRepository(db, 'displays');
-  const horseRepo = createRepository(db, 'horses');
-  const feedRepo = createRepository(db, 'feeds');
-  const dietRepo = createRepository(db, 'diet');
-
-  const display = displayRepo.getById(displayId);
-  if (!display) return;
-
-  const horses = horseRepo.getByParent(displayId);
-  const feeds = feedRepo.getByParent(displayId);
-  const diet = dietRepo.getByDisplayId(displayId);
-
-  sse.broadcast(displayId, 'full', { display, horses, feeds, diet });
-};
-
 // Hooks for business logic
 const hooks = {
   recalculateFeedRankings: (database, displayId) => {
@@ -66,13 +48,29 @@ const hooks = {
 };
 
 // =============================================================================
-// MOUNT RESOURCES
+// MOUNT RESOURCES (creates repositories once at startup)
 // =============================================================================
 
-const displayRepo = mountResource(app, db, 'displays', { broadcast });
-const horseRepo = mountResource(app, db, 'horses', { broadcast });
-const feedRepo = mountResource(app, db, 'feeds', { broadcast, hooks });
-const dietRepo = mountResource(app, db, 'diet', { broadcast, hooks });
+// Forward declaration for broadcast - repos defined below
+let displayRepo, horseRepo, feedRepo, dietRepo;
+
+// Broadcast helper for resources - reuses module-scoped repositories
+const broadcast = (displayId, type) => {
+  const display = displayRepo.getById(displayId);
+  if (!display) return;
+
+  const horses = horseRepo.getByParent(displayId);
+  const feeds = feedRepo.getByParent(displayId);
+  const dietEntries = dietRepo.getByDisplayId(displayId);
+
+  sse.broadcast(displayId, 'full', { display, horses, feeds, dietEntries });
+};
+
+// Mount resources and assign to module-scoped variables
+displayRepo = mountResource(app, db, 'displays', { broadcast });
+horseRepo = mountResource(app, db, 'horses', { broadcast });
+feedRepo = mountResource(app, db, 'feeds', { broadcast, hooks });
+dietRepo = mountResource(app, db, 'diet', { broadcast, hooks });
 
 // =============================================================================
 // SPECIAL ENDPOINTS
@@ -87,11 +85,11 @@ app.get('/api/bootstrap/:displayId', (req, res) => {
 
   const horses = horseRepo.getByParent(req.params.displayId);
   const feeds = feedRepo.getByParent(req.params.displayId);
-  const diet = dietRepo.getByDisplayId(req.params.displayId);
+  const dietEntries = dietRepo.getByDisplayId(req.params.displayId);
 
   res.json({
     success: true,
-    data: { display, horses, feeds, diet },
+    data: { display, horses, feeds, dietEntries },
   });
 });
 
@@ -124,11 +122,11 @@ app.get('/api/bootstrap/pair/:code', (req, res) => {
 
   const horses = horseRepo.getByParent(display.id);
   const feeds = feedRepo.getByParent(display.id);
-  const diet = dietRepo.getByDisplayId(display.id);
+  const dietEntries = dietRepo.getByDisplayId(display.id);
 
   res.json({
     success: true,
-    data: { display: displayData, horses, feeds, diet },
+    data: { display: displayData, horses, feeds, dietEntries },
   });
 });
 
@@ -186,11 +184,11 @@ app.get('/api/displays/:displayId/events', (req, res) => {
   // Send initial full state
   const horses = horseRepo.getByParent(req.params.displayId);
   const feeds = feedRepo.getByParent(req.params.displayId);
-  const diet = dietRepo.getByDisplayId(req.params.displayId);
+  const dietEntries = dietRepo.getByDisplayId(req.params.displayId);
 
   const initialData = JSON.stringify({
     type: 'full',
-    data: { display, horses, feeds, diet },
+    data: { display, horses, feeds, dietEntries },
     timestamp: new Date().toISOString(),
   });
 

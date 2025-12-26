@@ -11,8 +11,8 @@
     "dev:server": "tsx --watch server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test $(find tests -name '*.test.js')",
-    "test:watch": "node --test --watch $(find tests -name '*.test.js')",
+    "test": "tsx --test $(find tests -name '*.test.js')",
+    "test:watch": "tsx --test --watch $(find tests -name '*.test.js')",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

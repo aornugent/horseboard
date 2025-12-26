@@ -1,30 +1,51 @@
+import { z } from 'zod';
 import { setDisplay, setHorses, setFeeds, setDietEntries } from '../stores';
-import type { Display, Horse, Feed, DietEntry } from '@shared/resources';
+import {
+  DisplaySchema,
+  HorseSchema,
+  FeedSchema,
+  DietEntrySchema,
+} from '@shared/resources';
 
 /**
- * SSE Event Types
+ * SSE Event Schemas for runtime validation
  */
-interface SSEStateEvent {
-  type: 'state';
-  display: Display;
-}
+const SSEStateEventSchema = z.object({
+  type: z.literal('state'),
+  data: z.object({
+    display: DisplaySchema,
+  }),
+  timestamp: z.string().optional(),
+});
 
-interface SSEDataEvent {
-  type: 'data';
-  horses: Horse[];
-  feeds: Feed[];
-  dietEntries: DietEntry[];
-}
+const SSEDataEventSchema = z.object({
+  type: z.literal('data'),
+  data: z.object({
+    horses: z.array(HorseSchema),
+    feeds: z.array(FeedSchema),
+    dietEntries: z.array(DietEntrySchema),
+  }),
+  timestamp: z.string().optional(),
+});
 
-interface SSEFullEvent {
-  type: 'full';
-  display: Display;
-  horses: Horse[];
-  feeds: Feed[];
-  dietEntries: DietEntry[];
-}
+const SSEFullEventSchema = z.object({
+  type: z.literal('full'),
+  data: z.object({
+    display: DisplaySchema,
+    horses: z.array(HorseSchema),
+    feeds: z.array(FeedSchema),
+    dietEntries: z.array(DietEntrySchema),
+  }),
+  timestamp: z.string().optional(),
+});
 
-type SSEEvent = SSEStateEvent | SSEDataEvent | SSEFullEvent;
+const SSEEventSchema = z.discriminatedUnion('type', [
+  SSEStateEventSchema,
+  SSEDataEventSchema,
+  SSEFullEventSchema,
+]);
+
+type SSEEvent = z.infer<typeof SSEEventSchema>;
 
 /**
  * SSE Client for real-time updates
@@ -59,8 +80,13 @@ class SSEClient {
 
       this.eventSource.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as SSEEvent;
-          this.handleEvent(data);
+          const parsed = JSON.parse(event.data);
+          const result = SSEEventSchema.safeParse(parsed);
+          if (!result.success) {
+            console.error('Invalid SSE event format:', result.error.flatten());
+            return;
+          }
+          this.handleEvent(result.data);
         } catch (err) {
           console.error('Failed to parse SSE event:', err);
         }
@@ -91,23 +117,23 @@ class SSEClient {
   }
 
   /**
-   * Handle incoming SSE event
+   * Handle incoming SSE event (validated by Zod schema)
    */
-  private handleEvent(data: SSEEvent): void {
-    switch (data.type) {
+  private handleEvent(event: SSEEvent): void {
+    switch (event.type) {
       case 'state':
-        setDisplay(data.display);
+        setDisplay(event.data.display);
         break;
       case 'data':
-        setHorses(data.horses);
-        setFeeds(data.feeds);
-        setDietEntries(data.dietEntries);
+        setHorses(event.data.horses);
+        setFeeds(event.data.feeds);
+        setDietEntries(event.data.dietEntries);
         break;
       case 'full':
-        setDisplay(data.display);
-        setHorses(data.horses);
-        setFeeds(data.feeds);
-        setDietEntries(data.dietEntries);
+        setDisplay(event.data.display);
+        setHorses(event.data.horses);
+        setFeeds(event.data.feeds);
+        setDietEntries(event.data.dietEntries);
         break;
     }
   }

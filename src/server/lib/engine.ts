@@ -80,7 +80,14 @@ export function createRepository(db, resourceName) {
   // Build WHERE clause for primary key
   const pkWhere = pkSnake.map((col) => `${col} = ?`).join(' AND ');
 
-  // Prepared statements
+  // Build update clause for all non-PK columns (for cached update statement)
+  const updateCols = Object.values(columns).filter(
+    (col) => !pkSnake.includes(col) && col !== 'created_at' && col !== 'updated_at'
+  );
+  const updateSetClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
+
+  // Prepared statements (cached once per repository)
+  // Note: INSERT is dynamic because columns vary and we want database defaults for unprovided columns
   const stmts = {
     getById: db.prepare(`SELECT ${selectCols} FROM ${table} WHERE ${pkWhere}`),
     getAll: db.prepare(
@@ -89,6 +96,9 @@ export function createRepository(db, resourceName) {
         (orderBy ? ` ORDER BY ${orderBy}` : '')
     ),
     delete: db.prepare(`DELETE FROM ${table} WHERE ${pkWhere}`),
+    update: updateCols.length > 0
+      ? db.prepare(`UPDATE ${table} SET ${updateSetClause} WHERE ${pkWhere}`)
+      : null,
   };
 
   // Build filtered getAll for parent resources
@@ -101,7 +111,7 @@ export function createRepository(db, resourceName) {
     );
   }
 
-  // For diet entries, add specific queries
+  // For diet entries, add specific queries and upsert statement
   if (resourceName === 'diet') {
     stmts.getByDisplayId = db.prepare(`
       SELECT d.horse_id, d.feed_id, d.am_amount, d.pm_amount, d.created_at, d.updated_at
@@ -109,6 +119,19 @@ export function createRepository(db, resourceName) {
       JOIN horses h ON d.horse_id = h.id
       WHERE h.display_id = ?
     `);
+    // Upsert for diet entries (composite PK) - exclude auto-generated timestamps
+    const dietInsertCols = Object.values(columns).filter(
+      (c) => c !== 'created_at' && c !== 'updated_at'
+    );
+    const dietPlaceholders = dietInsertCols.map(() => '?').join(', ');
+    const dietUpdateCols = dietInsertCols.filter((c) => !pkSnake.includes(c));
+    const dietUpdateSet = dietUpdateCols.map((c) => `${c} = excluded.${c}`).join(', ');
+    stmts.upsert = db.prepare(
+      `INSERT INTO ${table} (${dietInsertCols.join(', ')}) VALUES (${dietPlaceholders})
+       ON CONFLICT(${pkSnake.join(', ')}) DO UPDATE SET ${dietUpdateSet}`
+    );
+    // Store the insert cols for use in upsert method
+    stmts.upsertCols = dietInsertCols;
   }
 
   return {
@@ -157,7 +180,7 @@ export function createRepository(db, resourceName) {
         if (!dbData.timezone) dbData.timezone = 'Australia/Sydney';
       }
 
-      // Build INSERT
+      // Dynamic INSERT to allow database defaults for unprovided columns
       const cols = Object.keys(dbData);
       const placeholders = cols.map(() => '?').join(', ');
       const values = cols.map((c) => dbData[c]);
@@ -179,33 +202,22 @@ export function createRepository(db, resourceName) {
       const dbData = toDbFormat(data, columns);
       const pkValues = pkSnake.map((col) => dbData[col]);
 
-      // Build UPSERT
-      const cols = Object.keys(dbData);
-      const placeholders = cols.map(() => '?').join(', ');
-      const values = cols.map((c) => dbData[c]);
-
-      const updateCols = cols.filter((c) => !pkSnake.includes(c));
-      const updateSet = updateCols.map((c) => `${c} = excluded.${c}`).join(', ');
-
-      db.prepare(
-        `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})
-         ON CONFLICT(${pkSnake.join(', ')}) DO UPDATE SET ${updateSet}`
-      ).run(...values);
+      // Use cached upsert statement - map values in column order (excludes timestamps)
+      const values = stmts.upsertCols.map((col) => dbData[col] ?? null);
+      stmts.upsert.run(...values);
 
       return this.getById(...pkValues);
     },
 
     update(data, ...pkValues) {
+      if (!stmts.update) return this.getById(...pkValues);
+
       const dbData = toDbFormat(data, columns);
-      const updateCols = Object.keys(dbData).filter((c) => !pkSnake.includes(c));
 
-      if (updateCols.length === 0) return this.getById(...pkValues);
-
-      // Use COALESCE for optional updates
-      const setClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
-      const values = updateCols.map((c) => dbData[c]);
-
-      db.prepare(`UPDATE ${table} SET ${setClause} WHERE ${pkWhere}`).run(...values, ...pkValues);
+      // Use cached update statement - pass values in updateCols order, then PK values
+      // COALESCE handles NULL values by keeping existing data
+      const values = updateCols.map((col) => dbData[col] ?? null);
+      stmts.update.run(...values, ...pkValues);
 
       return this.getById(...pkValues);
     },
