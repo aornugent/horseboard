@@ -29,6 +29,11 @@ const FRACTION_MAP: Record<number, string> = {
 const EPSILON = 0.01;
 
 /**
+ * Step size for quantity adjustments (stepper increment/decrement)
+ */
+export const QUANTITY_STEP = 0.25;
+
+/**
  * Find matching fraction character for a decimal value
  */
 function findFraction(decimal: number): string | null {
@@ -127,6 +132,18 @@ export function getFractionPresets(): Array<{ value: number; label: string }> {
     { value: 0.75, label: '¾' },
     { value: 1, label: '1' },
     { value: 1.5, label: '1½' },
+    { value: 2, label: '2' },
+  ];
+}
+
+/**
+ * Get quick presets for FeedPad buttons (Empty, ½, 1, 2)
+ */
+export function getQuickPresets(): Array<{ value: number | null; label: string }> {
+  return [
+    { value: null, label: 'Empty' },
+    { value: 0.5, label: '½' },
+    { value: 1, label: '1' },
     { value: 2, label: '2' },
   ];
 }

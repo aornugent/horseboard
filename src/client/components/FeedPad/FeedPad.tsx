@@ -1,5 +1,8 @@
-import { formatQuantity } from '@shared/fractions';
+import { formatQuantity, getQuickPresets, QUANTITY_STEP } from '@shared/fractions';
 import './FeedPad.css';
+
+// Get presets once (they're static)
+const QUICK_PRESETS = getQuickPresets();
 
 interface FeedPadProps {
   isOpen: boolean;
@@ -19,12 +22,12 @@ export function FeedPad({
   unit,
 }: FeedPadProps) {
   const handleDecrement = () => {
-    const newValue = Math.max(0, (currentValue ?? 0) - 0.25);
+    const newValue = Math.max(0, (currentValue ?? 0) - QUANTITY_STEP);
     onValueChange(newValue === 0 ? null : newValue);
   };
 
   const handleIncrement = () => {
-    onValueChange((currentValue ?? 0) + 0.25);
+    onValueChange((currentValue ?? 0) + QUANTITY_STEP);
   };
 
   const handlePreset = (value: number | null) => {
@@ -65,43 +68,25 @@ export function FeedPad({
 
         {/* Row 1: Presets (large touch targets, min 48px) */}
         <div class="feed-pad-presets" data-testid="feed-pad-presets">
-          <button
-            class="feed-pad-preset"
-            data-testid="preset-empty"
-            onClick={() => handlePreset(null)}
-          >
-            Empty
-          </button>
-          <button
-            class="feed-pad-preset"
-            data-testid="preset-half"
-            onClick={() => handlePreset(0.5)}
-          >
-            ½
-          </button>
-          <button
-            class="feed-pad-preset"
-            data-testid="preset-one"
-            onClick={() => handlePreset(1)}
-          >
-            1
-          </button>
-          <button
-            class="feed-pad-preset"
-            data-testid="preset-two"
-            onClick={() => handlePreset(2)}
-          >
-            2
-          </button>
+          {QUICK_PRESETS.map((preset, index) => (
+            <button
+              key={index}
+              class="feed-pad-preset"
+              data-testid={`preset-${preset.value ?? 'empty'}`}
+              onClick={() => handlePreset(preset.value)}
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
 
-        {/* Row 2: Stepper (increments in 0.25 steps) */}
+        {/* Row 2: Stepper (increments in configurable steps) */}
         <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
           <button
             class="feed-pad-stepper-btn"
             data-testid="stepper-decrement"
             onClick={handleDecrement}
-            aria-label="Decrease by 0.25"
+            aria-label={`Decrease by ${QUANTITY_STEP}`}
           >
             −
           </button>
@@ -112,7 +97,7 @@ export function FeedPad({
             class="feed-pad-stepper-btn"
             data-testid="stepper-increment"
             onClick={handleIncrement}
-            aria-label="Increase by 0.25"
+            aria-label={`Increase by ${QUANTITY_STEP}`}
           >
             +
           </button>
