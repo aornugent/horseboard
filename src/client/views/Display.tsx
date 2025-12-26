@@ -1,7 +1,5 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid';
-import { horses } from '../stores/horses';
-import { feeds } from '../stores/feeds';
-import { effectiveTimeMode } from '../stores/display';
+import { horses, feeds, effectiveTimeMode } from '../stores';
 import './Display.css';
 
 export function Display() {

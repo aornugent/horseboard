@@ -1,7 +1,7 @@
 import type { Signal } from '@preact/signals';
 import { formatQuantity } from '@shared/fractions';
-import type { Horse, Feed, DietEntry } from '@shared/types';
-import { dietByKey } from '../../stores/diet';
+import type { Horse, Feed, DietEntry } from '@shared/resources';
+import { dietByKey } from '../../stores';
 import './SwimLaneGrid.css';
 
 interface SwimLaneGridProps {

@@ -1,9 +1,7 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
-import { feeds, addFeed, removeFeed, updateFeed } from '../../stores/feeds';
-import { display } from '../../stores/display';
-import { dietEntries } from '../../stores/diet';
-import type { Feed } from '@shared/types';
+import { feeds, addFeed, removeFeed, updateFeed, display, dietEntries } from '../../stores';
+import type { Feed } from '@shared/resources';
 import './FeedsTab.css';
 
 // Local UI state

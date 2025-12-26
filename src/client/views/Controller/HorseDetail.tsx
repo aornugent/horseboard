@@ -2,9 +2,7 @@ import { useState } from 'preact/hooks';
 import { computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad';
 import { formatQuantity } from '@shared/fractions';
-import { getHorse } from '../../stores/horses';
-import { feeds, getFeed } from '../../stores/feeds';
-import { dietByHorse, updateDietAmount, getDietEntry } from '../../stores/diet';
+import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry } from '../../stores';
 import './HorseDetail.css';
 
 interface HorseDetailProps {

@@ -1,8 +1,5 @@
-import { setDisplay } from '../stores/display';
-import { setHorses } from '../stores/horses';
-import { setFeeds } from '../stores/feeds';
-import { setDietEntries } from '../stores/diet';
-import type { Display, Horse, Feed, DietEntry } from '@shared/types';
+import { setDisplay, setHorses, setFeeds, setDietEntries } from '../stores';
+import type { Display, Horse, Feed, DietEntry } from '@shared/resources';
 
 interface BootstrapResponse {
   success: boolean;

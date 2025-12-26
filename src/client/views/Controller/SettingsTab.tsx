@@ -6,8 +6,8 @@ import {
   timezone,
   updateTimeMode,
   setZoomLevel,
-} from '../../stores/display';
-import type { TimeMode } from '@shared/types';
+} from '../../stores';
+import type { TimeMode } from '@shared/resources';
 import './SettingsTab.css';
 
 // Common timezones for horse farms
