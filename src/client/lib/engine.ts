@@ -2,10 +2,10 @@ import { signal, computed, batch, Signal, ReadonlySignal } from '@preact/signals
 import {
   RESOURCES,
   DEFAULT_TIME_MODE,
-  TIME_MODE,
   type ResourceName,
   type TimeMode,
   type EffectiveTimeMode,
+  type Display,
   type Unit,
 } from '@shared/resources';
 
@@ -80,7 +80,7 @@ export function createResourceStore<T extends { id: string } & Timestamped>(
       const keys = primaryKey as string[];
       return keys.map((k) => (item as Record<string, unknown>)[k]).join(':');
     }
-    return (item as Record<string, string>)[primaryKey as string];
+    return String((item as Record<string, unknown>)[primaryKey as string]);
   };
 
   // Derived signals that react to version changes
@@ -453,21 +453,11 @@ export interface DisplayStore {
   set: (display: Display, source?: UpdateSource) => void;
   update: (updates: Partial<Display>, source?: UpdateSource) => void;
   updateTimeMode: (mode: TimeMode, overrideUntilDate?: string | null) => void;
-  setZoomLevel: (level: 1 | 2 | 3) => void;
+  setZoomLevel: (level: number) => void;
   setCurrentPage: (page: number) => void;
 }
 
-interface Display {
-  id: string;
-  pairCode: string;
-  timezone: string;
-  timeMode: TimeMode;
-  overrideUntil: string | null;
-  zoomLevel: 1 | 2 | 3;
-  currentPage: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// Display type imported from @shared/resources
 
 import { getEffectiveTimeMode } from '@shared/time-mode';
 
@@ -543,7 +533,7 @@ export function createDisplayStore(): DisplayStore {
       }
     },
 
-    setZoomLevel(level: 1 | 2 | 3) {
+    setZoomLevel(level: number) {
       if (display.value) {
         display.value = {
           ...display.value,

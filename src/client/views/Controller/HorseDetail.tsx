@@ -126,7 +126,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 >
                   <span class="value-label">AM</span>
                   <span class="value-amount">
-                    {formatQuantity(amValue, feed.unit) || '—'}
+                    {formatQuantity(amValue ?? null, feed.unit) || '—'}
                   </span>
                 </button>
 
@@ -138,7 +138,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 >
                   <span class="value-label">PM</span>
                   <span class="value-amount">
-                    {formatQuantity(pmValue, feed.unit) || '—'}
+                    {formatQuantity(pmValue ?? null, feed.unit) || '—'}
                   </span>
                 </button>
               </div>
