@@ -1,14 +1,14 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
 import { feeds, addFeed, removeFeed, updateFeed, display, dietEntries } from '../../stores';
-import type { Feed } from '@shared/resources';
+import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
 import './FeedsTab.css';
 
 // Local UI state
 const searchQuery = signal('');
 const isAddingFeed = signal(false);
 const newFeedName = signal('');
-const newFeedUnit = signal<'scoop' | 'ml' | 'sachet' | 'biscuit'>('scoop');
+const newFeedUnit = signal<Unit>(DEFAULT_UNIT);
 const editingFeed = signal<Feed | null>(null);
 const deletingFeed = signal<Feed | null>(null);
 
@@ -27,7 +27,7 @@ function countHorsesUsingFeed(feedId: string): number {
 }
 
 // API helpers
-async function createFeed(name: string, unit: 'scoop' | 'ml' | 'sachet' | 'biscuit') {
+async function createFeed(name: string, unit: Unit) {
   if (!display.value) return;
 
   const response = await fetch(`/api/displays/${display.value.id}/feeds`, {
@@ -41,7 +41,7 @@ async function createFeed(name: string, unit: 'scoop' | 'ml' | 'sachet' | 'biscu
     addFeed(data);
     isAddingFeed.value = false;
     newFeedName.value = '';
-    newFeedUnit.value = 'scoop';
+    newFeedUnit.value = DEFAULT_UNIT;
   }
 }
 
@@ -68,12 +68,11 @@ async function saveFeedEdit(feed: Feed) {
   }
 }
 
-const UNITS: Array<{ value: 'scoop' | 'ml' | 'sachet' | 'biscuit'; label: string }> = [
-  { value: 'scoop', label: 'Scoop' },
-  { value: 'ml', label: 'ml' },
-  { value: 'sachet', label: 'Sachet' },
-  { value: 'biscuit', label: 'Biscuit' },
-];
+// Generate unit options from shared constants
+const UNIT_OPTIONS = UNITS.map(unit => ({
+  value: unit,
+  label: UNIT_LABELS[unit],
+}));
 
 export function FeedsTab() {
   return (
@@ -143,7 +142,7 @@ export function FeedsTab() {
             <div class="modal-field">
               <label class="modal-label">Unit</label>
               <div class="unit-selector" data-testid="new-feed-unit">
-                {UNITS.map(u => (
+                {UNIT_OPTIONS.map(u => (
                   <button
                     key={u.value}
                     class={`unit-btn ${newFeedUnit.value === u.value ? 'active' : ''}`}
@@ -162,7 +161,7 @@ export function FeedsTab() {
                 onClick={() => {
                   isAddingFeed.value = false;
                   newFeedName.value = '';
-                  newFeedUnit.value = 'scoop';
+                  newFeedUnit.value = DEFAULT_UNIT;
                 }}
               >
                 Cancel
@@ -205,7 +204,7 @@ export function FeedsTab() {
             <div class="modal-field">
               <label class="modal-label">Unit</label>
               <div class="unit-selector" data-testid="edit-feed-unit">
-                {UNITS.map(u => (
+                {UNIT_OPTIONS.map(u => (
                   <button
                     key={u.value}
                     class={`unit-btn ${editingFeed.value?.unit === u.value ? 'active' : ''}`}

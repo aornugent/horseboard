@@ -10,8 +10,11 @@
  * - 12:00 - 03:59 = PM
  */
 
-export type TimeMode = 'AUTO' | 'AM' | 'PM';
-export type EffectiveTimeMode = 'AM' | 'PM';
+import { TIME_MODE, type TimeMode, type EffectiveTimeMode } from './resources';
+
+// Re-export types and constants for convenience
+export type { TimeMode, EffectiveTimeMode };
+export { TIME_MODE };
 
 /**
  * Calculate the effective time mode (AM or PM) based on settings and current time
@@ -29,7 +32,7 @@ export function getEffectiveTimeMode(
   now: Date = new Date()
 ): EffectiveTimeMode {
   // Check for active manual override
-  if (mode !== 'AUTO' && overrideUntil) {
+  if (mode !== TIME_MODE.AUTO && overrideUntil) {
     const overrideExpiry = new Date(overrideUntil);
     if (overrideExpiry > now) {
       return mode as EffectiveTimeMode;
@@ -66,7 +69,7 @@ export function getHourInTimezone(date: Date, timezone: string): number {
  * PM: 12:00 - 03:59 (hours 12-23, 0-3)
  */
 export function getTimeModeForHour(hour: number): EffectiveTimeMode {
-  return hour >= 4 && hour < 12 ? 'AM' : 'PM';
+  return hour >= 4 && hour < 12 ? TIME_MODE.AM : TIME_MODE.PM;
 }
 
 /**

@@ -12,21 +12,38 @@
  * - 0.6 → 0.6 (no fraction available)
  */
 
+// =============================================================================
+// FRACTION CONSTANTS - Single source of truth
+// =============================================================================
+
 /**
- * Map of decimal fractions to Unicode characters
+ * Supported fraction values with their Unicode representations
+ * Stored as [decimal, unicode] tuples for iteration
  */
-const FRACTION_MAP: Record<number, string> = {
-  0.25: '¼',
-  0.33: '⅓',
-  0.5: '½',
-  0.67: '⅔',
-  0.75: '¾',
-};
+export const FRACTION_ENTRIES: ReadonlyArray<readonly [number, string]> = [
+  [0.25, '¼'],
+  [0.33, '⅓'],
+  [0.5, '½'],
+  [0.67, '⅔'],
+  [0.75, '¾'],
+] as const;
+
+/**
+ * Map of decimal fractions to Unicode characters (derived from FRACTION_ENTRIES)
+ */
+const FRACTION_MAP: Record<number, string> = Object.fromEntries(FRACTION_ENTRIES);
+
+/**
+ * Reverse map: Unicode fraction to decimal value
+ */
+const FRACTION_REVERSE_MAP: Record<string, number> = Object.fromEntries(
+  FRACTION_ENTRIES.map(([value, char]) => [char, value])
+);
 
 /**
  * Tolerance for floating point comparison
  */
-const EPSILON = 0.01;
+export const EPSILON = 0.01;
 
 /**
  * Step size for quantity adjustments (stepper increment/decrement)
@@ -87,27 +104,26 @@ export function formatQuantity(value: number | null, unit?: string): string {
  * @param input - Formatted string (e.g., "2½", "¾", "1.5")
  * @returns Parsed number or null if invalid
  */
-export function parseQuantity(input: string): number | null {
+export function parseQuantity(input: string | null | undefined): number | null {
   if (!input || input.trim() === '') {
     return null;
   }
 
   const trimmed = input.trim();
 
-  // Check for pure fraction
-  for (const [value, char] of Object.entries(FRACTION_MAP)) {
-    if (trimmed === char) {
-      return parseFloat(value);
-    }
+  // Check for pure fraction using reverse map (O(1) lookup)
+  if (trimmed in FRACTION_REVERSE_MAP) {
+    return FRACTION_REVERSE_MAP[trimmed];
   }
 
   // Check for number + fraction (e.g., "2½")
-  for (const [value, char] of Object.entries(FRACTION_MAP)) {
+  // Look for any fraction character at the end
+  for (const [value, char] of FRACTION_ENTRIES) {
     if (trimmed.endsWith(char)) {
-      const intPart = trimmed.slice(0, -1);
+      const intPart = trimmed.slice(0, -char.length);
       const parsed = parseInt(intPart, 10);
       if (!isNaN(parsed)) {
-        return parsed + parseFloat(value);
+        return parsed + value;
       }
     }
   }

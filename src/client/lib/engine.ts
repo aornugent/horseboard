@@ -1,113 +1,253 @@
-import { signal, computed, Signal, ReadonlySignal } from '@preact/signals';
-import type { z } from 'zod';
-import { RESOURCES, type ResourceName } from '@shared/resources';
+import { signal, computed, batch, Signal, ReadonlySignal } from '@preact/signals';
+import {
+  RESOURCES,
+  DEFAULT_TIME_MODE,
+  TIME_MODE,
+  type ResourceName,
+  type TimeMode,
+  type EffectiveTimeMode,
+  type Unit,
+} from '@shared/resources';
 
-type InferSchema<T> = T extends z.ZodType<infer U> ? U : never;
+// =============================================================================
+// TYPES
+// =============================================================================
 
 /**
- * Generic resource store interface
+ * Update source for reconciliation - SSE events take precedence
  */
-export interface ResourceStore<T> {
-  items: Signal<T[]>;
-  byId: ReadonlySignal<Map<string, T>>;
-  set: (items: T[]) => void;
-  add: (item: T) => void;
-  update: (id: string, updates: Partial<T>) => void;
-  remove: (id: string) => void;
-  get: (id: string) => T | undefined;
+export type UpdateSource = 'api' | 'sse' | 'local';
+
+/**
+ * Item with timestamp for reconciliation
+ */
+interface Timestamped {
+  updatedAt: string;
+  createdAt: string;
 }
 
 /**
- * Create a resource store from configuration
+ * Generic resource store interface with efficient Map-based storage
  */
-export function createResourceStore<T extends { id: string }>(
+export interface ResourceStore<T extends { id: string } & Timestamped> {
+  /** Signal containing the items array (derived from internal Map) */
+  items: ReadonlySignal<T[]>;
+  /** Lookup map by ID */
+  byId: ReadonlySignal<Map<string, T>>;
+  /** Version counter to trigger reactivity */
+  version: Signal<number>;
+
+  // Mutation methods
+  set: (items: T[], source?: UpdateSource) => void;
+  add: (item: T, source?: UpdateSource) => void;
+  update: (id: string, updates: Partial<T>, source?: UpdateSource) => void;
+  upsert: (item: T, source?: UpdateSource) => void;
+  remove: (id: string, source?: UpdateSource) => void;
+  get: (id: string) => T | undefined;
+
+  // Reconciliation
+  reconcile: (incomingItems: T[], source: UpdateSource) => void;
+}
+
+// =============================================================================
+// EFFICIENT MAP-BASED STORE
+// =============================================================================
+
+/**
+ * Create a resource store using Map for O(1) lookups and efficient updates
+ *
+ * Key improvements over array-based approach:
+ * 1. Updates don't iterate entire collection
+ * 2. Version signal allows batched reactivity
+ * 3. Reconciliation handles conflicts between API and SSE
+ */
+export function createResourceStore<T extends { id: string } & Timestamped>(
   resourceName: ResourceName
 ): ResourceStore<T> {
   const config = RESOURCES[resourceName];
   const primaryKey = config.primaryKey;
   const isComposite = Array.isArray(primaryKey);
 
-  const items = signal<T[]>([]);
+  // Internal Map storage - not directly reactive
+  const internalMap = new Map<string, T>();
 
-  // Create lookup map by ID
-  const byId = computed(() => {
-    const map = new Map<string, T>();
-    for (const item of items.value) {
-      if (isComposite) {
-        // For composite keys (diet), use combined key
-        const keys = primaryKey as string[];
-        const key = keys.map((k) => (item as Record<string, unknown>)[k]).join(':');
-        map.set(key, item);
-      } else {
-        map.set((item as Record<string, string>)[primaryKey as string], item);
-      }
+  // Version counter triggers reactivity when bumped
+  const version = signal(0);
+
+  // Helper to get ID from item
+  const getItemId = (item: T): string => {
+    if (isComposite) {
+      const keys = primaryKey as string[];
+      return keys.map((k) => (item as Record<string, unknown>)[k]).join(':');
     }
-    return map;
+    return (item as Record<string, string>)[primaryKey as string];
+  };
+
+  // Derived signals that react to version changes
+  const items = computed(() => {
+    // Access version to establish dependency
+    version.value;
+    return Array.from(internalMap.values());
   });
+
+  const byId = computed(() => {
+    version.value;
+    return new Map(internalMap);
+  });
+
+  /**
+   * Determine if incoming item should replace existing
+   * SSE events always win; otherwise compare timestamps
+   */
+  const shouldReplace = (
+    existing: T | undefined,
+    incoming: T,
+    source: UpdateSource
+  ): boolean => {
+    // SSE is authoritative - always accept
+    if (source === 'sse') return true;
+
+    // No existing item - always accept
+    if (!existing) return true;
+
+    // Compare timestamps - newer wins
+    const existingTime = new Date(existing.updatedAt).getTime();
+    const incomingTime = new Date(incoming.updatedAt).getTime();
+    return incomingTime >= existingTime;
+  };
 
   return {
     items,
     byId,
+    version,
 
-    set(newItems: T[]) {
-      items.value = newItems;
-    },
-
-    add(item: T) {
-      items.value = [...items.value, item];
-    },
-
-    update(id: string, updates: Partial<T>) {
-      items.value = items.value.map((item) => {
-        const itemId = isComposite
-          ? (primaryKey as string[])
-              .map((k) => (item as Record<string, unknown>)[k])
-              .join(':')
-          : (item as Record<string, string>)[primaryKey as string];
-
-        if (itemId === id) {
-          return { ...item, ...updates, updatedAt: new Date().toISOString() };
+    set(newItems: T[], source: UpdateSource = 'api') {
+      batch(() => {
+        if (source === 'sse') {
+          // SSE full replacement - clear and repopulate
+          internalMap.clear();
+          for (const item of newItems) {
+            internalMap.set(getItemId(item), item);
+          }
+        } else {
+          // API/local - reconcile with existing
+          this.reconcile(newItems, source);
+          return; // reconcile bumps version
         }
-        return item;
+        version.value++;
       });
     },
 
-    remove(id: string) {
-      items.value = items.value.filter((item) => {
-        const itemId = isComposite
-          ? (primaryKey as string[])
-              .map((k) => (item as Record<string, unknown>)[k])
-              .join(':')
-          : (item as Record<string, string>)[primaryKey as string];
-        return itemId !== id;
-      });
+    add(item: T, source: UpdateSource = 'api') {
+      const id = getItemId(item);
+      const existing = internalMap.get(id);
+
+      if (shouldReplace(existing, item, source)) {
+        internalMap.set(id, item);
+        version.value++;
+      }
+    },
+
+    update(id: string, updates: Partial<T>, source: UpdateSource = 'api') {
+      const existing = internalMap.get(id);
+      if (!existing) return;
+
+      const updated = {
+        ...existing,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      } as T;
+
+      if (shouldReplace(existing, updated, source)) {
+        internalMap.set(id, updated);
+        version.value++;
+      }
+    },
+
+    upsert(item: T, source: UpdateSource = 'api') {
+      const id = getItemId(item);
+      const existing = internalMap.get(id);
+
+      if (shouldReplace(existing, item, source)) {
+        internalMap.set(id, item);
+        version.value++;
+      }
+    },
+
+    remove(id: string, _source: UpdateSource = 'api') {
+      if (internalMap.delete(id)) {
+        version.value++;
+      }
     },
 
     get(id: string): T | undefined {
-      return byId.value.get(id);
+      return internalMap.get(id);
+    },
+
+    /**
+     * Reconcile incoming items with existing state
+     * Handles conflicts by comparing timestamps
+     */
+    reconcile(incomingItems: T[], source: UpdateSource) {
+      batch(() => {
+        let changed = false;
+
+        // Track which IDs are in incoming set
+        const incomingIds = new Set<string>();
+
+        for (const item of incomingItems) {
+          const id = getItemId(item);
+          incomingIds.add(id);
+
+          const existing = internalMap.get(id);
+          if (shouldReplace(existing, item, source)) {
+            internalMap.set(id, item);
+            changed = true;
+          }
+        }
+
+        // For SSE source, remove items not in incoming set
+        if (source === 'sse') {
+          for (const id of internalMap.keys()) {
+            if (!incomingIds.has(id)) {
+              internalMap.delete(id);
+              changed = true;
+            }
+          }
+        }
+
+        if (changed) {
+          version.value++;
+        }
+      });
     },
   };
 }
 
-/**
- * Diet entry store with specialized methods
- */
+// =============================================================================
+// DIET STORE
+// =============================================================================
+
 export interface DietStore {
-  items: Signal<DietEntry[]>;
+  items: ReadonlySignal<DietEntry[]>;
   byKey: ReadonlySignal<Map<string, DietEntry>>;
   byHorse: ReadonlySignal<Map<string, DietEntry[]>>;
   byFeed: ReadonlySignal<Map<string, DietEntry[]>>;
-  set: (entries: DietEntry[]) => void;
-  upsert: (entry: DietEntry) => void;
+  version: Signal<number>;
+
+  set: (entries: DietEntry[], source?: UpdateSource) => void;
+  upsert: (entry: DietEntry, source?: UpdateSource) => void;
   updateAmount: (
     horseId: string,
     feedId: string,
     field: 'amAmount' | 'pmAmount',
-    value: number | null
+    value: number | null,
+    source?: UpdateSource
   ) => void;
-  remove: (horseId: string, feedId: string) => void;
+  remove: (horseId: string, feedId: string, source?: UpdateSource) => void;
   get: (horseId: string, feedId: string) => DietEntry | undefined;
   countActiveFeeds: (horseId: string) => number;
+  reconcile: (entries: DietEntry[], source: UpdateSource) => void;
 }
 
 interface DietEntry {
@@ -120,22 +260,43 @@ interface DietEntry {
 }
 
 /**
- * Create specialized diet store
+ * Create specialized diet store with efficient composite key handling
  */
 export function createDietStore(): DietStore {
-  const items = signal<DietEntry[]>([]);
+  // Internal Map storage with composite key
+  const internalMap = new Map<string, DietEntry>();
+  const version = signal(0);
+
+  const getKey = (horseId: string, feedId: string) => `${horseId}:${feedId}`;
+  const getEntryKey = (entry: DietEntry) => getKey(entry.horseId, entry.feedId);
+
+  const shouldReplace = (
+    existing: DietEntry | undefined,
+    incoming: DietEntry,
+    source: UpdateSource
+  ): boolean => {
+    if (source === 'sse') return true;
+    if (!existing) return true;
+    const existingTime = new Date(existing.updatedAt).getTime();
+    const incomingTime = new Date(incoming.updatedAt).getTime();
+    return incomingTime >= existingTime;
+  };
+
+  // Derived signals
+  const items = computed(() => {
+    version.value;
+    return Array.from(internalMap.values());
+  });
 
   const byKey = computed(() => {
-    const map = new Map<string, DietEntry>();
-    for (const entry of items.value) {
-      map.set(`${entry.horseId}:${entry.feedId}`, entry);
-    }
-    return map;
+    version.value;
+    return new Map(internalMap);
   });
 
   const byHorse = computed(() => {
+    version.value;
     const map = new Map<string, DietEntry[]>();
-    for (const entry of items.value) {
+    for (const entry of internalMap.values()) {
       const existing = map.get(entry.horseId) ?? [];
       existing.push(entry);
       map.set(entry.horseId, existing);
@@ -144,8 +305,9 @@ export function createDietStore(): DietStore {
   });
 
   const byFeed = computed(() => {
+    version.value;
     const map = new Map<string, DietEntry[]>();
-    for (const entry of items.value) {
+    for (const entry of internalMap.values()) {
       const existing = map.get(entry.feedId) ?? [];
       existing.push(entry);
       map.set(entry.feedId, existing);
@@ -158,23 +320,30 @@ export function createDietStore(): DietStore {
     byKey,
     byHorse,
     byFeed,
+    version,
 
-    set(entries: DietEntry[]) {
-      items.value = entries;
+    set(entries: DietEntry[], source: UpdateSource = 'api') {
+      batch(() => {
+        if (source === 'sse') {
+          internalMap.clear();
+          for (const entry of entries) {
+            internalMap.set(getEntryKey(entry), entry);
+          }
+        } else {
+          this.reconcile(entries, source);
+          return;
+        }
+        version.value++;
+      });
     },
 
-    upsert(entry: DietEntry) {
-      const key = `${entry.horseId}:${entry.feedId}`;
-      const existing = byKey.value.get(key);
+    upsert(entry: DietEntry, source: UpdateSource = 'api') {
+      const key = getEntryKey(entry);
+      const existing = internalMap.get(key);
 
-      if (existing) {
-        items.value = items.value.map((e) =>
-          e.horseId === entry.horseId && e.feedId === entry.feedId
-            ? { ...entry, updatedAt: new Date().toISOString() }
-            : e
-        );
-      } else {
-        items.value = [...items.value, entry];
+      if (shouldReplace(existing, entry, source)) {
+        internalMap.set(key, entry);
+        version.value++;
       }
     },
 
@@ -182,19 +351,26 @@ export function createDietStore(): DietStore {
       horseId: string,
       feedId: string,
       field: 'amAmount' | 'pmAmount',
-      value: number | null
+      value: number | null,
+      source: UpdateSource = 'local'
     ) {
-      const key = `${horseId}:${feedId}`;
-      const existing = byKey.value.get(key);
+      const key = getKey(horseId, feedId);
+      const existing = internalMap.get(key);
+      const now = new Date().toISOString();
 
       if (existing) {
-        items.value = items.value.map((e) =>
-          e.horseId === horseId && e.feedId === feedId
-            ? { ...e, [field]: value, updatedAt: new Date().toISOString() }
-            : e
-        );
+        // Update existing entry
+        const updated: DietEntry = {
+          ...existing,
+          [field]: value,
+          updatedAt: now,
+        };
+        if (shouldReplace(existing, updated, source)) {
+          internalMap.set(key, updated);
+          version.value++;
+        }
       } else {
-        const now = new Date().toISOString();
+        // Create new entry
         const newEntry: DietEntry = {
           horseId,
           feedId,
@@ -203,18 +379,20 @@ export function createDietStore(): DietStore {
           createdAt: now,
           updatedAt: now,
         };
-        items.value = [...items.value, newEntry];
+        internalMap.set(key, newEntry);
+        version.value++;
       }
     },
 
-    remove(horseId: string, feedId: string) {
-      items.value = items.value.filter(
-        (e) => !(e.horseId === horseId && e.feedId === feedId)
-      );
+    remove(horseId: string, feedId: string, _source: UpdateSource = 'api') {
+      const key = getKey(horseId, feedId);
+      if (internalMap.delete(key)) {
+        version.value++;
+      }
     },
 
     get(horseId: string, feedId: string): DietEntry | undefined {
-      return byKey.value.get(`${horseId}:${feedId}`);
+      return internalMap.get(getKey(horseId, feedId));
     },
 
     countActiveFeeds(horseId: string): number {
@@ -225,12 +403,44 @@ export function createDietStore(): DietStore {
           (e.pmAmount !== null && e.pmAmount !== 0)
       ).length;
     },
+
+    reconcile(entries: DietEntry[], source: UpdateSource) {
+      batch(() => {
+        let changed = false;
+        const incomingKeys = new Set<string>();
+
+        for (const entry of entries) {
+          const key = getEntryKey(entry);
+          incomingKeys.add(key);
+
+          const existing = internalMap.get(key);
+          if (shouldReplace(existing, entry, source)) {
+            internalMap.set(key, entry);
+            changed = true;
+          }
+        }
+
+        if (source === 'sse') {
+          for (const key of internalMap.keys()) {
+            if (!incomingKeys.has(key)) {
+              internalMap.delete(key);
+              changed = true;
+            }
+          }
+        }
+
+        if (changed) {
+          version.value++;
+        }
+      });
+    },
   };
 }
 
-/**
- * Display store with specialized methods
- */
+// =============================================================================
+// DISPLAY STORE
+// =============================================================================
+
 export interface DisplayStore {
   display: Signal<Display | null>;
   configuredMode: ReadonlySignal<TimeMode>;
@@ -238,14 +448,14 @@ export interface DisplayStore {
   overrideUntil: ReadonlySignal<string | null>;
   zoomLevel: ReadonlySignal<number>;
   currentPage: ReadonlySignal<number>;
-  effectiveTimeMode: ReadonlySignal<'AM' | 'PM'>;
-  set: (display: Display) => void;
+  effectiveTimeMode: ReadonlySignal<EffectiveTimeMode>;
+
+  set: (display: Display, source?: UpdateSource) => void;
+  update: (updates: Partial<Display>, source?: UpdateSource) => void;
   updateTimeMode: (mode: TimeMode, overrideUntilDate?: string | null) => void;
   setZoomLevel: (level: 1 | 2 | 3) => void;
   setCurrentPage: (page: number) => void;
 }
-
-type TimeMode = 'AUTO' | 'AM' | 'PM';
 
 interface Display {
   id: string;
@@ -259,22 +469,33 @@ interface Display {
   updatedAt: string;
 }
 
-// Import shared time mode logic
 import { getEffectiveTimeMode } from '@shared/time-mode';
 
 /**
- * Create specialized display store
+ * Create specialized display store with reconciliation
  */
 export function createDisplayStore(): DisplayStore {
   const display = signal<Display | null>(null);
 
-  const configuredMode = computed<TimeMode>(() => display.value?.timeMode ?? 'AUTO');
+  const shouldReplace = (
+    existing: Display | null,
+    incoming: Display,
+    source: UpdateSource
+  ): boolean => {
+    if (source === 'sse') return true;
+    if (!existing) return true;
+    const existingTime = new Date(existing.updatedAt).getTime();
+    const incomingTime = new Date(incoming.updatedAt).getTime();
+    return incomingTime >= existingTime;
+  };
+
+  const configuredMode = computed<TimeMode>(() => display.value?.timeMode ?? DEFAULT_TIME_MODE);
   const timezone = computed(() => display.value?.timezone ?? 'UTC');
   const overrideUntil = computed(() => display.value?.overrideUntil ?? null);
   const zoomLevel = computed(() => display.value?.zoomLevel ?? 2);
   const currentPage = computed(() => display.value?.currentPage ?? 0);
 
-  const effectiveTimeMode = computed<'AM' | 'PM'>(() => {
+  const effectiveTimeMode = computed<EffectiveTimeMode>(() => {
     return getEffectiveTimeMode(
       configuredMode.value,
       overrideUntil.value,
@@ -291,8 +512,24 @@ export function createDisplayStore(): DisplayStore {
     currentPage,
     effectiveTimeMode,
 
-    set(newDisplay: Display) {
-      display.value = newDisplay;
+    set(newDisplay: Display, source: UpdateSource = 'api') {
+      if (shouldReplace(display.value, newDisplay, source)) {
+        display.value = newDisplay;
+      }
+    },
+
+    update(updates: Partial<Display>, source: UpdateSource = 'api') {
+      if (!display.value) return;
+
+      const updated: Display = {
+        ...display.value,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (shouldReplace(display.value, updated, source)) {
+        display.value = updated;
+      }
     },
 
     updateTimeMode(mode: TimeMode, overrideUntilDate?: string | null) {
@@ -328,9 +565,10 @@ export function createDisplayStore(): DisplayStore {
   };
 }
 
-/**
- * Horse store with search and filtering
- */
+// =============================================================================
+// HORSE STORE
+// =============================================================================
+
 export interface HorseStore extends ResourceStore<Horse> {
   searchQuery: Signal<string>;
   filtered: ReadonlySignal<Horse[]>;
@@ -373,9 +611,10 @@ export function createHorseStore(): HorseStore {
   };
 }
 
-/**
- * Feed store with ranking
- */
+// =============================================================================
+// FEED STORE
+// =============================================================================
+
 export interface FeedStore extends ResourceStore<Feed> {
   byRank: ReadonlySignal<Feed[]>;
 }
@@ -384,7 +623,7 @@ interface Feed {
   id: string;
   displayId: string;
   name: string;
-  unit: 'scoop' | 'ml' | 'sachet' | 'biscuit';
+  unit: Unit;
   rank: number;
   stockLevel: number;
   lowStockThreshold: number;

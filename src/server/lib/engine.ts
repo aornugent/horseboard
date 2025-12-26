@@ -1,10 +1,67 @@
-import { Router } from 'express';
-import { RESOURCES } from '@shared/resources';
+import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import {
+  ResourceName,
+  ApiType,
+  isResourceName,
+  getResourceConfig,
+} from '@shared/resources';
+import type Database from 'better-sqlite3';
+
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Column mapping from camelCase to snake_case
+ */
+type ColumnMap = Record<string, string>;
+
+/**
+ * Database row - unknown structure from SQLite
+ */
+type DbRow = Record<string, unknown>;
+
+/**
+ * Repository interface with strict typing based on resource schema
+ */
+export interface Repository<R extends ResourceName> {
+  getById(...pkValues: string[]): ApiType<R> | null;
+  getAll(): ApiType<R>[];
+  getByParent?(parentId: string): ApiType<R>[];
+  getByDisplayId?(displayId: string): ApiType<R>[];
+  getByPairCode?(pairCode: string): ApiType<R> | null;
+  create(data: unknown, parentId?: string | null): ApiType<R>;
+  upsert?(data: unknown): ApiType<R>;
+  update(data: unknown, ...pkValues: string[]): ApiType<R> | null;
+  delete(...pkValues: string[]): boolean;
+}
+
+/**
+ * Configuration for recursion-safe code generation
+ */
+interface PairCodeConfig {
+  maxAttempts: number;
+  codeLength: number;
+  minCode: number;
+  maxCode: number;
+}
+
+const DEFAULT_PAIR_CODE_CONFIG: PairCodeConfig = {
+  maxAttempts: 100,
+  codeLength: 6,
+  minCode: 100000,
+  maxCode: 999999,
+};
+
+// =============================================================================
+// ID GENERATION
+// =============================================================================
 
 /**
  * Generate a unique ID with prefix
  */
-export function generateId(prefix = 'd') {
+export function generateId(prefix = 'd'): string {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
   const hex = Array.from(bytes)
@@ -14,30 +71,57 @@ export function generateId(prefix = 'd') {
 }
 
 /**
- * Generate a unique 6-digit pairing code
+ * Generate a unique 6-digit pairing code with recursion safety
+ *
+ * @throws Error if max attempts exceeded (ID space exhausted or DB issues)
  */
-export function generatePairCode(db) {
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  const existing = db.prepare('SELECT 1 FROM displays WHERE pair_code = ?').get(code);
-  if (existing) {
-    return generatePairCode(db);
+export function generatePairCode(
+  db: Database.Database,
+  config: PairCodeConfig = DEFAULT_PAIR_CODE_CONFIG,
+  attempt = 0
+): string {
+  if (attempt >= config.maxAttempts) {
+    throw new Error(
+      `Failed to generate unique pair code after ${config.maxAttempts} attempts. ` +
+        `ID space may be exhausted or database may be experiencing issues.`
+    );
   }
+
+  const code = String(
+    Math.floor(config.minCode + Math.random() * (config.maxCode - config.minCode + 1))
+  );
+
+  const existing = db
+    .prepare('SELECT 1 FROM displays WHERE pair_code = ?')
+    .get(code) as unknown;
+
+  if (existing) {
+    return generatePairCode(db, config, attempt + 1);
+  }
+
   return code;
 }
 
-/**
- * Convert snake_case to camelCase
- */
-function toCamelCase(str) {
-  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-}
+// =============================================================================
+// FORMAT CONVERSION WITH TYPE SAFETY
+// =============================================================================
 
 /**
  * Transform database row to API format using column mapping
+ *
+ * Uses the resource's column mapping to convert snake_case DB columns
+ * to camelCase API properties with proper type inference.
+ *
+ * @template R - Resource name for type inference
  */
-function toApiFormat(row, columns) {
+function toApiFormat<R extends ResourceName>(
+  row: DbRow | undefined,
+  columns: ColumnMap
+): ApiType<R> | null {
   if (!row) return null;
-  const result = {};
+
+  const result: Record<string, unknown> = {};
+
   for (const [camel, snake] of Object.entries(columns)) {
     if (snake in row) {
       let value = row[snake];
@@ -46,33 +130,60 @@ function toApiFormat(row, columns) {
       result[camel] = value;
     }
   }
-  return result;
+
+  // The result matches the schema shape due to column mapping
+  // Type assertion is safe because we're building from the known column map
+  return result as ApiType<R>;
 }
 
 /**
  * Transform API format to database format
+ *
+ * @template R - Resource name for type inference
  */
-function toDbFormat(data, columns) {
-  const result = {};
+function toDbFormat<R extends ResourceName>(
+  data: Partial<ApiType<R>>,
+  columns: ColumnMap
+): DbRow {
+  const result: DbRow = {};
+
   for (const [camel, snake] of Object.entries(columns)) {
-    if (camel in data && data[camel] !== undefined) {
-      result[snake] = data[camel];
+    if (camel in data && (data as Record<string, unknown>)[camel] !== undefined) {
+      result[snake] = (data as Record<string, unknown>)[camel];
     }
   }
+
   return result;
 }
 
-/**
- * Create a resource repository with prepared statements
- */
-export function createRepository(db, resourceName) {
-  const config = RESOURCES[resourceName];
-  if (!config) throw new Error(`Unknown resource: ${resourceName}`);
+// =============================================================================
+// REPOSITORY FACTORY
+// =============================================================================
 
-  const { table, primaryKey, columns, orderBy, filter } = config;
+/**
+ * Create a resource repository with prepared statements and strict typing
+ *
+ * Returns a repository object with methods typed according to the resource's
+ * Zod schema, ensuring compile-time type safety for all database operations.
+ *
+ * @template R - Resource name (must be a key of RESOURCES)
+ */
+export function createRepository<R extends ResourceName>(
+  db: Database.Database,
+  resourceName: R
+): Repository<R> {
+  if (!isResourceName(resourceName)) {
+    throw new Error(`Unknown resource: ${resourceName}`);
+  }
+
+  const config = getResourceConfig(resourceName);
+  const { table, primaryKey, columns } = config;
+  // These properties are optional on some resources
+  const orderBy = 'orderBy' in config ? config.orderBy : undefined;
+  const filter = 'filter' in config ? config.filter : undefined;
   const isComposite = Array.isArray(primaryKey);
   const pkColumns = isComposite ? primaryKey : [primaryKey];
-  const pkSnake = pkColumns.map((k) => columns[k]);
+  const pkSnake = pkColumns.map((k) => columns[k as keyof typeof columns] as string);
 
   // Build SELECT columns
   const selectCols = Object.values(columns).join(', ');
@@ -81,14 +192,13 @@ export function createRepository(db, resourceName) {
   const pkWhere = pkSnake.map((col) => `${col} = ?`).join(' AND ');
 
   // Build update clause for all non-PK columns (for cached update statement)
-  const updateCols = Object.values(columns).filter(
+  const updateCols = (Object.values(columns) as string[]).filter(
     (col) => !pkSnake.includes(col) && col !== 'created_at' && col !== 'updated_at'
   );
   const updateSetClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
 
   // Prepared statements (cached once per repository)
-  // Note: INSERT is dynamic because columns vary and we want database defaults for unprovided columns
-  const stmts = {
+  const stmts: Record<string, Database.Statement | string[] | null> = {
     getById: db.prepare(`SELECT ${selectCols} FROM ${table} WHERE ${pkWhere}`),
     getAll: db.prepare(
       `SELECT ${selectCols} FROM ${table}` +
@@ -96,14 +206,16 @@ export function createRepository(db, resourceName) {
         (orderBy ? ` ORDER BY ${orderBy}` : '')
     ),
     delete: db.prepare(`DELETE FROM ${table} WHERE ${pkWhere}`),
-    update: updateCols.length > 0
-      ? db.prepare(`UPDATE ${table} SET ${updateSetClause} WHERE ${pkWhere}`)
-      : null,
+    update:
+      updateCols.length > 0
+        ? db.prepare(`UPDATE ${table} SET ${updateSetClause} WHERE ${pkWhere}`)
+        : null,
   };
 
   // Build filtered getAll for parent resources
-  if (config.parent) {
-    const parentCol = columns[config.parent.foreignKey];
+  const parent = 'parent' in config ? config.parent : undefined;
+  if (parent) {
+    const parentCol = columns[parent.foreignKey as keyof typeof columns] as string;
     stmts.getByParent = db.prepare(
       `SELECT ${selectCols} FROM ${table} WHERE ${parentCol} = ?` +
         (filter ? ` AND ${filter}` : '') +
@@ -120,7 +232,7 @@ export function createRepository(db, resourceName) {
       WHERE h.display_id = ?
     `);
     // Upsert for diet entries (composite PK) - exclude auto-generated timestamps
-    const dietInsertCols = Object.values(columns).filter(
+    const dietInsertCols = (Object.values(columns) as string[]).filter(
       (c) => c !== 'created_at' && c !== 'updated_at'
     );
     const dietPlaceholders = dietInsertCols.map(() => '?').join(', ');
@@ -141,52 +253,38 @@ export function createRepository(db, resourceName) {
     );
   }
 
-  return {
-    getById(...pkValues) {
-      const row = stmts.getById.get(...pkValues);
-      return toApiFormat(row, columns);
+  // Helper to convert row with proper typing
+  const convertRow = (row: DbRow | undefined): ApiType<R> | null =>
+    toApiFormat<R>(row, columns);
+
+  const convertRows = (rows: DbRow[]): ApiType<R>[] =>
+    rows.map((row) => convertRow(row)).filter((r): r is ApiType<R> => r !== null);
+
+  const repo: Repository<R> = {
+    getById(...pkValues: string[]): ApiType<R> | null {
+      const row = (stmts.getById as Database.Statement).get(...pkValues) as DbRow | undefined;
+      return convertRow(row);
     },
 
-    getAll() {
-      return stmts.getAll.all().map((row) => toApiFormat(row, columns));
+    getAll(): ApiType<R>[] {
+      const rows = (stmts.getAll as Database.Statement).all() as DbRow[];
+      return convertRows(rows);
     },
 
-    getByParent(parentId) {
-      if (!stmts.getByParent) {
-        throw new Error(`Resource ${resourceName} has no parent`);
-      }
-      return stmts.getByParent.all(parentId).map((row) => toApiFormat(row, columns));
-    },
-
-    getByDisplayId(displayId) {
-      if (!stmts.getByDisplayId) {
-        throw new Error(`Resource ${resourceName} does not support getByDisplayId`);
-      }
-      return stmts.getByDisplayId.all(displayId).map((row) => toApiFormat(row, columns));
-    },
-
-    getByPairCode(pairCode) {
-      if (!stmts.getByPairCode) {
-        throw new Error(`Resource ${resourceName} does not support getByPairCode`);
-      }
-      const row = stmts.getByPairCode.get(pairCode);
-      return toApiFormat(row, columns);
-    },
-
-    create(data, parentId = null) {
+    create(data: unknown, parentId: string | null = null): ApiType<R> {
       // Parse through createSchema to apply defaults
-      const parsed = config.createSchema.parse(data);
+      const parsed = config.createSchema.parse(data) as Partial<ApiType<R>>;
       const dbData = toDbFormat(parsed, columns);
 
       // Generate ID for non-composite primary keys
       if (!isComposite) {
         const prefix = resourceName.charAt(0);
-        dbData[columns[primaryKey]] = generateId(prefix);
+        dbData[columns[primaryKey as keyof typeof columns] as string] = generateId(prefix);
       }
 
       // Set parent ID if applicable
-      if (parentId && config.parent) {
-        dbData[columns[config.parent.foreignKey]] = parentId;
+      if (parentId && parent) {
+        dbData[columns[parent.foreignKey as keyof typeof columns] as string] = parentId;
       }
 
       // Special handling for displays (generate pair code)
@@ -206,59 +304,111 @@ export function createRepository(db, resourceName) {
 
       // Return created record
       if (isComposite) {
-        const pkValues = pkColumns.map((k) => parsed[k]);
-        return this.getById(...pkValues);
+        const pkValues = pkColumns.map((k) => (parsed as Record<string, string>)[k]);
+        return this.getById(...pkValues) as ApiType<R>;
       }
-      return this.getById(dbData[columns[primaryKey]]);
+      return this.getById(
+        dbData[columns[primaryKey as keyof typeof columns] as string] as string
+      ) as ApiType<R>;
     },
 
-    upsert(data) {
-      // For composite primary keys (diet entries)
-      const dbData = toDbFormat(data, columns);
-      const pkValues = pkSnake.map((col) => dbData[col]);
-
-      // Use cached upsert statement - map values in column order (excludes timestamps)
-      const values = stmts.upsertCols.map((col) => dbData[col] ?? null);
-      stmts.upsert.run(...values);
-
-      return this.getById(...pkValues);
-    },
-
-    update(data, ...pkValues) {
+    update(data: unknown, ...pkValues: string[]): ApiType<R> | null {
       if (!stmts.update) return this.getById(...pkValues);
 
-      const dbData = toDbFormat(data, columns);
+      const dbData = toDbFormat(data as Partial<ApiType<R>>, columns);
 
       // Use cached update statement - pass values in updateCols order, then PK values
-      // COALESCE handles NULL values by keeping existing data
       const values = updateCols.map((col) => dbData[col] ?? null);
-      stmts.update.run(...values, ...pkValues);
+      (stmts.update as Database.Statement).run(...values, ...pkValues);
 
       return this.getById(...pkValues);
     },
 
-    delete(...pkValues) {
-      const result = stmts.delete.run(...pkValues);
+    delete(...pkValues: string[]): boolean {
+      const result = (stmts.delete as Database.Statement).run(...pkValues);
       return result.changes > 0;
     },
   };
+
+  // Add optional methods based on resource type
+  if (stmts.getByParent) {
+    repo.getByParent = function (parentId: string): ApiType<R>[] {
+      const rows = (stmts.getByParent as Database.Statement).all(parentId) as DbRow[];
+      return convertRows(rows);
+    };
+  }
+
+  if (stmts.getByDisplayId) {
+    repo.getByDisplayId = function (displayId: string): ApiType<R>[] {
+      const rows = (stmts.getByDisplayId as Database.Statement).all(displayId) as DbRow[];
+      return convertRows(rows);
+    };
+  }
+
+  if (stmts.getByPairCode) {
+    repo.getByPairCode = function (pairCode: string): ApiType<R> | null {
+      const row = (stmts.getByPairCode as Database.Statement).get(pairCode) as
+        | DbRow
+        | undefined;
+      return convertRow(row);
+    };
+  }
+
+  if (stmts.upsert && stmts.upsertCols) {
+    repo.upsert = function (data: unknown): ApiType<R> {
+      const dbData = toDbFormat(data as Partial<ApiType<R>>, columns);
+      const pkValues = pkSnake.map((col) => dbData[col] as string);
+
+      // Use cached upsert statement - map values in column order (excludes timestamps)
+      const values = (stmts.upsertCols as string[]).map((col) => dbData[col] ?? null);
+      (stmts.upsert as Database.Statement).run(...values);
+
+      return repo.getById(...pkValues) as ApiType<R>;
+    };
+  }
+
+  return repo;
 }
 
+// =============================================================================
+// VALIDATION MIDDLEWARE
+// =============================================================================
+
 /**
- * Validation middleware factory
+ * Validation middleware factory with proper Express types
  */
-function validate(schema) {
-  return (req, res, next) => {
+function validate(
+  schema: z.ZodSchema
+): (req: Request, res: Response, next: NextFunction) => void {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Validation failed',
         details: result.error.flatten().fieldErrors,
       });
+      return;
     }
     req.body = result.data;
     next();
+  };
+}
+
+// =============================================================================
+// ROUTE MOUNTING
+// =============================================================================
+
+/**
+ * Options for mounting a resource
+ */
+interface MountOptions {
+  broadcast?: (displayId: string, type: string) => void;
+  hooks?: {
+    recalculateFeedRankings?: (db: Database.Database, displayId: string) => void;
+  };
+  repos?: {
+    horses?: Repository<'horses'>;
   };
 }
 
@@ -269,14 +419,21 @@ function validate(schema) {
  * - GET /api/{resource} - list all (or by parent)
  * - GET /api/{resource}/:id - get by id
  * - POST /api/{resource} - create
- * - PUT /api/{resource}/:id - upsert (for composite keys)
+ * - PUT /api/{resource} - upsert (for composite keys)
  * - PATCH /api/{resource}/:id - update
  * - DELETE /api/{resource}/:id - delete
  */
-export function mountResource(app, db, resourceName, options = {}) {
-  const config = RESOURCES[resourceName];
-  if (!config) throw new Error(`Unknown resource: ${resourceName}`);
+export function mountResource<R extends ResourceName>(
+  app: { get: Function; post: Function; use: Function },
+  db: Database.Database,
+  resourceName: R,
+  options: MountOptions = {}
+): Repository<R> {
+  if (!isResourceName(resourceName)) {
+    throw new Error(`Unknown resource: ${resourceName}`);
+  }
 
+  const config = getResourceConfig(resourceName);
   const { broadcast, hooks = {}, repos = {} } = options;
 
   const repo = createRepository(db, resourceName);
@@ -285,22 +442,23 @@ export function mountResource(app, db, resourceName, options = {}) {
   const isComposite = Array.isArray(config.primaryKey);
 
   // Helper to broadcast SSE events
-  const notify = (displayId, type) => {
+  const notify = (displayId: string | undefined, type: string): void => {
     if (broadcast && displayId) {
       broadcast(displayId, type);
     }
   };
 
   // GET all (or by parent)
-  if (config.parent) {
+  const parent = 'parent' in config ? config.parent : undefined;
+  if (parent) {
     // Scoped under parent: GET /api/displays/:displayId/{resource}
-    app.get(`/api/displays/:displayId/${resourceName}`, (req, res) => {
-      const items = repo.getByParent(req.params.displayId);
+    app.get(`/api/displays/:displayId/${resourceName}`, (req: Request, res: Response) => {
+      const items = repo.getByParent?.(req.params.displayId) ?? [];
       res.json({ success: true, data: items });
     });
   } else if (resourceName !== 'diet') {
     // Top-level resource
-    router.get('/', (req, res) => {
+    router.get('/', (_req: Request, res: Response) => {
       const items = repo.getAll();
       res.json({ success: true, data: items });
     });
@@ -309,9 +467,9 @@ export function mountResource(app, db, resourceName, options = {}) {
   // For diet, special handling
   if (resourceName === 'diet') {
     // GET /api/diet?displayId=xxx
-    router.get('/', (req, res) => {
+    router.get('/', (req: Request, res: Response) => {
       if (req.query.displayId) {
-        const items = repo.getByDisplayId(req.query.displayId);
+        const items = repo.getByDisplayId?.(req.query.displayId as string) ?? [];
         res.json({ success: true, data: items });
       } else {
         const items = repo.getAll();
@@ -320,7 +478,11 @@ export function mountResource(app, db, resourceName, options = {}) {
     });
 
     // PUT /api/diet - upsert single entry
-    router.put('/', validate(config.createSchema), (req, res) => {
+    router.put('/', validate(config.createSchema), (req: Request, res: Response) => {
+      if (!repo.upsert) {
+        res.status(500).json({ success: false, error: 'Upsert not supported' });
+        return;
+      }
       const entry = repo.upsert(req.body);
 
       // Trigger onWrite hook (recalculate feed rankings)
@@ -337,10 +499,11 @@ export function mountResource(app, db, resourceName, options = {}) {
     });
 
     // DELETE /api/diet/:horseId/:feedId
-    router.delete('/:horseId/:feedId', (req, res) => {
+    router.delete('/:horseId/:feedId', (req: Request, res: Response) => {
       const deleted = repo.delete(req.params.horseId, req.params.feedId);
       if (!deleted) {
-        return res.status(404).json({ success: false, error: 'Diet entry not found' });
+        res.status(404).json({ success: false, error: 'Diet entry not found' });
+        return;
       }
       res.json({ success: true });
     });
@@ -351,56 +514,62 @@ export function mountResource(app, db, resourceName, options = {}) {
 
   // GET by ID
   if (!isComposite) {
-    router.get('/:id', (req, res) => {
+    router.get('/:id', (req: Request, res: Response) => {
       const item = repo.getById(req.params.id);
       if (!item) {
-        return res.status(404).json({ success: false, error: `${resourceName} not found` });
+        res.status(404).json({ success: false, error: `${resourceName} not found` });
+        return;
       }
       res.json({ success: true, data: item });
     });
   }
 
   // POST - create
-  if (config.parent) {
+  if (parent) {
     // Create under parent: POST /api/displays/:displayId/{resource}
     app.post(
       `/api/displays/:displayId/${resourceName}`,
       validate(config.createSchema),
-      (req, res) => {
+      (req: Request, res: Response) => {
         try {
           const item = repo.create(req.body, req.params.displayId);
           notify(req.params.displayId, resourceName);
           res.status(201).json({ success: true, data: item });
         } catch (error) {
-          if (error.message.includes('UNIQUE constraint')) {
-            return res.status(409).json({ success: false, error: 'Already exists' });
+          const err = error as Error;
+          if (err.message.includes('UNIQUE constraint')) {
+            res.status(409).json({ success: false, error: 'Already exists' });
+            return;
           }
-          res.status(500).json({ success: false, error: error.message });
+          res.status(500).json({ success: false, error: err.message });
         }
       }
     );
   } else {
-    router.post('/', validate(config.createSchema), (req, res) => {
+    router.post('/', validate(config.createSchema), (req: Request, res: Response) => {
       try {
         const item = repo.create(req.body);
         res.status(201).json({ success: true, data: item });
       } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        const err = error as Error;
+        res.status(500).json({ success: false, error: err.message });
       }
     });
   }
 
   // PATCH - update
   if (!isComposite) {
-    router.patch('/:id', validate(config.updateSchema), (req, res) => {
+    router.patch('/:id', validate(config.updateSchema), (req: Request, res: Response) => {
       const existing = repo.getById(req.params.id);
       if (!existing) {
-        return res.status(404).json({ success: false, error: `${resourceName} not found` });
+        res.status(404).json({ success: false, error: `${resourceName} not found` });
+        return;
       }
 
       const updated = repo.update(req.body, req.params.id);
-      if (existing.displayId) {
-        notify(existing.displayId, resourceName);
+      const displayId = (existing as Record<string, unknown>).displayId as string | undefined;
+      if (displayId) {
+        notify(displayId, resourceName);
       }
       res.json({ success: true, data: updated });
     });
@@ -408,14 +577,16 @@ export function mountResource(app, db, resourceName, options = {}) {
 
   // DELETE
   if (!isComposite) {
-    router.delete('/:id', (req, res) => {
+    router.delete('/:id', (req: Request, res: Response) => {
       const existing = repo.getById(req.params.id);
       const deleted = repo.delete(req.params.id);
       if (!deleted) {
-        return res.status(404).json({ success: false, error: `${resourceName} not found` });
+        res.status(404).json({ success: false, error: `${resourceName} not found` });
+        return;
       }
-      if (existing?.displayId) {
-        notify(existing.displayId, resourceName);
+      const displayId = (existing as Record<string, unknown>)?.displayId as string | undefined;
+      if (displayId) {
+        notify(displayId, resourceName);
       }
       res.json({ success: true });
     });
@@ -425,10 +596,14 @@ export function mountResource(app, db, resourceName, options = {}) {
   return repo;
 }
 
+// =============================================================================
+// FEED RANKING CALCULATION
+// =============================================================================
+
 /**
  * Recalculate feed rankings based on usage
  */
-export function recalculateFeedRankings(db, displayId) {
+export function recalculateFeedRankings(db: Database.Database, displayId: string): number {
   const rankings = db
     .prepare(
       `
@@ -441,7 +616,7 @@ export function recalculateFeedRankings(db, displayId) {
     ORDER BY usage_count DESC
   `
     )
-    .all(displayId);
+    .all(displayId) as Array<{ id: string; usage_count: number }>;
 
   const updateRank = db.prepare('UPDATE feeds SET rank = ? WHERE id = ?');
 
@@ -452,26 +627,32 @@ export function recalculateFeedRankings(db, displayId) {
   return rankings.length;
 }
 
+// =============================================================================
+// SSE CONNECTION MANAGER
+// =============================================================================
+
 /**
  * SSE connection manager
  */
 export class SSEManager {
+  private clients: Map<string, Set<Response>>;
+
   constructor() {
-    this.clients = new Map(); // displayId -> Set<res>
+    this.clients = new Map();
   }
 
-  addClient(displayId, res) {
+  addClient(displayId: string, res: Response): void {
     if (!this.clients.has(displayId)) {
       this.clients.set(displayId, new Set());
     }
-    this.clients.get(displayId).add(res);
+    this.clients.get(displayId)!.add(res);
 
     res.on('close', () => {
       this.clients.get(displayId)?.delete(res);
     });
   }
 
-  broadcast(displayId, type, data = null) {
+  broadcast(displayId: string, type: string, data: unknown = null): void {
     const clients = this.clients.get(displayId);
     if (!clients) return;
 
@@ -482,8 +663,8 @@ export class SSEManager {
     }
   }
 
-  sendKeepalive() {
-    for (const [displayId, clients] of this.clients) {
+  sendKeepalive(): void {
+    for (const [_displayId, clients] of this.clients) {
       for (const client of clients) {
         try {
           client.write(': keepalive\n\n');

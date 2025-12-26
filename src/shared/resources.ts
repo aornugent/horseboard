@@ -1,12 +1,63 @@
 import { z } from 'zod';
 
-// Unit enum for feeds
+// =============================================================================
+// UNIT ENUM - Single source of truth for feed units
+// =============================================================================
+
 export const UnitSchema = z.enum(['scoop', 'ml', 'sachet', 'biscuit']);
 export type Unit = z.infer<typeof UnitSchema>;
 
-// Time mode enum for displays
+/** All valid unit values as an array */
+export const UNITS = UnitSchema.options;
+
+/** Unit value constants for type-safe usage */
+export const UNIT = {
+  SCOOP: 'scoop',
+  ML: 'ml',
+  SACHET: 'sachet',
+  BISCUIT: 'biscuit',
+} as const satisfies Record<string, Unit>;
+
+/** Unit display labels for UI */
+export const UNIT_LABELS: Record<Unit, string> = {
+  scoop: 'Scoop',
+  ml: 'ml',
+  sachet: 'Sachet',
+  biscuit: 'Biscuit',
+};
+
+/** Default unit for new feeds */
+export const DEFAULT_UNIT: Unit = 'scoop';
+
+// =============================================================================
+// TIME MODE ENUM - Single source of truth for display time modes
+// =============================================================================
+
 export const TimeModeSchema = z.enum(['AUTO', 'AM', 'PM']);
 export type TimeMode = z.infer<typeof TimeModeSchema>;
+
+/** Effective time mode (excludes AUTO) */
+export type EffectiveTimeMode = 'AM' | 'PM';
+
+/** All valid time mode values as an array */
+export const TIME_MODES = TimeModeSchema.options;
+
+/** Time mode value constants for type-safe usage */
+export const TIME_MODE = {
+  AUTO: 'AUTO',
+  AM: 'AM',
+  PM: 'PM',
+} as const satisfies Record<string, TimeMode>;
+
+/** Time mode display configuration for UI */
+export const TIME_MODE_CONFIG: Record<TimeMode, { label: string; description: string }> = {
+  AUTO: { label: 'Auto', description: 'AM 4:00-11:59, PM 12:00-3:59' },
+  AM: { label: 'AM', description: 'Force morning feed display' },
+  PM: { label: 'PM', description: 'Force evening feed display' },
+};
+
+/** Default time mode for new displays */
+export const DEFAULT_TIME_MODE: TimeMode = 'AUTO';
 
 /**
  * Resource configuration type
@@ -226,3 +277,37 @@ export const RESOURCES = {
 } as const;
 
 export type ResourceName = keyof typeof RESOURCES;
+
+// =============================================================================
+// TYPE UTILITIES FOR STRICT TYPE PROPAGATION
+// =============================================================================
+
+/**
+ * Extract the API type (camelCase) from a resource's schema
+ */
+export type ApiType<R extends ResourceName> = z.infer<(typeof RESOURCES)[R]['schema']>;
+
+/**
+ * Extract the column mapping type for a resource
+ */
+export type ColumnMapping<R extends ResourceName> = (typeof RESOURCES)[R]['columns'];
+
+/**
+ * Database row type - generic record returned by SQLite
+ * The actual structure maps snake_case column names to values
+ */
+export type DbRow = Record<string, unknown>;
+
+/**
+ * Type guard to check if a string is a valid resource name
+ */
+export function isResourceName(name: string): name is ResourceName {
+  return name in RESOURCES;
+}
+
+/**
+ * Get resource configuration with proper typing
+ */
+export function getResourceConfig<R extends ResourceName>(name: R): (typeof RESOURCES)[R] {
+  return RESOURCES[name];
+}
