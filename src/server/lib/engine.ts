@@ -405,7 +405,10 @@ function validate(
 interface MountOptions {
   broadcast?: (displayId: string, type: string) => void;
   hooks?: {
+    /** @deprecated Use scheduleRankingRecalculation instead */
     recalculateFeedRankings?: (db: Database.Database, displayId: string) => void;
+    /** Async ranking manager for non-blocking recalculation */
+    scheduleRankingRecalculation?: (displayId: string) => void;
   };
   repos?: {
     horses?: Repository<'horses'>;
@@ -485,13 +488,18 @@ export function mountResource<R extends ResourceName>(
       }
       const entry = repo.upsert(req.body);
 
-      // Trigger onWrite hook (recalculate feed rankings)
-      if (hooks.recalculateFeedRankings && repos.horses) {
-        // Get the displayId from the horse using passed-in repository
+      // Trigger ranking recalculation (prefer async, fallback to sync for backwards compat)
+      if (repos.horses) {
         const horse = repos.horses.getById(req.body.horseId);
         if (horse) {
-          hooks.recalculateFeedRankings(db, horse.displayId);
-          notify(horse.displayId, 'feeds');
+          if (hooks.scheduleRankingRecalculation) {
+            // Non-blocking: schedule async recalculation, respond immediately
+            hooks.scheduleRankingRecalculation(horse.displayId);
+          } else if (hooks.recalculateFeedRankings) {
+            // Legacy blocking path (deprecated)
+            hooks.recalculateFeedRankings(db, horse.displayId);
+            notify(horse.displayId, 'feeds');
+          }
         }
       }
 
@@ -597,35 +605,11 @@ export function mountResource<R extends ResourceName>(
 }
 
 // =============================================================================
-// FEED RANKING CALCULATION
+// FEED RANKING CALCULATION (re-exported from rankings module)
 // =============================================================================
 
-/**
- * Recalculate feed rankings based on usage
- */
-export function recalculateFeedRankings(db: Database.Database, displayId: string): number {
-  const rankings = db
-    .prepare(
-      `
-    SELECT f.id, COUNT(DISTINCT d.horse_id) as usage_count
-    FROM feeds f
-    LEFT JOIN diet_entries d ON f.id = d.feed_id
-      AND (d.am_amount > 0 OR d.pm_amount > 0)
-    WHERE f.display_id = ?
-    GROUP BY f.id
-    ORDER BY usage_count DESC
-  `
-    )
-    .all(displayId) as Array<{ id: string; usage_count: number }>;
-
-  const updateRank = db.prepare('UPDATE feeds SET rank = ? WHERE id = ?');
-
-  for (let i = 0; i < rankings.length; i++) {
-    updateRank.run(rankings.length - i, rankings[i].id);
-  }
-
-  return rankings.length;
-}
+// Re-export for backwards compatibility and new async manager
+export { recalculateFeedRankings, FeedRankingManager } from './rankings';
 
 // =============================================================================
 // SSE CONNECTION MANAGER
