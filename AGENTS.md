@@ -1,180 +1,210 @@
-# Agent Guidelines
+# Agent Directives
 
-Instructions for AI agents working on this codebase.
+System prompt for AI agents operating on this codebase.
 
-## Quick Orientation
+## Project Objective
 
-- **What:** Horse feed management system (edit feeding schedules on phone, display on stable TV)
-- **Domain:** Horses (columns) × Feeds (rows) = Quantities (AM/PM values)
-- **Stack:** Vite + Preact + Signals (frontend), Node/Express (backend), SQLite (relational, 3NF)
-- **Tasks:** See `IMPLEMENTATION_PLAN.md` for pending work
-- **Reference:** See `TECHNICAL_SPECIFICATION.md` for API and data formats
+Synchronize horse feeding schedules between a mobile controller and a stable TV display in real-time.
 
-## Domain Model (SQL Tables)
+**Domain model:** Horses (columns) x Feeds (rows) = Quantities (AM/PM amounts).
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  horses              │  feeds                │  diet_entries│
-├─────────────────────────────────────────────────────────────┤
-│  id (PK)             │  id (PK)              │  id (PK)     │
-│  name                │  name                 │  horse_id FK │
-│  note                │  unit                 │  feed_id FK  │
-│  note_expires_at     │  rank                 │  am_quantity │
-│  created_at          │  created_at           │  pm_quantity │
-│  updated_at          │  updated_at           │  created_at  │
-│                      │                       │  updated_at  │
-└─────────────────────────────────────────────────────────────┘
-```
+**Canonical references:**
+- `TECHNICAL_SPECIFICATION.md` - API contracts, data dictionary, behavioral rules
+- `src/shared/` - Source of truth for validation and business logic
 
-**Key concepts:**
-- **Feed:** A supplement with a name and unit (scoop, ml, sachet, biscuit)
-- **Horse:** An animal with optional notes (can have expiry)
-- **Diet Entry:** The intersection - quantity of each feed per horse for AM and PM
-- **Time Mode:** AUTO detects morning/afternoon; can be manually overridden
+---
 
-## Design Philosophy: Modern Equestrian Utility
+## Mandatory Rules
 
-### Aesthetic: "Calm Utility"
+### 1. Shared Kernel Rule
 
-- Use high contrast and high comfort whitespace
-- Avoid generic "Tech Blue"
-- Color palettes:
-  - **Morning Mist** (Off-white/Hunter Green) for AM
-  - **Tack Room** (Dark Grey/Amber) for PM
-
-### TV Display: Designed for Distance Reading
-
-- **Vertical Swim Lanes:** Zebra-striped columns (not rows) to prevent reading errors
-- **Zero Values:** Must be strictly blank (no dashes, no '0') to create recognizable "shape patterns" for diets
-- **Monospace Numbers:** For alignment
-
-### Mobile Controller: Designed for "Dirty Hands"
-
-- **No System Keyboards:** Use a custom "Feed Pad" drawer for data entry
-- **No Grids on Mobile:** Use Task-Based "Status Card" lists
-- **Touch Targets:** Must be at least 48px
-
-## Architecture
-
-### 1. Stack
-
-| Layer | Technology | Notes |
-|-------|------------|-------|
-| Frontend | Vite + Preact + Signals | Fast builds, fine-grained reactivity |
-| Backend | Node.js + Express | Business logic owner |
-| Database | SQLite (3NF relational) | No JSON blobs, proper foreign keys |
-| Validation | Zod | Shared schemas between client/server |
-| Real-time | SSE | Instant updates, no polling |
-
-### 2. Shared Logic (`src/shared/`)
-
-All business logic and data schemas must live in `src/shared/` and be imported by both client and server:
+**All business logic affecting data integrity MUST reside in `src/shared/`.**
 
 ```
 src/shared/
-├── schemas/          # Zod schemas (Horse, Feed, DietEntry)
-├── time-mode.ts      # AM/PM calculation logic
-├── fractions.ts      # Fraction formatting (0.5 → ½)
-└── validation.ts     # Input validation utilities
+├── resources.ts    # Zod schemas, RESOURCES config (validation)
+├── time-mode.ts    # AM/PM calculation (getEffectiveTimeMode)
+├── fractions.ts    # Quantity formatting (formatQuantity)
 ```
 
-**Why:** Single source of truth prevents drift between client and server logic.
+**Violations:**
+- Writing validation logic in a component → FORBIDDEN
+- Writing time mode logic in server only → FORBIDDEN
+- Duplicating schema definitions → FORBIDDEN
 
-### 3. State Management (Preact Signals)
+**Rationale:** The client imports `@shared/*`; the server imports `../../shared/*`. Identical code executes in both environments. Logic drift is impossible when there is only one implementation.
 
-- Use Signals for reactive state, not prop drilling
-- UI reacts to fine-grained updates automatically
-- Derived state via computed signals
-- Global app state in dedicated signal stores
+### 2. Signals-Only State Rule
 
-### 4. Database Pattern
+**Use Preact Signals for all reactive state. Never use React hooks (useState, useEffect) for application state.**
 
-- **No JSON blobs** - use normalized SQL tables
-- **Foreign keys** enforce referential integrity
-- **Atomic transactions** for multi-table writes
-- **Timestamps** on all tables: `created_at`, `updated_at`
+**Pattern (observed in `src/client/lib/engine.ts`):**
+```typescript
+// CORRECT: Signal-based store
+const items = signal<T[]>([]);
+const byId = computed(() => new Map(items.value.map(i => [i.id, i])));
 
-### 5. TV is Dumb, Controller is Smart
+// FORBIDDEN: Hook-based state
+const [items, setItems] = useState<T[]>([]);
+```
 
-- **TV Display:** Pure renderer, listens to SSE, no editing logic
-- **Controller:** Command center, all editing happens here
-- **Server:** Business logic owner (time mode, feed ranking, note expiry)
+**Store architecture:**
+1. Store factories in `src/client/lib/engine.ts` create typed stores
+2. Singleton stores instantiated in `src/client/stores/index.ts`
+3. Components import signals directly from stores
+4. Components read `.value` from signals; Preact auto-subscribes
 
-### 6. Real-Time by Default
+**Rationale:** Fine-grained reactivity. Components re-render only when their specific signal dependencies change, not on any state update.
 
-- SSE provides instant updates
-- Settings changes (`state` events) are lightweight
-- Data changes (`data` events) include full payload
-- No polling, no refresh needed
+### 3. Dumb TV Rule
 
-## Development Practices
+**The TV Display is a passive renderer. It MUST NOT contain editing logic.**
 
-### Test-Driven
+**Observed contract (from `src/client/views/Display.tsx`):**
+```typescript
+<SwimLaneGrid
+  horses={horses}
+  feeds={feeds}
+  timeMode={effectiveTimeMode}
+  isEditable={false}  // ALWAYS false for TV
+/>
+```
 
-- Write tests alongside implementation
-- Run `npm test` frequently
-- Domain logic needs comprehensive test coverage
+**Permitted operations:**
+- Read signals
+- Render data
+- Apply themes based on `effectiveTimeMode`
 
-### Keep Documentation in Sync
+**Forbidden operations:**
+- Modify stores
+- Call API endpoints
+- Handle user input for data modification
 
-After completing work:
-1. Re-read the technical specification
-2. Update the spec to match reality
-3. Add discovered issues to "Future Considerations"
+**Data flow:** `SSE Event → Store Update → Signal Change → TV Re-renders`
 
-### Commit Workflow
+### 4. Third Normal Form Rule
 
-1. Implement a coherent chunk
-2. Run tests
-3. Write descriptive commit message
-4. Push - don't accumulate uncommitted changes
+**The database schema MUST maintain 3NF. No JSON blobs. No denormalization.**
 
-## Key Implementation Notes
+**Observed structure (from `src/server/db/migrations/001_initial_schema.sql`):**
+```
+displays  →  horses   →  diet_entries  ←  feeds
+   1:N          1:N                            N:1
+```
 
-### Value Semantics
+**Enforced constraints:**
+- Primary keys: UUID format (`{prefix}_{16hex}`)
+- Foreign keys: `ON DELETE CASCADE`
+- Composite key for junction table: `diet_entries(horse_id, feed_id)`
+- Timestamps: `created_at`, `updated_at` on all tables
 
-| User Input | Stored Value | Report Calculation |
-|------------|--------------|-------------------|
-| Empty/clear | `NULL` | 0 |
-| `0` | `0` | 0 |
-| `0.5` | `0.5` | 0.5 |
+**Forbidden patterns:**
+- Storing arrays as JSON columns
+- Storing nested objects as JSON columns
+- Redundant data across tables
+- Missing foreign key constraints
 
-### Fraction Display
+### 5. Repository Pattern Rule
 
-TV displays fractions nicely (logic in `src/shared/fractions.ts`):
-- 0.25 → ¼
-- 0.5 → ½
-- 0.75 → ¾
-- Other decimals show as-is with unit
+**Database access MUST go through the repository abstraction in `src/server/lib/engine.js`.**
 
-### Feed Ranking
+**Required usage:**
+```javascript
+const repo = createRepository(db, 'horses');
+const horse = repo.getById(id);           // Returns camelCase API format
+const horses = repo.getByParent(displayId);
+repo.create(data, parentId);
+repo.update(data, id);
+repo.delete(id);
+```
 
-Feeds are sorted by popularity (usage count across all horses):
-1. Count horses using each feed (AM or PM > 0)
-2. Sort descending by count
-3. Update `rank` field
-4. Common feeds appear first in "Add Feed" lists
+**Column mapping is automatic:**
+- API format: `camelCase` (e.g., `displayId`, `noteExpiry`)
+- DB format: `snake_case` (e.g., `display_id`, `note_expiry`)
 
-### Time Mode
+**Forbidden:**
+- Raw SQL in route handlers
+- Direct `db.prepare()` calls outside engine.js
+- ORM usage (Sequelize, Prisma, TypeORM)
 
-Logic in `src/shared/time-mode.ts`:
-- AUTO: 04:00-11:59 = AM, 12:00-03:59 = PM
-- Override: User forces AM/PM, expires after 1 hour
-- Server broadcasts state change, TV updates immediately
+---
 
-## Quick Commands
+## Visual Design Constraints
+
+### Theme System
+
+Two themes defined in `src/client/styles/theme.css`:
+
+| Theme | Name | Background | Text | Accent |
+|-------|------|------------|------|--------|
+| AM | Morning Mist | `#f8f9fa` | `#2d4a3e` | Hunter Green |
+| PM | Tack Room | `#2c2c2e` | `#f5a623` | Amber |
+
+Theme transitions use 3-second ease for calming effect.
+
+### Zero Values
+
+Zero and null quantities MUST render as blank cells. No dashes. No "0" text. No placeholders.
+
+**Rationale:** Creates recognizable "shape patterns" for diets when viewed from distance.
+
+### Touch Targets
+
+All interactive elements MUST be minimum 48px. Defined in theme.css:
+```css
+button { min-height: 48px; }
+```
+
+### Swim Lane Grid
+
+Columns (horses) alternate background colors. Rows do not.
+
+```css
+.swim-lane-alt { background: var(--color-swim-lane-alt); }
+```
+
+---
+
+## Code Organization
+
+```
+src/
+├── client/
+│   ├── lib/engine.ts      # Store factories (Signal-based)
+│   ├── stores/index.ts    # Singleton store instances
+│   ├── services/sse.ts    # SSE client (hydrates stores)
+│   ├── views/             # Page components
+│   └── components/        # Reusable UI components
+├── server/
+│   ├── lib/engine.js      # Repository factories, SSE manager
+│   └── db/migrations/     # SQL schema definitions
+└── shared/
+    ├── resources.ts       # Zod schemas, RESOURCES config
+    ├── time-mode.ts       # Time mode calculation
+    └── fractions.ts       # Quantity formatting
+```
+
+---
+
+## Verification Commands
 
 ```bash
-npm install           # Install dependencies
-npm run dev           # Start Vite dev server + backend
-npm run build         # Production build
-npm test              # Run tests
+node --test tests/unit/*.test.js         # Shared kernel tests
+node --test tests/integration/*.test.js  # Database tests
+timeout 3 node server/index.js           # Server startup check
 ```
 
-## Documentation Map
+All tests MUST pass before committing.
 
-| File | Contents |
-|------|----------|
-| `README.md` | Project overview, setup |
-| `TECHNICAL_SPECIFICATION.md` | API, data formats, business logic |
-| `IMPLEMENTATION_PLAN.md` | Pending tasks |
+---
+
+## Prohibited Actions
+
+1. **Do not** write business logic outside `src/shared/`
+2. **Do not** use React hooks for application state
+3. **Do not** add editing capabilities to the TV display
+4. **Do not** store JSON blobs in the database
+5. **Do not** bypass the repository abstraction
+6. **Do not** render "0" or "-" for empty values
+7. **Do not** create touch targets smaller than 48px
+8. **Do not** use ORMs
