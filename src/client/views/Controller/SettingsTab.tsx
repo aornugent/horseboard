@@ -7,6 +7,7 @@ import {
   updateTimeMode,
   setZoomLevel,
 } from '../../stores';
+import { updateTimeMode as apiUpdateTimeMode, updateBoard as apiUpdateBoard } from '../../services';
 import {
   TIME_MODES,
   TIME_MODE,
@@ -47,43 +48,33 @@ async function saveTimeMode(mode: TimeMode) {
     ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour override
     : null;
 
-  const response = await fetch(`/api/boards/${board.value.id}/time-mode`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ time_mode: mode, override_until }),
-  });
-
-  if (response.ok) {
+  try {
+    await apiUpdateTimeMode(board.value.id, mode, override_until);
     updateTimeMode(mode, override_until);
+  } catch (err) {
+    console.error('Failed to update time mode:', err);
   }
 }
 
 async function saveZoomLevel(level: 1 | 2 | 3) {
   if (!board.value) return;
 
-  const response = await fetch(`/api/boards/${board.value.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ zoom_level: level }),
-  });
-
-  if (response.ok) {
+  try {
+    await apiUpdateBoard(board.value.id, { zoom_level: level });
     setZoomLevel(level);
+  } catch (err) {
+    console.error('Failed to update zoom level:', err);
   }
 }
 
 async function saveTimezone(tz: string) {
   if (!board.value) return;
 
-  const response = await fetch(`/api/boards/${board.value.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ timezone: tz }),
-  });
-
-  if (response.ok) {
-    // Update board in store
+  try {
+    await apiUpdateBoard(board.value.id, { timezone: tz });
     board.value = { ...board.value, timezone: tz, updated_at: new Date().toISOString() };
+  } catch (err) {
+    console.error('Failed to update timezone:', err);
   }
 }
 
