@@ -1,0 +1,134 @@
+/**
+ * Unified Store Module
+ *
+ * Creates all stores using the engine factories and re-exports
+ * the same API that the UI components expect.
+ *
+ * Key features:
+ * - Map-based storage for O(1) lookups and efficient updates
+ * - Reconciliation logic to handle API vs SSE conflicts
+ * - Version-based reactivity to minimize re-renders
+ */
+import {
+  createHorseStore,
+  createFeedStore,
+  createDietStore,
+  createDisplayStore,
+  type UpdateSource,
+} from '../lib/engine';
+
+// Re-export UpdateSource for consumers
+export type { UpdateSource };
+
+// =============================================================================
+// DISPLAY STORE
+// =============================================================================
+
+const displayStore = createDisplayStore();
+
+// Re-export display store properties
+export const display = displayStore.display;
+export const configuredMode = displayStore.configuredMode;
+export const timezone = displayStore.timezone;
+export const overrideUntil = displayStore.overrideUntil;
+export const zoomLevel = displayStore.zoomLevel;
+export const currentPage = displayStore.currentPage;
+export const effectiveTimeMode = displayStore.effectiveTimeMode;
+
+// Re-export display store methods with source parameter
+export const setDisplay = (d: Parameters<typeof displayStore.set>[0], source?: UpdateSource) =>
+  displayStore.set(d, source);
+export const updateDisplay = displayStore.update;
+export const updateTimeMode = displayStore.updateTimeMode;
+export const setZoomLevel = displayStore.setZoomLevel;
+export const setCurrentPage = displayStore.setCurrentPage;
+
+// =============================================================================
+// HORSES STORE
+// =============================================================================
+
+const horseStore = createHorseStore();
+
+// Re-export horse store properties
+export const horses = horseStore.items;
+export const horsesById = horseStore.byId;
+export const searchQuery = horseStore.searchQuery;
+export const filteredHorses = horseStore.filtered;
+export const activeHorses = horseStore.active;
+
+// Re-export horse store methods with source parameter
+export const setHorses = (items: Parameters<typeof horseStore.set>[0], source?: UpdateSource) =>
+  horseStore.set(items, source);
+export const addHorse = (item: Parameters<typeof horseStore.add>[0], source?: UpdateSource) =>
+  horseStore.add(item, source);
+export const updateHorse = (
+  id: string,
+  updates: Parameters<typeof horseStore.update>[1],
+  source?: UpdateSource
+) => horseStore.update(id, updates, source);
+export const upsertHorse = (item: Parameters<typeof horseStore.upsert>[0], source?: UpdateSource) =>
+  horseStore.upsert(item, source);
+export const removeHorse = (id: string, source?: UpdateSource) => horseStore.remove(id, source);
+export const getHorse = horseStore.get;
+export const reconcileHorses = horseStore.reconcile;
+
+// =============================================================================
+// FEEDS STORE
+// =============================================================================
+
+const feedStore = createFeedStore();
+
+// Re-export feed store properties
+export const feeds = feedStore.items;
+export const feedsById = feedStore.byId;
+export const feedsByRank = feedStore.byRank;
+
+// Re-export feed store methods with source parameter
+export const setFeeds = (items: Parameters<typeof feedStore.set>[0], source?: UpdateSource) =>
+  feedStore.set(items, source);
+export const addFeed = (item: Parameters<typeof feedStore.add>[0], source?: UpdateSource) =>
+  feedStore.add(item, source);
+export const updateFeed = (
+  id: string,
+  updates: Parameters<typeof feedStore.update>[1],
+  source?: UpdateSource
+) => feedStore.update(id, updates, source);
+export const upsertFeed = (item: Parameters<typeof feedStore.upsert>[0], source?: UpdateSource) =>
+  feedStore.upsert(item, source);
+export const removeFeed = (id: string, source?: UpdateSource) => feedStore.remove(id, source);
+export const getFeed = feedStore.get;
+export const reconcileFeeds = feedStore.reconcile;
+
+// =============================================================================
+// DIET STORE
+// =============================================================================
+
+const dietStore = createDietStore();
+
+// Re-export diet store properties
+export const dietEntries = dietStore.items;
+export const dietByKey = dietStore.byKey;
+export const dietByHorse = dietStore.byHorse;
+export const dietByFeed = dietStore.byFeed;
+
+// Re-export diet store methods with source parameter
+export const setDietEntries = (
+  items: Parameters<typeof dietStore.set>[0],
+  source?: UpdateSource
+) => dietStore.set(items, source);
+export const upsertDietEntry = (
+  entry: Parameters<typeof dietStore.upsert>[0],
+  source?: UpdateSource
+) => dietStore.upsert(entry, source);
+export const updateDietAmount = (
+  horseId: string,
+  feedId: string,
+  field: 'amAmount' | 'pmAmount',
+  value: number | null,
+  source?: UpdateSource
+) => dietStore.updateAmount(horseId, feedId, field, value, source);
+export const removeDietEntry = (horseId: string, feedId: string, source?: UpdateSource) =>
+  dietStore.remove(horseId, feedId, source);
+export const getDietEntry = dietStore.get;
+export const countActiveFeeds = dietStore.countActiveFeeds;
+export const reconcileDietEntries = dietStore.reconcile;
