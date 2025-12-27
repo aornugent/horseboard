@@ -3,11 +3,6 @@
  *
  * Creates all stores using the engine factories and re-exports
  * the same API that the UI components expect.
- *
- * Key features:
- * - Map-based storage for O(1) lookups and efficient updates
- * - Reconciliation logic to handle API vs SSE conflicts
- * - Version-based reactivity to minimize re-renders
  */
 import {
   createHorseStore,
@@ -17,16 +12,10 @@ import {
   type UpdateSource,
 } from '../lib/engine';
 
-// Re-export UpdateSource for consumers
 export type { UpdateSource };
-
-// =============================================================================
-// BOARD STORE
-// =============================================================================
 
 const boardStore = createBoardStore();
 
-// Re-export board store properties
 export const board = boardStore.board;
 export const configuredMode = boardStore.configured_mode;
 export const timezone = boardStore.timezone;
@@ -35,7 +24,6 @@ export const zoomLevel = boardStore.zoom_level;
 export const currentPage = boardStore.current_page;
 export const effectiveTimeMode = boardStore.effective_time_mode;
 
-// Re-export board store methods with source parameter
 export const setBoard = (b: Parameters<typeof boardStore.set>[0], source?: UpdateSource) =>
   boardStore.set(b, source);
 export const updateBoard = boardStore.update;
@@ -43,20 +31,14 @@ export const updateTimeMode = boardStore.updateTimeMode;
 export const setZoomLevel = boardStore.setZoomLevel;
 export const setCurrentPage = boardStore.setCurrentPage;
 
-// =============================================================================
-// HORSES STORE
-// =============================================================================
-
 const horseStore = createHorseStore();
 
-// Re-export horse store properties
 export const horses = horseStore.items;
 export const horsesById = horseStore.byId;
 export const searchQuery = horseStore.searchQuery;
 export const filteredHorses = horseStore.filtered;
 export const activeHorses = horseStore.active;
 
-// Re-export horse store methods with source parameter
 export const setHorses = (items: Parameters<typeof horseStore.set>[0], source?: UpdateSource) =>
   horseStore.set(items, source);
 export const addHorse = (item: Parameters<typeof horseStore.add>[0], source?: UpdateSource) =>
@@ -72,18 +54,12 @@ export const removeHorse = (id: string, source?: UpdateSource) => horseStore.rem
 export const getHorse = horseStore.get;
 export const reconcileHorses = horseStore.reconcile;
 
-// =============================================================================
-// FEEDS STORE
-// =============================================================================
-
 const feedStore = createFeedStore();
 
-// Re-export feed store properties
 export const feeds = feedStore.items;
 export const feedsById = feedStore.byId;
 export const feedsByRank = feedStore.byRank;
 
-// Re-export feed store methods with source parameter
 export const setFeeds = (items: Parameters<typeof feedStore.set>[0], source?: UpdateSource) =>
   feedStore.set(items, source);
 export const addFeed = (item: Parameters<typeof feedStore.add>[0], source?: UpdateSource) =>
@@ -99,19 +75,13 @@ export const removeFeed = (id: string, source?: UpdateSource) => feedStore.remov
 export const getFeed = feedStore.get;
 export const reconcileFeeds = feedStore.reconcile;
 
-// =============================================================================
-// DIET STORE
-// =============================================================================
-
 const dietStore = createDietStore();
 
-// Re-export diet store properties
 export const dietEntries = dietStore.items;
 export const dietByKey = dietStore.byKey;
 export const dietByHorse = dietStore.byHorse;
 export const dietByFeed = dietStore.byFeed;
 
-// Re-export diet store methods with source parameter
 export const setDietEntries = (
   items: Parameters<typeof dietStore.set>[0],
   source?: UpdateSource

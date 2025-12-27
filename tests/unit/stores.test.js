@@ -1,4 +1,4 @@
-import { test, describe, beforeEach } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import {
   createResourceStore,
@@ -8,13 +8,6 @@ import {
   createFeedStore,
 } from '../../src/client/lib/engine.js';
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-/**
- * Create a mock horse with timestamps
- */
 function mockHorse(overrides = {}) {
   const now = new Date().toISOString();
   return {
@@ -30,9 +23,6 @@ function mockHorse(overrides = {}) {
   };
 }
 
-/**
- * Create a mock feed with timestamps
- */
 function mockFeed(overrides = {}) {
   const now = new Date().toISOString();
   return {
@@ -49,9 +39,6 @@ function mockFeed(overrides = {}) {
   };
 }
 
-/**
- * Create a mock diet entry with timestamps
- */
 function mockDietEntry(overrides = {}) {
   const now = new Date().toISOString();
   return {
@@ -65,9 +52,6 @@ function mockDietEntry(overrides = {}) {
   };
 }
 
-/**
- * Create a mock board with timestamps
- */
 function mockBoard(overrides = {}) {
   const now = new Date().toISOString();
   return {
@@ -84,28 +68,21 @@ function mockBoard(overrides = {}) {
   };
 }
 
-/**
- * Create a timestamp in the past or future
- */
 function timestamp(offsetMs = 0) {
   return new Date(Date.now() + offsetMs).toISOString();
 }
 
-// =============================================================================
-// RESOURCE STORE TESTS
-// =============================================================================
-
 describe('createResourceStore', () => {
   describe('basic operations', () => {
     test('initializes with empty items', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       assert.deepEqual(store.items.value, []);
       assert.equal(store.byId.value.size, 0);
       assert.equal(store.version.value, 0);
     });
 
     test('set() populates the store', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const horses = [mockHorse({ id: 'h_1' }), mockHorse({ id: 'h_2' })];
 
       store.set(horses);
@@ -116,7 +93,7 @@ describe('createResourceStore', () => {
     });
 
     test('add() inserts a new item', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const horse = mockHorse({ id: 'h_1' });
 
       store.add(horse);
@@ -127,7 +104,7 @@ describe('createResourceStore', () => {
     });
 
     test('update() modifies an existing item', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       store.add(mockHorse({ id: 'h_1', name: 'Original' }));
 
       store.update('h_1', { name: 'Updated' });
@@ -137,7 +114,7 @@ describe('createResourceStore', () => {
     });
 
     test('update() does nothing for non-existent item', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const initialVersion = store.version.value;
 
       store.update('non_existent', { name: 'Test' });
@@ -146,7 +123,7 @@ describe('createResourceStore', () => {
     });
 
     test('remove() deletes an item', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       store.add(mockHorse({ id: 'h_1' }));
       store.add(mockHorse({ id: 'h_2' }));
 
@@ -158,7 +135,7 @@ describe('createResourceStore', () => {
     });
 
     test('get() returns item by ID', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const horse = mockHorse({ id: 'h_1', name: 'Specific Horse' });
       store.add(horse);
 
@@ -168,7 +145,7 @@ describe('createResourceStore', () => {
     });
 
     test('get() returns undefined for non-existent ID', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
 
       assert.equal(store.get('non_existent'), undefined);
     });
@@ -176,7 +153,7 @@ describe('createResourceStore', () => {
 
   describe('version reactivity', () => {
     test('version increments on each mutation', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       assert.equal(store.version.value, 0);
 
       store.add(mockHorse({ id: 'h_1' }));
@@ -190,7 +167,7 @@ describe('createResourceStore', () => {
     });
 
     test('version does not increment on no-op remove', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const initialVersion = store.version.value;
 
       store.remove('non_existent');
@@ -201,18 +178,18 @@ describe('createResourceStore', () => {
 
   describe('reconciliation', () => {
     test('SSE source always replaces existing items', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const oldHorse = mockHorse({
         id: 'h_1',
         name: 'Old Name',
-        updated_at: timestamp(1000), // Future timestamp
+        updated_at: timestamp(1000),
       });
       store.add(oldHorse);
 
       const sseHorse = mockHorse({
         id: 'h_1',
         name: 'SSE Name',
-        updated_at: timestamp(-1000), // Past timestamp - should still win
+        updated_at: timestamp(-1000),
       });
       store.add(sseHorse, 'sse');
 
@@ -220,7 +197,7 @@ describe('createResourceStore', () => {
     });
 
     test('API source uses timestamp comparison', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       const existingHorse = mockHorse({
         id: 'h_1',
         name: 'Existing',
@@ -228,7 +205,6 @@ describe('createResourceStore', () => {
       });
       store.add(existingHorse);
 
-      // Older API update should be rejected
       const olderHorse = mockHorse({
         id: 'h_1',
         name: 'Older Update',
@@ -238,7 +214,6 @@ describe('createResourceStore', () => {
 
       assert.equal(store.get('h_1').name, 'Existing');
 
-      // Newer API update should be accepted
       const newerHorse = mockHorse({
         id: 'h_1',
         name: 'Newer Update',
@@ -250,12 +225,11 @@ describe('createResourceStore', () => {
     });
 
     test('set() with SSE source clears and replaces all items', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       store.add(mockHorse({ id: 'h_1' }));
       store.add(mockHorse({ id: 'h_2' }));
       store.add(mockHorse({ id: 'h_3' }));
 
-      // SSE set with only 2 items should remove the third
       store.set([mockHorse({ id: 'h_1' }), mockHorse({ id: 'h_4' })], 'sse');
 
       assert.equal(store.items.value.length, 2);
@@ -266,7 +240,7 @@ describe('createResourceStore', () => {
     });
 
     test('reconcile() merges items based on timestamps', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       store.add(mockHorse({ id: 'h_1', name: 'Original', updated_at: timestamp(0) }));
 
       store.reconcile(
@@ -283,7 +257,7 @@ describe('createResourceStore', () => {
     });
 
     test('reconcile() with SSE source removes items not in incoming set', () => {
-      const store = createResourceStore('horses');
+      const store = createResourceStore();
       store.add(mockHorse({ id: 'h_1' }));
       store.add(mockHorse({ id: 'h_2' }));
 
@@ -295,10 +269,6 @@ describe('createResourceStore', () => {
     });
   });
 });
-
-// =============================================================================
-// DIET STORE TESTS
-// =============================================================================
 
 describe('createDietStore', () => {
   describe('composite key handling', () => {
@@ -375,7 +345,9 @@ describe('createDietStore', () => {
       const store = createDietStore();
       store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 }));
       store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2', pm_amount: 2 }));
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3', am_amount: null, pm_amount: null }));
+      store.upsert(
+        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3', am_amount: null, pm_amount: null })
+      );
       store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_4', am_amount: 0, pm_amount: 0 }));
 
       assert.equal(store.countActiveFeeds('h_1'), 2);
@@ -394,10 +366,7 @@ describe('createDietStore', () => {
       store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
       store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
 
-      store.set(
-        [mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3' })],
-        'sse'
-      );
+      store.set([mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3' })], 'sse');
 
       assert.equal(store.items.value.length, 1);
       assert.equal(store.get('h_1', 'f_1'), undefined);
@@ -405,10 +374,6 @@ describe('createDietStore', () => {
     });
   });
 });
-
-// =============================================================================
-// BOARD STORE TESTS
-// =============================================================================
 
 describe('createBoardStore', () => {
   describe('computed properties', () => {
@@ -475,15 +440,17 @@ describe('createBoardStore', () => {
   describe('reconciliation', () => {
     test('SSE source always replaces board', () => {
       const store = createBoardStore();
-      store.set(mockBoard({
-        time_mode: 'AM',
-        updated_at: timestamp(1000),
-      }));
+      store.set(
+        mockBoard({
+          time_mode: 'AM',
+          updated_at: timestamp(1000),
+        })
+      );
 
       store.set(
         mockBoard({
           time_mode: 'PM',
-          updated_at: timestamp(-1000), // Older but SSE
+          updated_at: timestamp(-1000),
         }),
         'sse'
       );
@@ -493,12 +460,13 @@ describe('createBoardStore', () => {
 
     test('API source respects timestamps', () => {
       const store = createBoardStore();
-      store.set(mockBoard({
-        time_mode: 'AM',
-        updated_at: timestamp(0),
-      }));
+      store.set(
+        mockBoard({
+          time_mode: 'AM',
+          updated_at: timestamp(0),
+        })
+      );
 
-      // Older API update rejected
       store.set(
         mockBoard({
           time_mode: 'PM',
@@ -509,7 +477,6 @@ describe('createBoardStore', () => {
 
       assert.equal(store.board.value.time_mode, 'AM');
 
-      // Newer API update accepted
       store.set(
         mockBoard({
           time_mode: 'PM',
@@ -522,10 +489,6 @@ describe('createBoardStore', () => {
     });
   });
 });
-
-// =============================================================================
-// HORSE STORE TESTS
-// =============================================================================
 
 describe('createHorseStore', () => {
   describe('search filtering', () => {
@@ -546,7 +509,7 @@ describe('createHorseStore', () => {
       store.searchQuery.value = 'apol';
 
       assert.equal(store.filtered.value.length, 2);
-      assert.ok(store.filtered.value.every(h => h.name.toLowerCase().includes('apol')));
+      assert.ok(store.filtered.value.every((h) => h.name.toLowerCase().includes('apol')));
     });
 
     test('filtered is case-insensitive', () => {
@@ -567,14 +530,10 @@ describe('createHorseStore', () => {
       store.add(mockHorse({ id: 'h_3', archived: false }));
 
       assert.equal(store.active.value.length, 2);
-      assert.ok(store.active.value.every(h => !h.archived));
+      assert.ok(store.active.value.every((h) => !h.archived));
     });
   });
 });
-
-// =============================================================================
-// FEED STORE TESTS
-// =============================================================================
 
 describe('createFeedStore', () => {
   describe('ranking', () => {
@@ -598,7 +557,6 @@ describe('createFeedStore', () => {
 
       assert.equal(store.byRank.value[0].id, 'f_2');
 
-      // Update rank
       store.update('f_1', { rank: 10 });
 
       assert.equal(store.byRank.value[0].id, 'f_1');
