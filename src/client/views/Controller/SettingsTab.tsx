@@ -1,13 +1,19 @@
 import {
-  display,
+  board,
   configuredMode,
   effectiveTimeMode,
   zoomLevel,
   timezone,
   updateTimeMode,
   setZoomLevel,
-} from '../../stores/display';
-import type { TimeMode } from '@shared/types';
+} from '../../stores';
+import { updateTimeMode as apiUpdateTimeMode, updateBoard as apiUpdateBoard } from '../../services';
+import {
+  TIME_MODES,
+  TIME_MODE,
+  TIME_MODE_CONFIG,
+  type TimeMode,
+} from '@shared/resources';
 import './SettingsTab.css';
 
 // Common timezones for horse farms
@@ -23,11 +29,11 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC' },
 ];
 
-const TIME_MODES: Array<{ value: TimeMode; label: string; description: string }> = [
-  { value: 'AUTO', label: 'Auto', description: 'AM 4:00-11:59, PM 12:00-3:59' },
-  { value: 'AM', label: 'AM', description: 'Force morning feed display' },
-  { value: 'PM', label: 'PM', description: 'Force evening feed display' },
-];
+// Generate time mode options from shared constants
+const TIME_MODE_OPTIONS = TIME_MODES.map(mode => ({
+  value: mode,
+  ...TIME_MODE_CONFIG[mode],
+}));
 
 const ZOOM_LEVELS: Array<{ value: 1 | 2 | 3; label: string; description: string }> = [
   { value: 1, label: 'Small', description: 'More horses visible' },
@@ -36,54 +42,44 @@ const ZOOM_LEVELS: Array<{ value: 1 | 2 | 3; label: string; description: string 
 ];
 
 async function saveTimeMode(mode: TimeMode) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const overrideUntil = mode !== 'AUTO'
+  const override_until = mode !== TIME_MODE.AUTO
     ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour override
     : null;
 
-  const response = await fetch(`/api/displays/${display.value.id}/time-mode`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ timeMode: mode, overrideUntil }),
-  });
-
-  if (response.ok) {
-    updateTimeMode(mode, overrideUntil);
+  try {
+    await apiUpdateTimeMode(board.value.id, mode, override_until);
+    updateTimeMode(mode, override_until);
+  } catch (err) {
+    console.error('Failed to update time mode:', err);
   }
 }
 
 async function saveZoomLevel(level: 1 | 2 | 3) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const response = await fetch(`/api/displays/${display.value.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ zoomLevel: level }),
-  });
-
-  if (response.ok) {
+  try {
+    await apiUpdateBoard(board.value.id, { zoom_level: level });
     setZoomLevel(level);
+  } catch (err) {
+    console.error('Failed to update zoom level:', err);
   }
 }
 
 async function saveTimezone(tz: string) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const response = await fetch(`/api/displays/${display.value.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ timezone: tz }),
-  });
-
-  if (response.ok) {
-    // Update display in store
-    display.value = { ...display.value, timezone: tz, updatedAt: new Date().toISOString() };
+  try {
+    await apiUpdateBoard(board.value.id, { timezone: tz });
+    board.value = { ...board.value, timezone: tz, updated_at: new Date().toISOString() };
+  } catch (err) {
+    console.error('Failed to update timezone:', err);
   }
 }
 
 export function SettingsTab() {
-  if (!display.value) {
+  if (!board.value) {
     return (
       <div class="settings-tab" data-testid="settings-tab">
         <div class="settings-loading">Loading settings...</div>
@@ -102,7 +98,7 @@ export function SettingsTab() {
           Current: <strong data-testid="effective-time-mode">{effectiveTimeMode.value}</strong>
         </p>
         <div class="settings-button-group" data-testid="time-mode-selector">
-          {TIME_MODES.map(mode => (
+          {TIME_MODE_OPTIONS.map(mode => (
             <button
               key={mode.value}
               class={`settings-btn ${configuredMode.value === mode.value ? 'active' : ''}`}
@@ -159,20 +155,20 @@ export function SettingsTab() {
         </div>
       </section>
 
-      {/* Display Info */}
+      {/* Board Info */}
       <section class="settings-section settings-info">
-        <h3 class="settings-section-title">Display Info</h3>
+        <h3 class="settings-section-title">Board Info</h3>
         <div class="settings-info-grid">
           <div class="settings-info-item">
             <span class="settings-info-label">Pair Code</span>
-            <span class="settings-info-value" data-testid="display-pair-code">
-              {display.value.pairCode}
+            <span class="settings-info-value" data-testid="board-pair-code">
+              {board.value.pair_code}
             </span>
           </div>
           <div class="settings-info-item">
-            <span class="settings-info-label">Display ID</span>
-            <span class="settings-info-value settings-info-value-small" data-testid="display-id">
-              {display.value.id.slice(0, 8)}...
+            <span class="settings-info-label">Board ID</span>
+            <span class="settings-info-value settings-info-value-small" data-testid="board-id">
+              {board.value.id.slice(0, 8)}...
             </span>
           </div>
         </div>

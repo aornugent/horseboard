@@ -1,45 +1,30 @@
-export type TimeMode = 'AUTO' | 'AM' | 'PM';
+/**
+ * Re-export types from resources for cleaner imports
+ *
+ * Components should import types from '@shared/types':
+ *   import type { Horse, Feed, Board } from '@shared/types';
+ *
+ * Server/validation code should import from '@shared/resources':
+ *   import { HorseSchema, CreateHorseSchema } from '@shared/resources';
+ */
 
-export interface Horse {
-  id: string;
-  displayId: string;
-  name: string;
-  note: string | null;
-  noteExpiry: string | null;
-  archived: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export type {
+  Horse,
+  Feed,
+  DietEntry,
+  Board,
+  Unit,
+  TimeMode,
+  EffectiveTimeMode,
+} from './resources';
 
-export interface Feed {
-  id: string;
-  displayId: string;
-  name: string;
-  unit: 'scoop' | 'ml' | 'sachet' | 'biscuit';
-  rank: number;
-  stockLevel: number;
-  lowStockThreshold: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DietEntry {
-  horseId: string;
-  feedId: string;
-  amAmount: number | null;
-  pmAmount: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Display {
-  id: string;
-  pairCode: string;
-  timezone: string;
-  timeMode: TimeMode;
-  overrideUntil: string | null;
-  zoomLevel: 1 | 2 | 3;
-  currentPage: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export {
+  UNITS,
+  UNIT,
+  UNIT_LABELS,
+  DEFAULT_UNIT,
+  TIME_MODES,
+  TIME_MODE,
+  TIME_MODE_CONFIG,
+  DEFAULT_TIME_MODE,
+} from './resources';

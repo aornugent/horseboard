@@ -2,16 +2,16 @@ import { test, expect } from '@playwright/test';
 import { selectors } from './selectors';
 
 /**
- * E2E Tests for TV Display View
+ * E2E Tests for TV Board View
  *
- * Tests the read-only display that shows on the stable TV.
+ * Tests the read-only board that shows on the stable TV.
  * Uses data-testid selectors for stability.
  */
 
-test.describe('TV Display View', () => {
+test.describe('TV Board View', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the display view
-    await page.goto('/display');
+    // Navigate to the board view
+    await page.goto('/board');
   });
 
   test.describe('Grid Rendering', () => {
@@ -105,19 +105,19 @@ test.describe('TV Display View', () => {
     });
 
     test('should apply correct theme based on time mode', async ({ page }) => {
-      const displayView = page.locator(selectors.displayView);
-      await expect(displayView).toBeVisible();
+      const boardView = page.locator(selectors.boardView);
+      await expect(boardView).toBeVisible();
 
       // Should have data-theme attribute
-      const theme = await displayView.getAttribute('data-theme');
+      const theme = await boardView.getAttribute('data-theme');
       expect(['am', 'pm']).toContain(theme);
     });
   });
 
   test.describe('Theming', () => {
     test('should have AM theme styles (Morning Mist)', async ({ page }) => {
-      const displayView = page.locator(selectors.displayView);
-      const theme = await displayView.getAttribute('data-theme');
+      const boardView = page.locator(selectors.boardView);
+      const theme = await boardView.getAttribute('data-theme');
 
       if (theme === 'am') {
         // AM theme: Off-white/Hunter Green
@@ -127,8 +127,8 @@ test.describe('TV Display View', () => {
     });
 
     test('should have PM theme styles (Tack Room)', async ({ page }) => {
-      const displayView = page.locator(selectors.displayView);
-      const theme = await displayView.getAttribute('data-theme');
+      const boardView = page.locator(selectors.boardView);
+      const theme = await boardView.getAttribute('data-theme');
 
       if (theme === 'pm') {
         // PM theme: Dark Grey/Amber
@@ -138,16 +138,16 @@ test.describe('TV Display View', () => {
   });
 
   test.describe('Accessibility', () => {
-    test('display view should have proper structure', async ({ page }) => {
-      const displayView = page.locator(selectors.displayView);
-      await expect(displayView).toBeVisible();
+    test('board view should have proper structure', async ({ page }) => {
+      const boardView = page.locator(selectors.boardView);
+      await expect(boardView).toBeVisible();
 
       // Should have a header
-      const header = page.locator('.display-header');
+      const header = page.locator('.board-header');
       await expect(header).toBeVisible();
 
       // Should have main content
-      const main = page.locator('.display-content');
+      const main = page.locator('.board-content');
       await expect(main).toBeVisible();
     });
 
@@ -163,7 +163,7 @@ test.describe('TV Display View', () => {
   });
 
   test.describe('Read-Only Behavior', () => {
-    test('cells should not be clickable in display mode', async ({ page }) => {
+    test('cells should not be clickable in board mode', async ({ page }) => {
       const cells = page.locator('[data-testid^="cell-"]');
       const count = await cells.count();
 

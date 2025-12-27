@@ -1,6 +1,5 @@
 import { HorseCard } from '../../components/HorseCard';
-import { filteredHorses, searchQuery } from '../../stores/horses';
-import { countActiveFeeds } from '../../stores/diet';
+import { filteredHorses, searchQuery, countActiveFeeds } from '../../stores';
 import './HorsesTab.css';
 
 interface HorsesTabProps {

@@ -1,16 +1,15 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
-import { feeds, addFeed, removeFeed, updateFeed } from '../../stores/feeds';
-import { display } from '../../stores/display';
-import { dietEntries } from '../../stores/diet';
-import type { Feed } from '@shared/types';
+import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries } from '../../stores';
+import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
+import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
 import './FeedsTab.css';
 
 // Local UI state
 const searchQuery = signal('');
 const isAddingFeed = signal(false);
 const newFeedName = signal('');
-const newFeedUnit = signal<'scoop' | 'ml' | 'sachet' | 'biscuit'>('scoop');
+const newFeedUnit = signal<Unit>(DEFAULT_UNIT);
 const editingFeed = signal<Feed | null>(null);
 const deletingFeed = signal<Feed | null>(null);
 
@@ -24,58 +23,49 @@ const filteredFeeds = computed(() => {
 // Count horses using a specific feed
 function countHorsesUsingFeed(feedId: string): number {
   return dietEntries.value.filter(
-    entry => entry.feedId === feedId && (entry.amAmount || entry.pmAmount)
+    entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount)
   ).length;
 }
 
-// API helpers
-async function createFeed(name: string, unit: 'scoop' | 'ml' | 'sachet' | 'biscuit') {
-  if (!display.value) return;
+async function handleCreateFeed(name: string, unit: Unit) {
+  if (!board.value) return;
 
-  const response = await fetch(`/api/displays/${display.value.id}/feeds`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, unit }),
-  });
-
-  if (response.ok) {
-    const { data } = await response.json();
-    addFeed(data);
+  try {
+    const feed = await apiCreateFeed(board.value.id, name, unit);
+    addFeed(feed);
     isAddingFeed.value = false;
     newFeedName.value = '';
-    newFeedUnit.value = 'scoop';
+    newFeedUnit.value = DEFAULT_UNIT;
+  } catch (err) {
+    console.error('Failed to create feed:', err);
   }
 }
 
-async function deleteFeed(id: string) {
-  const response = await fetch(`/api/feeds/${id}`, { method: 'DELETE' });
-
-  if (response.ok) {
+async function handleDeleteFeed(id: string) {
+  try {
+    await apiDeleteFeed(id);
     removeFeed(id);
     deletingFeed.value = null;
+  } catch (err) {
+    console.error('Failed to delete feed:', err);
   }
 }
 
-async function saveFeedEdit(feed: Feed) {
-  const response = await fetch(`/api/feeds/${feed.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: feed.name, unit: feed.unit }),
-  });
-
-  if (response.ok) {
-    const { data } = await response.json();
-    updateFeed(feed.id, data);
+async function handleSaveFeedEdit(feed: Feed) {
+  try {
+    const updated = await apiUpdateFeed(feed.id, { name: feed.name, unit: feed.unit });
+    updateFeed(feed.id, updated);
     editingFeed.value = null;
+  } catch (err) {
+    console.error('Failed to update feed:', err);
   }
 }
 
-const UNITS: Array<{ value: 'scoop' | 'ml' | 'sachet' | 'biscuit'; label: string }> = [
-  { value: 'scoop', label: 'Scoop' },
-  { value: 'ml', label: 'ml' },
-  { value: 'sachet', label: 'Sachet' },
-  { value: 'biscuit', label: 'Biscuit' },
-];
+// Generate unit options from shared constants
+const UNIT_OPTIONS = UNITS.map(unit => ({
+  value: unit,
+  label: UNIT_LABELS[unit],
+}));
 
 export function FeedsTab() {
   return (
@@ -145,7 +135,7 @@ export function FeedsTab() {
             <div class="modal-field">
               <label class="modal-label">Unit</label>
               <div class="unit-selector" data-testid="new-feed-unit">
-                {UNITS.map(u => (
+                {UNIT_OPTIONS.map(u => (
                   <button
                     key={u.value}
                     class={`unit-btn ${newFeedUnit.value === u.value ? 'active' : ''}`}
@@ -164,7 +154,7 @@ export function FeedsTab() {
                 onClick={() => {
                   isAddingFeed.value = false;
                   newFeedName.value = '';
-                  newFeedUnit.value = 'scoop';
+                  newFeedUnit.value = DEFAULT_UNIT;
                 }}
               >
                 Cancel
@@ -173,7 +163,7 @@ export function FeedsTab() {
                 class="modal-btn modal-btn-confirm"
                 data-testid="confirm-add-feed"
                 disabled={!newFeedName.value.trim()}
-                onClick={() => createFeed(newFeedName.value.trim(), newFeedUnit.value)}
+                onClick={() => handleCreateFeed(newFeedName.value.trim(), newFeedUnit.value)}
               >
                 Add Feed
               </button>
@@ -207,7 +197,7 @@ export function FeedsTab() {
             <div class="modal-field">
               <label class="modal-label">Unit</label>
               <div class="unit-selector" data-testid="edit-feed-unit">
-                {UNITS.map(u => (
+                {UNIT_OPTIONS.map(u => (
                   <button
                     key={u.value}
                     class={`unit-btn ${editingFeed.value?.unit === u.value ? 'active' : ''}`}
@@ -235,7 +225,7 @@ export function FeedsTab() {
                 class="modal-btn modal-btn-confirm"
                 data-testid="confirm-edit-feed"
                 disabled={!editingFeed.value.name.trim()}
-                onClick={() => editingFeed.value && saveFeedEdit(editingFeed.value)}
+                onClick={() => editingFeed.value && handleSaveFeedEdit(editingFeed.value)}
               >
                 Save Changes
               </button>
@@ -264,7 +254,7 @@ export function FeedsTab() {
               <button
                 class="modal-btn modal-btn-danger"
                 data-testid="confirm-delete-feed"
-                onClick={() => deletingFeed.value && deleteFeed(deletingFeed.value.id)}
+                onClick={() => deletingFeed.value && handleDeleteFeed(deletingFeed.value.id)}
               >
                 Delete
               </button>

@@ -1,46 +1,84 @@
-import { setDisplay, display } from '../stores/display';
-import { setHorses } from '../stores/horses';
-import { setFeeds } from '../stores/feeds';
-import { setDietEntries } from '../stores/diet';
-import type { Display, Horse, Feed, DietEntry } from '@shared/types';
+import { z } from 'zod';
+import { batch } from '@preact/signals';
+import { setBoard, setHorses, setFeeds, setDietEntries } from '../stores';
+import {
+  BoardSchema,
+  HorseSchema,
+  FeedSchema,
+  DietEntrySchema,
+} from '@shared/resources';
 
 /**
- * SSE Event Types
+ * SSE Event Schemas for runtime validation
  */
-interface SSEStateEvent {
-  type: 'state';
-  display: Display;
-}
+const SSEStateEventSchema = z.object({
+  type: z.literal('state'),
+  data: z.object({
+    board: BoardSchema,
+  }),
+  timestamp: z.string().optional(),
+});
 
-interface SSEDataEvent {
-  type: 'data';
-  horses: Horse[];
-  feeds: Feed[];
-  dietEntries: DietEntry[];
-}
+const SSEDataEventSchema = z.object({
+  type: z.literal('data'),
+  data: z.object({
+    horses: z.array(HorseSchema),
+    feeds: z.array(FeedSchema),
+    diet_entries: z.array(DietEntrySchema),
+  }),
+  timestamp: z.string().optional(),
+});
 
-interface SSEFullEvent {
-  type: 'full';
-  display: Display;
-  horses: Horse[];
-  feeds: Feed[];
-  dietEntries: DietEntry[];
-}
+const SSEFullEventSchema = z.object({
+  type: z.literal('full'),
+  data: z.object({
+    board: BoardSchema,
+    horses: z.array(HorseSchema),
+    feeds: z.array(FeedSchema),
+    diet_entries: z.array(DietEntrySchema),
+  }),
+  timestamp: z.string().optional(),
+});
 
-// Legacy event format (for backwards compatibility with existing server)
-interface SSELegacyEvent {
-  tableData?: unknown;
-  updatedAt?: string;
-}
+// Granular update events for individual resources
+const SSEHorsesEventSchema = z.object({
+  type: z.literal('horses'),
+  data: z.array(HorseSchema).optional(),
+  timestamp: z.string().optional(),
+});
 
-type SSEEvent = SSEStateEvent | SSEDataEvent | SSEFullEvent | SSELegacyEvent;
+const SSEFeedsEventSchema = z.object({
+  type: z.literal('feeds'),
+  data: z.array(FeedSchema).optional(),
+  timestamp: z.string().optional(),
+});
+
+const SSEDietEventSchema = z.object({
+  type: z.literal('diet'),
+  data: z.array(DietEntrySchema).optional(),
+  timestamp: z.string().optional(),
+});
+
+const SSEEventSchema = z.discriminatedUnion('type', [
+  SSEStateEventSchema,
+  SSEDataEventSchema,
+  SSEFullEventSchema,
+  SSEHorsesEventSchema,
+  SSEFeedsEventSchema,
+  SSEDietEventSchema,
+]);
+
+type SSEEvent = z.infer<typeof SSEEventSchema>;
 
 /**
  * SSE Client for real-time updates
+ *
+ * All store updates from SSE use source='sse' to ensure they
+ * take precedence over potentially stale API responses.
  */
 class SSEClient {
   private eventSource: EventSource | null = null;
-  private displayId: string | null = null;
+  private boardId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
@@ -49,16 +87,16 @@ class SSEClient {
   private onErrorCallback?: (error: Event) => void;
 
   /**
-   * Connect to SSE endpoint for a display
+   * Connect to SSE endpoint for a board
    */
-  connect(displayId: string): Promise<void> {
-    return new Promise((resolve, reject) => {
+  connect(boardId: string): Promise<void> {
+    return new Promise((resolve, _reject) => {
       if (this.eventSource) {
         this.disconnect();
       }
 
-      this.displayId = displayId;
-      this.eventSource = new EventSource(`/api/displays/${displayId}/events`);
+      this.boardId = boardId;
+      this.eventSource = new EventSource(`/api/boards/${boardId}/events`);
 
       this.eventSource.onopen = () => {
         this.reconnectAttempts = 0;
@@ -68,8 +106,13 @@ class SSEClient {
 
       this.eventSource.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as SSEEvent;
-          this.handleEvent(data);
+          const parsed = JSON.parse(event.data);
+          const result = SSEEventSchema.safeParse(parsed);
+          if (!result.success) {
+            console.error('Invalid SSE event format:', result.error.flatten());
+            return;
+          }
+          this.handleEvent(result.data);
         } catch (err) {
           console.error('Failed to parse SSE event:', err);
         }
@@ -95,41 +138,106 @@ class SSEClient {
       this.eventSource.close();
       this.eventSource = null;
     }
-    this.displayId = null;
+    this.boardId = null;
     this.reconnectAttempts = 0;
   }
 
   /**
-   * Handle incoming SSE event
+   * Handle incoming SSE event (validated by Zod schema)
+   *
+   * Uses batch() to group multiple store updates into a single
+   * reactive update cycle, and passes 'sse' as the source to
+   * ensure server data takes precedence over local state.
    */
-  private handleEvent(data: SSEEvent): void {
-    // Handle typed events
-    if ('type' in data) {
-      switch (data.type) {
+  private handleEvent(event: SSEEvent): void {
+    // Use batch to minimize re-renders when updating multiple stores
+    batch(() => {
+      switch (event.type) {
         case 'state':
-          setDisplay(data.display);
+          // Board state update only
+          setBoard(event.data.board, 'sse');
           break;
-        case 'data':
-          setHorses(data.horses);
-          setFeeds(data.feeds);
-          setDietEntries(data.dietEntries);
-          break;
-        case 'full':
-          setDisplay(data.display);
-          setHorses(data.horses);
-          setFeeds(data.feeds);
-          setDietEntries(data.dietEntries);
-          break;
-      }
-    }
 
-    // Handle legacy events (backwards compatibility)
-    // The current server sends { tableData, updatedAt } format
-    if ('tableData' in data || 'updatedAt' in data) {
-      // Legacy format - just update the timestamp in display if we have one
-      if (display.value && data.updatedAt) {
-        setDisplay({ ...display.value, updatedAt: data.updatedAt });
+        case 'data':
+          // Full data update (horses, feeds, diet)
+          setHorses(event.data.horses, 'sse');
+          setFeeds(event.data.feeds, 'sse');
+          setDietEntries(event.data.diet_entries, 'sse');
+          break;
+
+        case 'full':
+          // Complete state + data update
+          setBoard(event.data.board, 'sse');
+          setHorses(event.data.horses, 'sse');
+          setFeeds(event.data.feeds, 'sse');
+          setDietEntries(event.data.diet_entries, 'sse');
+          break;
+
+        case 'horses':
+          // Granular horses update - refetch if no data provided
+          if (event.data) {
+            setHorses(event.data, 'sse');
+          } else {
+            this.refetchResource('horses');
+          }
+          break;
+
+        case 'feeds':
+          // Granular feeds update - refetch if no data provided
+          if (event.data) {
+            setFeeds(event.data, 'sse');
+          } else {
+            this.refetchResource('feeds');
+          }
+          break;
+
+        case 'diet':
+          // Granular diet update - refetch if no data provided
+          if (event.data) {
+            setDietEntries(event.data, 'sse');
+          } else {
+            this.refetchResource('diet');
+          }
+          break;
       }
+    });
+  }
+
+  /**
+   * Refetch a specific resource when SSE event doesn't include data
+   */
+  private async refetchResource(resource: 'horses' | 'feeds' | 'diet'): Promise<void> {
+    if (!this.boardId) return;
+
+    try {
+      let url: string;
+      if (resource === 'diet') {
+        url = `/api/diet?boardId=${this.boardId}`;
+      } else {
+        url = `/api/boards/${this.boardId}/${resource}`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) return;
+
+      const { data } = await response.json();
+
+      // Use 'sse' source since this was triggered by SSE
+      batch(() => {
+        switch (resource) {
+          case 'horses':
+            setHorses(data, 'sse');
+            break;
+          case 'feeds':
+            setFeeds(data, 'sse');
+            break;
+          case 'diet':
+            setDietEntries(data, 'sse');
+            break;
+        }
+      });
+    } catch (err) {
+      console.error(`Failed to refetch ${resource}:`, err);
     }
   }
 
@@ -148,8 +256,8 @@ class SSEClient {
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      if (this.displayId) {
-        this.connect(this.displayId).catch(console.error);
+      if (this.boardId) {
+        this.connect(this.boardId).catch(console.error);
       }
     }, delay);
   }
@@ -162,10 +270,10 @@ class SSEClient {
   }
 
   /**
-   * Get current display ID
+   * Get current board ID
    */
-  getDisplayId(): string | null {
-    return this.displayId;
+  getBoardId(): string | null {
+    return this.boardId;
   }
 
   /**

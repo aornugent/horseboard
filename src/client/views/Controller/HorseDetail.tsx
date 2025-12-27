@@ -2,9 +2,7 @@ import { useState } from 'preact/hooks';
 import { computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad';
 import { formatQuantity } from '@shared/fractions';
-import { getHorse } from '../../stores/horses';
-import { feeds, getFeed } from '../../stores/feeds';
-import { dietByHorse, updateDietAmount, getDietEntry } from '../../stores/diet';
+import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry } from '../../stores';
 import './HorseDetail.css';
 
 interface HorseDetailProps {
@@ -13,8 +11,8 @@ interface HorseDetailProps {
 }
 
 interface SelectedFeed {
-  feedId: string;
-  field: 'amAmount' | 'pmAmount';
+  feed_id: string;
+  field: 'am_amount' | 'pm_amount';
 }
 
 export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
@@ -27,8 +25,8 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     const entries = dietByHorse.value.get(horseId) ?? [];
     const activeFeedIds = new Set(
       entries
-        .filter((e) => e.amAmount !== null || e.pmAmount !== null)
-        .map((e) => e.feedId)
+        .filter((e) => e.am_amount !== null || e.pm_amount !== null)
+        .map((e) => e.feed_id)
     );
 
     // Return all feeds, with active ones first
@@ -51,18 +49,18 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getCurrentValue = (): number | null => {
     if (!selectedFeed) return null;
-    const entry = getDietEntry(horseId, selectedFeed.feedId);
+    const entry = getDietEntry(horseId, selectedFeed.feed_id);
     return entry?.[selectedFeed.field] ?? null;
   };
 
   const handleValueChange = (value: number | null) => {
     if (!selectedFeed) return;
-    updateDietAmount(horseId, selectedFeed.feedId, selectedFeed.field, value);
+    updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
   };
 
   const getSelectedFeedInfo = () => {
     if (!selectedFeed) return { name: '', unit: '' };
-    const feed = getFeed(selectedFeed.feedId);
+    const feed = getFeed(selectedFeed.feed_id);
     return {
       name: feed?.name ?? '',
       unit: feed?.unit ?? '',
@@ -106,8 +104,8 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       <div class="feed-tiles" data-testid="feed-tiles">
         {activeFeeds.value.map((feed) => {
           const entry = getDietEntry(horseId, feed.id);
-          const amValue = entry?.amAmount;
-          const pmValue = entry?.pmAmount;
+          const amValue = entry?.am_amount;
+          const pmValue = entry?.pm_amount;
 
           return (
             <div
@@ -124,11 +122,11 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 <button
                   class="value-button"
                   data-testid={`feed-tile-am-${feed.id}`}
-                  onClick={() => setSelectedFeed({ feedId: feed.id, field: 'amAmount' })}
+                  onClick={() => setSelectedFeed({ feed_id: feed.id, field: 'am_amount' })}
                 >
                   <span class="value-label">AM</span>
                   <span class="value-amount">
-                    {formatQuantity(amValue, feed.unit) || '—'}
+                    {formatQuantity(amValue ?? null, feed.unit) || '—'}
                   </span>
                 </button>
 
@@ -136,11 +134,11 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 <button
                   class="value-button"
                   data-testid={`feed-tile-pm-${feed.id}`}
-                  onClick={() => setSelectedFeed({ feedId: feed.id, field: 'pmAmount' })}
+                  onClick={() => setSelectedFeed({ feed_id: feed.id, field: 'pm_amount' })}
                 >
                   <span class="value-label">PM</span>
                   <span class="value-amount">
-                    {formatQuantity(pmValue, feed.unit) || '—'}
+                    {formatQuantity(pmValue ?? null, feed.unit) || '—'}
                   </span>
                 </button>
               </div>

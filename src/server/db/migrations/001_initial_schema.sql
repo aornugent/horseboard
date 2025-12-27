@@ -1,7 +1,7 @@
--- V3 Schema Migration: Normalized relational tables
--- Replaces JSON blob storage with proper foreign keys
+-- Schema Definition: Normalized relational tables
+-- Foreign key relationships between displays, horses, feeds, and diet entries
 
--- Displays (settings only, no JSON blob)
+-- Displays: stable instances with settings
 CREATE TABLE IF NOT EXISTS displays (
   id TEXT PRIMARY KEY,
   pair_code TEXT UNIQUE NOT NULL,
