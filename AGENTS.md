@@ -115,3 +115,4 @@ Tests must pass before commit. Keep tests lean but cover critical paths. Prefer 
 11. Dynamic route generation via `mountResource`
 12. Inline fetch calls in view components
 13. Multiple store factory functions with duplicated logic
+14. Break comments (`// ===`, `// ---`, section banners) — let code structure speak for itself
