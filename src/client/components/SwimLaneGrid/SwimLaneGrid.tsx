@@ -48,7 +48,7 @@ export function SwimLaneGrid({
           </div>
           {horseList.map((horse, idx) => {
             const entry = dietMap.get(`${horse.id}:${feed.id}`);
-            const value = mode === TIME_MODE.AM ? entry?.amAmount : entry?.pmAmount;
+            const value = mode === TIME_MODE.AM ? entry?.am_amount : entry?.pm_amount;
             const hasValue = value !== null && value !== undefined && value !== 0;
 
             return (

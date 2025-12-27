@@ -6,8 +6,8 @@ import type { Repository } from '@server/lib/engine';
  */
 interface ExpiryRecord {
   id: string;
-  boardId: string;
-  expiresAt: Date;
+  board_id: string;
+  expires_at: Date;
   type: 'override' | 'note';
 }
 
@@ -64,8 +64,8 @@ export class ExpiryScheduler {
     for (const row of overrides) {
       this.schedule({
         id: row.id,
-        boardId: row.board_id,
-        expiresAt: new Date(row.override_until),
+        board_id: row.board_id,
+        expires_at: new Date(row.override_until),
         type: 'override',
       });
     }
@@ -82,8 +82,8 @@ export class ExpiryScheduler {
     for (const row of notes) {
       this.schedule({
         id: row.id,
-        boardId: row.board_id,
-        expiresAt: new Date(row.note_expiry),
+        board_id: row.board_id,
+        expires_at: new Date(row.note_expiry),
         type: 'note',
       });
     }
@@ -101,9 +101,9 @@ export class ExpiryScheduler {
     // Remove any existing entry for this id+type
     this.cancel(record.id, record.type);
 
-    // Add to queue (maintain sorted order by expiresAt)
+    // Add to queue (maintain sorted order by expires_at)
     this.expiryQueue.push(record);
-    this.expiryQueue.sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime());
+    this.expiryQueue.sort((a, b) => a.expires_at.getTime() - b.expires_at.getTime());
 
     // Reschedule the next check
     this.scheduleNextCheck();
@@ -134,7 +134,7 @@ export class ExpiryScheduler {
     }
 
     const next = this.expiryQueue[0];
-    const delay = Math.max(0, next.expiresAt.getTime() - Date.now());
+    const delay = Math.max(0, next.expires_at.getTime() - Date.now());
 
     this.timeoutId = setTimeout(() => this.processExpiries(), delay);
   }
@@ -147,7 +147,7 @@ export class ExpiryScheduler {
     const expired: ExpiryRecord[] = [];
 
     // Collect all expired records
-    while (this.expiryQueue.length > 0 && this.expiryQueue[0].expiresAt.getTime() <= now) {
+    while (this.expiryQueue.length > 0 && this.expiryQueue[0].expires_at.getTime() <= now) {
       expired.push(this.expiryQueue.shift()!);
     }
 
@@ -171,15 +171,15 @@ export class ExpiryScheduler {
 
     try {
       if (record.type === 'override') {
-        this.boardRepo.update({ timeMode: 'AUTO', overrideUntil: null }, record.id);
+        this.boardRepo.update({ time_mode: 'AUTO', override_until: null }, record.id);
         console.log(`[Scheduler] Reset override for board ${record.id}`);
       } else if (record.type === 'note') {
-        this.horseRepo.update({ note: null, noteExpiry: null }, record.id);
+        this.horseRepo.update({ note: null, note_expiry: null }, record.id);
         console.log(`[Scheduler] Cleared note for horse ${record.id}`);
       }
 
       // Notify via SSE
-      this.onExpiry(record.boardId);
+      this.onExpiry(record.board_id);
     } catch (err) {
       console.error(`[Scheduler] Error processing expiry:`, err);
     }

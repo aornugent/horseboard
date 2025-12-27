@@ -22,8 +22,8 @@ export type UpdateSource = 'api' | 'sse' | 'local';
  * Item with timestamp for reconciliation
  */
 interface Timestamped {
-  updatedAt: string;
-  createdAt: string;
+  updated_at: string;
+  created_at: string;
 }
 
 /**
@@ -111,8 +111,8 @@ export function createResourceStore<T extends { id: string } & Timestamped>(
     if (!existing) return true;
 
     // Compare timestamps - newer wins
-    const existingTime = new Date(existing.updatedAt).getTime();
-    const incomingTime = new Date(incoming.updatedAt).getTime();
+    const existingTime = new Date(existing.updated_at).getTime();
+    const incomingTime = new Date(incoming.updated_at).getTime();
     return incomingTime >= existingTime;
   };
 
@@ -155,7 +155,7 @@ export function createResourceStore<T extends { id: string } & Timestamped>(
       const updated = {
         ...existing,
         ...updates,
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       } as T;
 
       if (shouldReplace(existing, updated, source)) {
@@ -238,25 +238,25 @@ export interface DietStore {
   set: (entries: DietEntry[], source?: UpdateSource) => void;
   upsert: (entry: DietEntry, source?: UpdateSource) => void;
   updateAmount: (
-    horseId: string,
-    feedId: string,
-    field: 'amAmount' | 'pmAmount',
+    horse_id: string,
+    feed_id: string,
+    field: 'am_amount' | 'pm_amount',
     value: number | null,
     source?: UpdateSource
   ) => void;
-  remove: (horseId: string, feedId: string, source?: UpdateSource) => void;
-  get: (horseId: string, feedId: string) => DietEntry | undefined;
-  countActiveFeeds: (horseId: string) => number;
+  remove: (horse_id: string, feed_id: string, source?: UpdateSource) => void;
+  get: (horse_id: string, feed_id: string) => DietEntry | undefined;
+  countActiveFeeds: (horse_id: string) => number;
   reconcile: (entries: DietEntry[], source: UpdateSource) => void;
 }
 
 interface DietEntry {
-  horseId: string;
-  feedId: string;
-  amAmount: number | null;
-  pmAmount: number | null;
-  createdAt: string;
-  updatedAt: string;
+  horse_id: string;
+  feed_id: string;
+  am_amount: number | null;
+  pm_amount: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -267,8 +267,8 @@ export function createDietStore(): DietStore {
   const internalMap = new Map<string, DietEntry>();
   const version = signal(0);
 
-  const getKey = (horseId: string, feedId: string) => `${horseId}:${feedId}`;
-  const getEntryKey = (entry: DietEntry) => getKey(entry.horseId, entry.feedId);
+  const getKey = (horse_id: string, feed_id: string) => `${horse_id}:${feed_id}`;
+  const getEntryKey = (entry: DietEntry) => getKey(entry.horse_id, entry.feed_id);
 
   const shouldReplace = (
     existing: DietEntry | undefined,
@@ -277,8 +277,8 @@ export function createDietStore(): DietStore {
   ): boolean => {
     if (source === 'sse') return true;
     if (!existing) return true;
-    const existingTime = new Date(existing.updatedAt).getTime();
-    const incomingTime = new Date(incoming.updatedAt).getTime();
+    const existingTime = new Date(existing.updated_at).getTime();
+    const incomingTime = new Date(incoming.updated_at).getTime();
     return incomingTime >= existingTime;
   };
 
@@ -297,9 +297,9 @@ export function createDietStore(): DietStore {
     version.value;
     const map = new Map<string, DietEntry[]>();
     for (const entry of internalMap.values()) {
-      const existing = map.get(entry.horseId) ?? [];
+      const existing = map.get(entry.horse_id) ?? [];
       existing.push(entry);
-      map.set(entry.horseId, existing);
+      map.set(entry.horse_id, existing);
     }
     return map;
   });
@@ -308,9 +308,9 @@ export function createDietStore(): DietStore {
     version.value;
     const map = new Map<string, DietEntry[]>();
     for (const entry of internalMap.values()) {
-      const existing = map.get(entry.feedId) ?? [];
+      const existing = map.get(entry.feed_id) ?? [];
       existing.push(entry);
-      map.set(entry.feedId, existing);
+      map.set(entry.feed_id, existing);
     }
     return map;
   });
@@ -348,13 +348,13 @@ export function createDietStore(): DietStore {
     },
 
     updateAmount(
-      horseId: string,
-      feedId: string,
-      field: 'amAmount' | 'pmAmount',
+      horse_id: string,
+      feed_id: string,
+      field: 'am_amount' | 'pm_amount',
       value: number | null,
       source: UpdateSource = 'local'
     ) {
-      const key = getKey(horseId, feedId);
+      const key = getKey(horse_id, feed_id);
       const existing = internalMap.get(key);
       const now = new Date().toISOString();
 
@@ -363,7 +363,7 @@ export function createDietStore(): DietStore {
         const updated: DietEntry = {
           ...existing,
           [field]: value,
-          updatedAt: now,
+          updated_at: now,
         };
         if (shouldReplace(existing, updated, source)) {
           internalMap.set(key, updated);
@@ -372,35 +372,35 @@ export function createDietStore(): DietStore {
       } else {
         // Create new entry
         const newEntry: DietEntry = {
-          horseId,
-          feedId,
-          amAmount: field === 'amAmount' ? value : null,
-          pmAmount: field === 'pmAmount' ? value : null,
-          createdAt: now,
-          updatedAt: now,
+          horse_id,
+          feed_id,
+          am_amount: field === 'am_amount' ? value : null,
+          pm_amount: field === 'pm_amount' ? value : null,
+          created_at: now,
+          updated_at: now,
         };
         internalMap.set(key, newEntry);
         version.value++;
       }
     },
 
-    remove(horseId: string, feedId: string, _source: UpdateSource = 'api') {
-      const key = getKey(horseId, feedId);
+    remove(horse_id: string, feed_id: string, _source: UpdateSource = 'api') {
+      const key = getKey(horse_id, feed_id);
       if (internalMap.delete(key)) {
         version.value++;
       }
     },
 
-    get(horseId: string, feedId: string): DietEntry | undefined {
-      return internalMap.get(getKey(horseId, feedId));
+    get(horse_id: string, feed_id: string): DietEntry | undefined {
+      return internalMap.get(getKey(horse_id, feed_id));
     },
 
-    countActiveFeeds(horseId: string): number {
-      const entries = byHorse.value.get(horseId) ?? [];
+    countActiveFeeds(horse_id: string): number {
+      const entries = byHorse.value.get(horse_id) ?? [];
       return entries.filter(
         (e) =>
-          (e.amAmount !== null && e.amAmount !== 0) ||
-          (e.pmAmount !== null && e.pmAmount !== 0)
+          (e.am_amount !== null && e.am_amount !== 0) ||
+          (e.pm_amount !== null && e.pm_amount !== 0)
       ).length;
     },
 
@@ -443,16 +443,16 @@ export function createDietStore(): DietStore {
 
 export interface BoardStore {
   board: Signal<Board | null>;
-  configuredMode: ReadonlySignal<TimeMode>;
+  configured_mode: ReadonlySignal<TimeMode>;
   timezone: ReadonlySignal<string>;
-  overrideUntil: ReadonlySignal<string | null>;
-  zoomLevel: ReadonlySignal<number>;
-  currentPage: ReadonlySignal<number>;
-  effectiveTimeMode: ReadonlySignal<EffectiveTimeMode>;
+  override_until: ReadonlySignal<string | null>;
+  zoom_level: ReadonlySignal<number>;
+  current_page: ReadonlySignal<number>;
+  effective_time_mode: ReadonlySignal<EffectiveTimeMode>;
 
   set: (board: Board, source?: UpdateSource) => void;
   update: (updates: Partial<Board>, source?: UpdateSource) => void;
-  updateTimeMode: (mode: TimeMode, overrideUntilDate?: string | null) => void;
+  updateTimeMode: (mode: TimeMode, override_until_date?: string | null) => void;
   setZoomLevel: (level: number) => void;
   setCurrentPage: (page: number) => void;
 }
@@ -474,33 +474,33 @@ export function createBoardStore(): BoardStore {
   ): boolean => {
     if (source === 'sse') return true;
     if (!existing) return true;
-    const existingTime = new Date(existing.updatedAt).getTime();
-    const incomingTime = new Date(incoming.updatedAt).getTime();
+    const existingTime = new Date(existing.updated_at).getTime();
+    const incomingTime = new Date(incoming.updated_at).getTime();
     return incomingTime >= existingTime;
   };
 
-  const configuredMode = computed<TimeMode>(() => board.value?.timeMode ?? DEFAULT_TIME_MODE);
+  const configured_mode = computed<TimeMode>(() => board.value?.time_mode ?? DEFAULT_TIME_MODE);
   const timezone = computed(() => board.value?.timezone ?? 'UTC');
-  const overrideUntil = computed(() => board.value?.overrideUntil ?? null);
-  const zoomLevel = computed(() => board.value?.zoomLevel ?? 2);
-  const currentPage = computed(() => board.value?.currentPage ?? 0);
+  const override_until = computed(() => board.value?.override_until ?? null);
+  const zoom_level = computed(() => board.value?.zoom_level ?? 2);
+  const current_page = computed(() => board.value?.current_page ?? 0);
 
-  const effectiveTimeMode = computed<EffectiveTimeMode>(() => {
+  const effective_time_mode = computed<EffectiveTimeMode>(() => {
     return getEffectiveTimeMode(
-      configuredMode.value,
-      overrideUntil.value,
+      configured_mode.value,
+      override_until.value,
       timezone.value
     );
   });
 
   return {
     board,
-    configuredMode,
+    configured_mode,
     timezone,
-    overrideUntil,
-    zoomLevel,
-    currentPage,
-    effectiveTimeMode,
+    override_until,
+    zoom_level,
+    current_page,
+    effective_time_mode,
 
     set(newBoard: Board, source: UpdateSource = 'api') {
       if (shouldReplace(board.value, newBoard, source)) {
@@ -514,7 +514,7 @@ export function createBoardStore(): BoardStore {
       const updated: Board = {
         ...board.value,
         ...updates,
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       if (shouldReplace(board.value, updated, source)) {
@@ -522,13 +522,13 @@ export function createBoardStore(): BoardStore {
       }
     },
 
-    updateTimeMode(mode: TimeMode, overrideUntilDate?: string | null) {
+    updateTimeMode(mode: TimeMode, override_until_date?: string | null) {
       if (board.value) {
         board.value = {
           ...board.value,
-          timeMode: mode,
-          overrideUntil: overrideUntilDate ?? null,
-          updatedAt: new Date().toISOString(),
+          time_mode: mode,
+          override_until: override_until_date ?? null,
+          updated_at: new Date().toISOString(),
         };
       }
     },
@@ -537,8 +537,8 @@ export function createBoardStore(): BoardStore {
       if (board.value) {
         board.value = {
           ...board.value,
-          zoomLevel: level,
-          updatedAt: new Date().toISOString(),
+          zoom_level: level,
+          updated_at: new Date().toISOString(),
         };
       }
     },
@@ -547,8 +547,8 @@ export function createBoardStore(): BoardStore {
       if (board.value) {
         board.value = {
           ...board.value,
-          currentPage: page,
-          updatedAt: new Date().toISOString(),
+          current_page: page,
+          updated_at: new Date().toISOString(),
         };
       }
     },
@@ -567,13 +567,13 @@ export interface HorseStore extends ResourceStore<Horse> {
 
 interface Horse {
   id: string;
-  boardId: string;
+  board_id: string;
   name: string;
   note: string | null;
-  noteExpiry: string | null;
+  note_expiry: string | null;
   archived: boolean;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -611,14 +611,14 @@ export interface FeedStore extends ResourceStore<Feed> {
 
 interface Feed {
   id: string;
-  boardId: string;
+  board_id: string;
   name: string;
   unit: Unit;
   rank: number;
-  stockLevel: number;
-  lowStockThreshold: number;
-  createdAt: string;
-  updatedAt: string;
+  stock_level: number;
+  low_stock_threshold: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**

@@ -79,9 +79,9 @@ function createBroadcastHelper(ctx: ServerContext) {
 
     const horses = ctx.repos.horses.getByParent?.(boardId) ?? [];
     const feeds = ctx.repos.feeds.getByParent?.(boardId) ?? [];
-    const dietEntries = ctx.repos.diet.getByBoardId?.(boardId) ?? [];
+    const diet_entries = ctx.repos.diet.getByBoardId?.(boardId) ?? [];
 
-    ctx.sse.broadcast(boardId, 'full', { board, horses, feeds, dietEntries });
+    ctx.sse.broadcast(boardId, 'full', { board, horses, feeds, diet_entries });
   };
 }
 
@@ -120,11 +120,11 @@ function mountSpecialEndpoints(ctx: ServerContext, broadcast: (boardId: string) 
 
     const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
     const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
-    const dietEntries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
+    const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
 
     res.json({
       success: true,
-      data: { board, horses, feeds, dietEntries },
+      data: { board, horses, feeds, diet_entries },
     });
   });
 
@@ -138,17 +138,17 @@ function mountSpecialEndpoints(ctx: ServerContext, broadcast: (boardId: string) 
 
     const horses = repos.horses.getByParent?.(board.id) ?? [];
     const feeds = repos.feeds.getByParent?.(board.id) ?? [];
-    const dietEntries = repos.diet.getByBoardId?.(board.id) ?? [];
+    const diet_entries = repos.diet.getByBoardId?.(board.id) ?? [];
 
     res.json({
       success: true,
-      data: { board, horses, feeds, dietEntries },
+      data: { board, horses, feeds, diet_entries },
     });
   });
 
   // Time mode update with override
   app.put('/api/boards/:id/time-mode', (req, res) => {
-    const { timeMode, overrideUntil } = req.body;
+    const { time_mode, override_until } = req.body;
 
     const existing = repos.boards.getById(req.params.id);
     if (!existing) {
@@ -156,19 +156,19 @@ function mountSpecialEndpoints(ctx: ServerContext, broadcast: (boardId: string) 
     }
 
     const updated = repos.boards.update(
-      { timeMode, overrideUntil: overrideUntil ?? null },
+      { time_mode, override_until: override_until ?? null },
       req.params.id
     );
 
     // Schedule expiry if override is set
-    if (overrideUntil) {
+    if (override_until) {
       ctx.expiryScheduler.schedule({
         id: req.params.id,
-        boardId: req.params.id,
-        expiresAt: new Date(overrideUntil),
+        board_id: req.params.id,
+        expires_at: new Date(override_until),
         type: 'override',
       });
-    } else if (timeMode === 'AUTO') {
+    } else if (time_mode === 'AUTO') {
       // Cancel any pending override expiry
       ctx.expiryScheduler.cancel(req.params.id, 'override');
     }
@@ -224,11 +224,11 @@ function mountSSEEndpoint(ctx: ServerContext): void {
     // Send initial full state
     const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
     const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
-    const dietEntries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
+    const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
 
     const initialData = JSON.stringify({
       type: 'full',
-      data: { board, horses, feeds, dietEntries },
+      data: { board, horses, feeds, diet_entries },
       timestamp: new Date().toISOString(),
     });
 

@@ -2,23 +2,14 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import {
   ResourceName,
-  ApiType,
+  ResourceType,
   isResourceName,
   getResourceConfig,
 } from '@shared/resources';
 import type Database from 'better-sqlite3';
 
-// =============================================================================
-// TYPE DEFINITIONS
-// =============================================================================
-
 /**
- * Column mapping from camelCase to snake_case
- */
-type ColumnMap = Record<string, string>;
-
-/**
- * Database row - unknown structure from SQLite
+ * Database row - maps directly to TypeScript types (snake_case)
  */
 type DbRow = Record<string, unknown>;
 
@@ -26,14 +17,14 @@ type DbRow = Record<string, unknown>;
  * Repository interface with strict typing based on resource schema
  */
 export interface Repository<R extends ResourceName> {
-  getById(...pkValues: string[]): ApiType<R> | null;
-  getAll(): ApiType<R>[];
-  getByParent?(parentId: string): ApiType<R>[];
-  getByBoardId?(boardId: string): ApiType<R>[];
-  getByPairCode?(pairCode: string): ApiType<R> | null;
-  create(data: unknown, parentId?: string | null): ApiType<R>;
-  upsert?(data: unknown): ApiType<R>;
-  update(data: unknown, ...pkValues: string[]): ApiType<R> | null;
+  getById(...pkValues: string[]): ResourceType<R> | null;
+  getAll(): ResourceType<R>[];
+  getByParent?(parentId: string): ResourceType<R>[];
+  getByBoardId?(boardId: string): ResourceType<R>[];
+  getByPairCode?(pairCode: string): ResourceType<R> | null;
+  create(data: unknown, parentId?: string | null): ResourceType<R>;
+  upsert?(data: unknown): ResourceType<R>;
+  update(data: unknown, ...pkValues: string[]): ResourceType<R> | null;
   delete(...pkValues: string[]): boolean;
 }
 
@@ -102,58 +93,21 @@ export function generatePairCode(
   return code;
 }
 
-// =============================================================================
-// FORMAT CONVERSION WITH TYPE SAFETY
-// =============================================================================
-
 /**
- * Transform database row to API format using column mapping
- *
- * Uses the resource's column mapping to convert snake_case DB columns
- * to camelCase API properties with proper type inference.
- *
- * @template R - Resource name for type inference
+ * Convert database row to resource type
+ * No mapping needed - snake_case matches both TypeScript and DB
  */
-function toApiFormat<R extends ResourceName>(
-  row: DbRow | undefined,
-  columns: ColumnMap
-): ApiType<R> | null {
+function toResourceType<R extends ResourceName>(
+  row: DbRow | undefined
+): ResourceType<R> | null {
   if (!row) return null;
 
-  const result: Record<string, unknown> = {};
-
-  for (const [camel, snake] of Object.entries(columns)) {
-    if (snake in row) {
-      let value = row[snake];
-      // Convert SQLite integer booleans
-      if (camel === 'archived') value = Boolean(value);
-      result[camel] = value;
-    }
+  // Convert SQLite integer booleans for 'archived' field
+  if ('archived' in row) {
+    row.archived = Boolean(row.archived);
   }
 
-  // The result matches the schema shape due to column mapping
-  // Type assertion is safe because we're building from the known column map
-  return result as ApiType<R>;
-}
-
-/**
- * Transform API format to database format
- *
- * @template R - Resource name for type inference
- */
-function toDbFormat<R extends ResourceName>(
-  data: Partial<ApiType<R>>,
-  columns: ColumnMap
-): DbRow {
-  const result: DbRow = {};
-
-  for (const [camel, snake] of Object.entries(columns)) {
-    if (camel in data && (data as Record<string, unknown>)[camel] !== undefined) {
-      result[snake] = (data as Record<string, unknown>)[camel];
-    }
-  }
-
-  return result;
+  return row as ResourceType<R>;
 }
 
 // =============================================================================
@@ -161,10 +115,17 @@ function toDbFormat<R extends ResourceName>(
 // =============================================================================
 
 /**
+ * Get column names from a Zod schema
+ */
+function getSchemaColumns(schema: z.ZodObject<z.ZodRawShape>): string[] {
+  return Object.keys(schema.shape);
+}
+
+/**
  * Create a resource repository with prepared statements and strict typing
  *
- * Returns a repository object with methods typed according to the resource's
- * Zod schema, ensuring compile-time type safety for all database operations.
+ * Property names in TypeScript match column names in SQL exactly (snake_case).
+ * No conversion layer needed.
  *
  * @template R - Resource name (must be a key of RESOURCES)
  */
@@ -177,23 +138,22 @@ export function createRepository<R extends ResourceName>(
   }
 
   const config = getResourceConfig(resourceName);
-  const { table, primaryKey, columns } = config;
-  // These properties are optional on some resources
+  const { table, primaryKey, schema } = config;
   const orderBy = 'orderBy' in config ? config.orderBy : undefined;
   const filter = 'filter' in config ? config.filter : undefined;
   const isComposite = Array.isArray(primaryKey);
-  const pkColumns = isComposite ? primaryKey : [primaryKey];
-  const pkSnake = pkColumns.map((k) => columns[k as keyof typeof columns] as string);
+  const pkColumns = isComposite ? (primaryKey as string[]) : [primaryKey as string];
 
-  // Build SELECT columns
-  const selectCols = Object.values(columns).join(', ');
+  // Get all column names from schema - they match DB columns directly
+  const allColumns = getSchemaColumns(schema);
+  const selectCols = allColumns.join(', ');
 
   // Build WHERE clause for primary key
-  const pkWhere = pkSnake.map((col) => `${col} = ?`).join(' AND ');
+  const pkWhere = pkColumns.map((col) => `${col} = ?`).join(' AND ');
 
-  // Build update clause for all non-PK columns (for cached update statement)
-  const updateCols = (Object.values(columns) as string[]).filter(
-    (col) => !pkSnake.includes(col) && col !== 'created_at' && col !== 'updated_at'
+  // Build update clause for all non-PK columns (excluding timestamps)
+  const updateCols = allColumns.filter(
+    (col) => !pkColumns.includes(col) && col !== 'created_at' && col !== 'updated_at'
   );
   const updateSetClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
 
@@ -215,9 +175,8 @@ export function createRepository<R extends ResourceName>(
   // Build filtered getAll for parent resources
   const parent = 'parent' in config ? config.parent : undefined;
   if (parent) {
-    const parentCol = columns[parent.foreignKey as keyof typeof columns] as string;
     stmts.getByParent = db.prepare(
-      `SELECT ${selectCols} FROM ${table} WHERE ${parentCol} = ?` +
+      `SELECT ${selectCols} FROM ${table} WHERE ${parent.foreignKey} = ?` +
         (filter ? ` AND ${filter}` : '') +
         (orderBy ? ` ORDER BY ${orderBy}` : '')
     );
@@ -232,17 +191,16 @@ export function createRepository<R extends ResourceName>(
       WHERE h.board_id = ?
     `);
     // Upsert for diet entries (composite PK) - exclude auto-generated timestamps
-    const dietInsertCols = (Object.values(columns) as string[]).filter(
+    const dietInsertCols = allColumns.filter(
       (c) => c !== 'created_at' && c !== 'updated_at'
     );
     const dietPlaceholders = dietInsertCols.map(() => '?').join(', ');
-    const dietUpdateCols = dietInsertCols.filter((c) => !pkSnake.includes(c));
+    const dietUpdateCols = dietInsertCols.filter((c) => !pkColumns.includes(c));
     const dietUpdateSet = dietUpdateCols.map((c) => `${c} = excluded.${c}`).join(', ');
     stmts.upsert = db.prepare(
       `INSERT INTO ${table} (${dietInsertCols.join(', ')}) VALUES (${dietPlaceholders})
-       ON CONFLICT(${pkSnake.join(', ')}) DO UPDATE SET ${dietUpdateSet}`
+       ON CONFLICT(${pkColumns.join(', ')}) DO UPDATE SET ${dietUpdateSet}`
     );
-    // Store the insert cols for use in upsert method
     stmts.upsertCols = dietInsertCols;
   }
 
@@ -253,50 +211,49 @@ export function createRepository<R extends ResourceName>(
     );
   }
 
-  // Helper to convert row with proper typing
-  const convertRow = (row: DbRow | undefined): ApiType<R> | null =>
-    toApiFormat<R>(row, columns);
+  // Helper to convert rows - no transformation, just type assertion
+  const convertRow = (row: DbRow | undefined): ResourceType<R> | null =>
+    toResourceType<R>(row);
 
-  const convertRows = (rows: DbRow[]): ApiType<R>[] =>
-    rows.map((row) => convertRow(row)).filter((r): r is ApiType<R> => r !== null);
+  const convertRows = (rows: DbRow[]): ResourceType<R>[] =>
+    rows.map((row) => convertRow(row)).filter((r): r is ResourceType<R> => r !== null);
 
   const repo: Repository<R> = {
-    getById(...pkValues: string[]): ApiType<R> | null {
+    getById(...pkValues: string[]): ResourceType<R> | null {
       const row = (stmts.getById as Database.Statement).get(...pkValues) as DbRow | undefined;
       return convertRow(row);
     },
 
-    getAll(): ApiType<R>[] {
+    getAll(): ResourceType<R>[] {
       const rows = (stmts.getAll as Database.Statement).all() as DbRow[];
       return convertRows(rows);
     },
 
-    create(data: unknown, parentId: string | null = null): ApiType<R> {
-      // Parse through createSchema to apply defaults
-      const parsed = config.createSchema.parse(data) as Partial<ApiType<R>>;
-      const dbData = toDbFormat(parsed, columns);
+    create(data: unknown, parentId: string | null = null): ResourceType<R> {
+      // Parse through createSchema to apply defaults - result is already snake_case
+      const parsed = config.createSchema.parse(data) as DbRow;
 
       // Generate ID for non-composite primary keys
       if (!isComposite) {
         const prefix = resourceName.charAt(0);
-        dbData[columns[primaryKey as keyof typeof columns] as string] = generateId(prefix);
+        parsed[primaryKey as string] = generateId(prefix);
       }
 
       // Set parent ID if applicable
       if (parentId && parent) {
-        dbData[columns[parent.foreignKey as keyof typeof columns] as string] = parentId;
+        parsed[parent.foreignKey] = parentId;
       }
 
       // Special handling for boards (generate pair code)
       if (resourceName === 'boards') {
-        dbData.pair_code = generatePairCode(db);
-        if (!dbData.timezone) dbData.timezone = 'Australia/Sydney';
+        parsed.pair_code = generatePairCode(db);
+        if (!parsed.timezone) parsed.timezone = 'Australia/Sydney';
       }
 
       // Dynamic INSERT to allow database defaults for unprovided columns
-      const cols = Object.keys(dbData);
+      const cols = Object.keys(parsed);
       const placeholders = cols.map(() => '?').join(', ');
-      const values = cols.map((c) => dbData[c]);
+      const values = cols.map((c) => parsed[c]);
 
       db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`).run(
         ...values
@@ -304,18 +261,16 @@ export function createRepository<R extends ResourceName>(
 
       // Return created record
       if (isComposite) {
-        const pkValues = pkColumns.map((k) => (parsed as Record<string, string>)[k]);
-        return this.getById(...pkValues) as ApiType<R>;
+        const pkValues = pkColumns.map((k) => parsed[k] as string);
+        return this.getById(...pkValues) as ResourceType<R>;
       }
-      return this.getById(
-        dbData[columns[primaryKey as keyof typeof columns] as string] as string
-      ) as ApiType<R>;
+      return this.getById(parsed[primaryKey as string] as string) as ResourceType<R>;
     },
 
-    update(data: unknown, ...pkValues: string[]): ApiType<R> | null {
+    update(data: unknown, ...pkValues: string[]): ResourceType<R> | null {
       if (!stmts.update) return this.getById(...pkValues);
 
-      const dbData = toDbFormat(data as Partial<ApiType<R>>, columns);
+      const dbData = data as DbRow;
 
       // Use cached update statement - pass values in updateCols order, then PK values
       const values = updateCols.map((col) => dbData[col] ?? null);
@@ -332,21 +287,21 @@ export function createRepository<R extends ResourceName>(
 
   // Add optional methods based on resource type
   if (stmts.getByParent) {
-    repo.getByParent = function (parentId: string): ApiType<R>[] {
+    repo.getByParent = function (parentId: string): ResourceType<R>[] {
       const rows = (stmts.getByParent as Database.Statement).all(parentId) as DbRow[];
       return convertRows(rows);
     };
   }
 
   if (stmts.getByBoardId) {
-    repo.getByBoardId = function (boardId: string): ApiType<R>[] {
+    repo.getByBoardId = function (boardId: string): ResourceType<R>[] {
       const rows = (stmts.getByBoardId as Database.Statement).all(boardId) as DbRow[];
       return convertRows(rows);
     };
   }
 
   if (stmts.getByPairCode) {
-    repo.getByPairCode = function (pairCode: string): ApiType<R> | null {
+    repo.getByPairCode = function (pairCode: string): ResourceType<R> | null {
       const row = (stmts.getByPairCode as Database.Statement).get(pairCode) as
         | DbRow
         | undefined;
@@ -355,15 +310,15 @@ export function createRepository<R extends ResourceName>(
   }
 
   if (stmts.upsert && stmts.upsertCols) {
-    repo.upsert = function (data: unknown): ApiType<R> {
-      const dbData = toDbFormat(data as Partial<ApiType<R>>, columns);
-      const pkValues = pkSnake.map((col) => dbData[col] as string);
+    repo.upsert = function (data: unknown): ResourceType<R> {
+      const dbData = data as DbRow;
+      const pkValues = pkColumns.map((col) => dbData[col] as string);
 
       // Use cached upsert statement - map values in column order (excludes timestamps)
       const values = (stmts.upsertCols as string[]).map((col) => dbData[col] ?? null);
       (stmts.upsert as Database.Statement).run(...values);
 
-      return repo.getById(...pkValues) as ApiType<R>;
+      return repo.getById(...pkValues) as ResourceType<R>;
     };
   }
 
@@ -490,15 +445,15 @@ export function mountResource<R extends ResourceName>(
 
       // Trigger ranking recalculation (prefer async, fallback to sync for backwards compat)
       if (repos.horses) {
-        const horse = repos.horses.getById(req.body.horseId);
+        const horse = repos.horses.getById(req.body.horse_id);
         if (horse) {
           if (hooks.scheduleRankingRecalculation) {
             // Non-blocking: schedule async recalculation, respond immediately
-            hooks.scheduleRankingRecalculation(horse.boardId);
+            hooks.scheduleRankingRecalculation(horse.board_id);
           } else if (hooks.recalculateFeedRankings) {
             // Legacy blocking path (deprecated)
-            hooks.recalculateFeedRankings(db, horse.boardId);
-            notify(horse.boardId, 'feeds');
+            hooks.recalculateFeedRankings(db, horse.board_id);
+            notify(horse.board_id, 'feeds');
           }
         }
       }
@@ -506,9 +461,9 @@ export function mountResource<R extends ResourceName>(
       res.json({ success: true, data: entry });
     });
 
-    // DELETE /api/diet/:horseId/:feedId
-    router.delete('/:horseId/:feedId', (req: Request, res: Response) => {
-      const deleted = repo.delete(req.params.horseId, req.params.feedId);
+    // DELETE /api/diet/:horse_id/:feed_id
+    router.delete('/:horse_id/:feed_id', (req: Request, res: Response) => {
+      const deleted = repo.delete(req.params.horse_id, req.params.feed_id);
       if (!deleted) {
         res.status(404).json({ success: false, error: 'Diet entry not found' });
         return;
@@ -575,9 +530,9 @@ export function mountResource<R extends ResourceName>(
       }
 
       const updated = repo.update(req.body, req.params.id);
-      const boardId = (existing as Record<string, unknown>).boardId as string | undefined;
-      if (boardId) {
-        notify(boardId, resourceName);
+      const board_id = (existing as Record<string, unknown>).board_id as string | undefined;
+      if (board_id) {
+        notify(board_id, resourceName);
       }
       res.json({ success: true, data: updated });
     });
@@ -592,9 +547,9 @@ export function mountResource<R extends ResourceName>(
         res.status(404).json({ success: false, error: `${resourceName} not found` });
         return;
       }
-      const boardId = (existing as Record<string, unknown>)?.boardId as string | undefined;
-      if (boardId) {
-        notify(boardId, resourceName);
+      const board_id = (existing as Record<string, unknown>)?.board_id as string | undefined;
+      if (board_id) {
+        notify(board_id, resourceName);
       }
       res.json({ success: true });
     });

@@ -28,12 +28,12 @@ const boardStore = createBoardStore();
 
 // Re-export board store properties
 export const board = boardStore.board;
-export const configuredMode = boardStore.configuredMode;
+export const configuredMode = boardStore.configured_mode;
 export const timezone = boardStore.timezone;
-export const overrideUntil = boardStore.overrideUntil;
-export const zoomLevel = boardStore.zoomLevel;
-export const currentPage = boardStore.currentPage;
-export const effectiveTimeMode = boardStore.effectiveTimeMode;
+export const overrideUntil = boardStore.override_until;
+export const zoomLevel = boardStore.zoom_level;
+export const currentPage = boardStore.current_page;
+export const effectiveTimeMode = boardStore.effective_time_mode;
 
 // Re-export board store methods with source parameter
 export const setBoard = (b: Parameters<typeof boardStore.set>[0], source?: UpdateSource) =>
@@ -121,14 +121,14 @@ export const upsertDietEntry = (
   source?: UpdateSource
 ) => dietStore.upsert(entry, source);
 export const updateDietAmount = (
-  horseId: string,
-  feedId: string,
-  field: 'amAmount' | 'pmAmount',
+  horse_id: string,
+  feed_id: string,
+  field: 'am_amount' | 'pm_amount',
   value: number | null,
   source?: UpdateSource
-) => dietStore.updateAmount(horseId, feedId, field, value, source);
-export const removeDietEntry = (horseId: string, feedId: string, source?: UpdateSource) =>
-  dietStore.remove(horseId, feedId, source);
+) => dietStore.updateAmount(horse_id, feed_id, field, value, source);
+export const removeDietEntry = (horse_id: string, feed_id: string, source?: UpdateSource) =>
+  dietStore.remove(horse_id, feed_id, source);
 export const getDietEntry = dietStore.get;
 export const countActiveFeeds = dietStore.countActiveFeeds;
 export const reconcileDietEntries = dietStore.reconcile;

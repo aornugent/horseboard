@@ -7,14 +7,14 @@ interface BootstrapResponse {
     board: Board;
     horses: Horse[];
     feeds: Feed[];
-    dietEntries: DietEntry[];
+    diet_entries: DietEntry[];
   };
   error?: string;
 }
 
 interface PairResponse {
   success: boolean;
-  boardId?: string;
+  board_id?: string;
   error?: string;
 }
 
@@ -30,7 +30,7 @@ export async function bootstrap(boardId: string): Promise<boolean> {
       setBoard(result.data.board);
       setHorses(result.data.horses);
       setFeeds(result.data.feeds);
-      setDietEntries(result.data.dietEntries);
+      setDietEntries(result.data.diet_entries);
       return true;
     }
 
@@ -45,7 +45,7 @@ export async function bootstrap(boardId: string): Promise<boolean> {
 /**
  * Pair with a board using a 6-digit code
  */
-export async function pairWithCode(code: string): Promise<{ success: boolean; boardId?: string; error?: string }> {
+export async function pairWithCode(code: string): Promise<{ success: boolean; board_id?: string; error?: string }> {
   try {
     const response = await fetch('/api/pair', {
       method: 'POST',
@@ -55,9 +55,9 @@ export async function pairWithCode(code: string): Promise<{ success: boolean; bo
 
     const result: PairResponse = await response.json();
 
-    if (result.success && result.boardId) {
+    if (result.success && result.board_id) {
       // Bootstrap the board data
-      await bootstrap(result.boardId);
+      await bootstrap(result.board_id);
     }
 
     return result;

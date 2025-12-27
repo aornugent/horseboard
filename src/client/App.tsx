@@ -213,9 +213,9 @@ async function handlePair() {
 
     const result = await response.json();
 
-    if (result.success && result.boardId) {
-      localStorage.setItem(STORAGE_KEY, result.boardId);
-      await initializeApp(result.boardId);
+    if (result.success && result.board_id) {
+      localStorage.setItem(STORAGE_KEY, result.board_id);
+      await initializeApp(result.board_id);
     } else {
       pairError.value = result.error || 'Invalid pair code';
     }

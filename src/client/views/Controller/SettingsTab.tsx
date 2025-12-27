@@ -1,5 +1,5 @@
 import {
-  display,
+  board,
   configuredMode,
   effectiveTimeMode,
   zoomLevel,
@@ -41,30 +41,30 @@ const ZOOM_LEVELS: Array<{ value: 1 | 2 | 3; label: string; description: string 
 ];
 
 async function saveTimeMode(mode: TimeMode) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const overrideUntil = mode !== TIME_MODE.AUTO
+  const override_until = mode !== TIME_MODE.AUTO
     ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour override
     : null;
 
-  const response = await fetch(`/api/displays/${display.value.id}/time-mode`, {
+  const response = await fetch(`/api/boards/${board.value.id}/time-mode`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ timeMode: mode, overrideUntil }),
+    body: JSON.stringify({ time_mode: mode, override_until }),
   });
 
   if (response.ok) {
-    updateTimeMode(mode, overrideUntil);
+    updateTimeMode(mode, override_until);
   }
 }
 
 async function saveZoomLevel(level: 1 | 2 | 3) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const response = await fetch(`/api/displays/${display.value.id}`, {
+  const response = await fetch(`/api/boards/${board.value.id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ zoomLevel: level }),
+    body: JSON.stringify({ zoom_level: level }),
   });
 
   if (response.ok) {
@@ -73,22 +73,22 @@ async function saveZoomLevel(level: 1 | 2 | 3) {
 }
 
 async function saveTimezone(tz: string) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const response = await fetch(`/api/displays/${display.value.id}`, {
+  const response = await fetch(`/api/boards/${board.value.id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ timezone: tz }),
   });
 
   if (response.ok) {
-    // Update display in store
-    display.value = { ...display.value, timezone: tz, updatedAt: new Date().toISOString() };
+    // Update board in store
+    board.value = { ...board.value, timezone: tz, updated_at: new Date().toISOString() };
   }
 }
 
 export function SettingsTab() {
-  if (!display.value) {
+  if (!board.value) {
     return (
       <div class="settings-tab" data-testid="settings-tab">
         <div class="settings-loading">Loading settings...</div>
@@ -164,20 +164,20 @@ export function SettingsTab() {
         </div>
       </section>
 
-      {/* Display Info */}
+      {/* Board Info */}
       <section class="settings-section settings-info">
-        <h3 class="settings-section-title">Display Info</h3>
+        <h3 class="settings-section-title">Board Info</h3>
         <div class="settings-info-grid">
           <div class="settings-info-item">
             <span class="settings-info-label">Pair Code</span>
-            <span class="settings-info-value" data-testid="display-pair-code">
-              {display.value.pairCode}
+            <span class="settings-info-value" data-testid="board-pair-code">
+              {board.value.pair_code}
             </span>
           </div>
           <div class="settings-info-item">
-            <span class="settings-info-label">Display ID</span>
-            <span class="settings-info-value settings-info-value-small" data-testid="display-id">
-              {display.value.id.slice(0, 8)}...
+            <span class="settings-info-label">Board ID</span>
+            <span class="settings-info-value settings-info-value-small" data-testid="board-id">
+              {board.value.id.slice(0, 8)}...
             </span>
           </div>
         </div>
