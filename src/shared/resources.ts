@@ -30,7 +30,7 @@ export const UNIT_LABELS: Record<Unit, string> = {
 export const DEFAULT_UNIT: Unit = 'scoop';
 
 // =============================================================================
-// TIME MODE ENUM - Single source of truth for display time modes
+// TIME MODE ENUM - Single source of truth for board time modes
 // =============================================================================
 
 export const TimeModeSchema = z.enum(['AUTO', 'AM', 'PM']);
@@ -49,14 +49,14 @@ export const TIME_MODE = {
   PM: 'PM',
 } as const satisfies Record<string, TimeMode>;
 
-/** Time mode display configuration for UI */
+/** Time mode configuration for UI */
 export const TIME_MODE_CONFIG: Record<TimeMode, { label: string; description: string }> = {
   AUTO: { label: 'Auto', description: 'AM 4:00-11:59, PM 12:00-3:59' },
-  AM: { label: 'AM', description: 'Force morning feed display' },
-  PM: { label: 'PM', description: 'Force evening feed display' },
+  AM: { label: 'AM', description: 'Force morning feed board' },
+  PM: { label: 'PM', description: 'Force evening feed board' },
 };
 
-/** Default time mode for new displays */
+/** Default time mode for new boards */
 export const DEFAULT_TIME_MODE: TimeMode = 'AUTO';
 
 /**
@@ -74,7 +74,7 @@ export interface ResourceConfig<T extends z.ZodObject<z.ZodRawShape>> {
   indexes?: string[];
   // Hook triggered after write operations
   onWrite?: string;
-  // Parent resource for scoped routes (e.g., horses belong to displays)
+  // Parent resource for scoped routes (e.g., horses belong to boards)
   parent?: { resource: string; foreignKey: string };
   // Order by clause
   orderBy?: string;
@@ -88,7 +88,7 @@ export interface ResourceConfig<T extends z.ZodObject<z.ZodRawShape>> {
 
 export const HorseSchema = z.object({
   id: z.string().min(1),
-  displayId: z.string().min(1),
+  boardId: z.string().min(1),
   name: z.string().min(1).max(50),
   note: z.string().max(200).nullable(),
   noteExpiry: z.string().nullable(),
@@ -116,7 +116,7 @@ export const UpdateHorseSchema = z.object({
 
 export const FeedSchema = z.object({
   id: z.string().min(1),
-  displayId: z.string().min(1),
+  boardId: z.string().min(1),
   name: z.string().min(1).max(50),
   unit: UnitSchema,
   rank: z.number().int().min(0),
@@ -161,10 +161,10 @@ export const UpsertDietEntrySchema = z.object({
 });
 
 // =============================================================================
-// DISPLAYS
+// BOARDS
 // =============================================================================
 
-export const DisplaySchema = z.object({
+export const BoardSchema = z.object({
   id: z.string().min(1),
   pairCode: z.string().length(6),
   timezone: z.string().min(1),
@@ -175,9 +175,9 @@ export const DisplaySchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
-export type Display = z.infer<typeof DisplaySchema>;
+export type Board = z.infer<typeof BoardSchema>;
 
-export const UpdateDisplaySchema = z.object({
+export const UpdateBoardSchema = z.object({
   timezone: z.string().min(1).optional(),
   zoomLevel: z.number().int().min(1).max(3).optional(),
   currentPage: z.number().int().min(0).optional(),
@@ -201,7 +201,7 @@ export const RESOURCES = {
     updateSchema: UpdateHorseSchema,
     columns: {
       id: 'id',
-      displayId: 'display_id',
+      boardId: 'board_id',
       name: 'name',
       note: 'note',
       noteExpiry: 'note_expiry',
@@ -209,8 +209,8 @@ export const RESOURCES = {
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
-    indexes: ['display_id'],
-    parent: { resource: 'displays', foreignKey: 'displayId' },
+    indexes: ['board_id'],
+    parent: { resource: 'boards', foreignKey: 'boardId' },
     orderBy: 'name',
     filter: 'archived = 0',
   },
@@ -223,7 +223,7 @@ export const RESOURCES = {
     updateSchema: UpdateFeedSchema,
     columns: {
       id: 'id',
-      displayId: 'display_id',
+      boardId: 'board_id',
       name: 'name',
       unit: 'unit',
       rank: 'rank',
@@ -232,8 +232,8 @@ export const RESOURCES = {
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
-    indexes: ['display_id'],
-    parent: { resource: 'displays', foreignKey: 'displayId' },
+    indexes: ['board_id'],
+    parent: { resource: 'boards', foreignKey: 'boardId' },
     orderBy: 'rank DESC, name',
     // Trigger feed ranking recalculation after diet changes
     onWrite: 'recalculateFeedRankings',
@@ -256,12 +256,12 @@ export const RESOURCES = {
     indexes: ['horse_id', 'feed_id'],
   },
 
-  displays: {
-    table: 'displays',
+  boards: {
+    table: 'boards',
     primaryKey: 'id',
-    schema: DisplaySchema,
+    schema: BoardSchema,
     createSchema: z.object({ timezone: z.string().optional() }),
-    updateSchema: UpdateDisplaySchema,
+    updateSchema: UpdateBoardSchema,
     columns: {
       id: 'id',
       pairCode: 'pair_code',

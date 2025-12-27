@@ -2,7 +2,7 @@
  * Fraction Formatting
  *
  * Converts decimal quantities to human-readable format with Unicode fractions.
- * Used for TV display to show feed amounts in an easy-to-read format.
+ * Used for the TV board to show feed amounts in an easy-to-read format.
  *
  * Examples:
  * - 0.25 → ¼
@@ -63,7 +63,7 @@ function findFraction(decimal: number): string | null {
 }
 
 /**
- * Format a quantity for display
+ * Format a quantity for the board
  *
  * @param value - The numeric value (null or 0 returns empty string)
  * @param unit - Optional unit to append for non-fraction values

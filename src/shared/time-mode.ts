@@ -1,9 +1,9 @@
 /**
  * Time Mode Logic
  *
- * Determines whether to display AM or PM feeding schedule based on:
+ * Determines whether to show AM or PM feeding schedule based on:
  * 1. Manual override (if set and not expired)
- * 2. Automatic detection based on current time in the display's timezone
+ * 2. Automatic detection based on current time in the board's timezone
  *
  * AUTO mode rules:
  * - 04:00 - 11:59 = AM

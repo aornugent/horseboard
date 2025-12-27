@@ -4,7 +4,7 @@ import type Database from 'better-sqlite3';
  * Pending ranking calculation request
  */
 interface PendingRanking {
-  displayId: string;
+  boardId: string;
   scheduledAt: number;
   timeoutId: NodeJS.Timeout;
 }
@@ -20,7 +20,7 @@ interface PendingRanking {
  *
  * Trade-off: Rankings may be stale for up to `debounceMs` after a diet change.
  * This is acceptable because:
- * 1. Rankings are display-only (don't affect functionality)
+ * 1. Rankings are for display only (don't affect functionality)
  * 2. User is typically still editing when ranks would update
  * 3. SSE broadcast happens after recalculation completes
  */
@@ -28,7 +28,7 @@ export class FeedRankingManager {
   private db: Database.Database;
   private pending: Map<string, PendingRanking> = new Map();
   private debounceMs: number;
-  private onComplete: ((displayId: string) => void) | null = null;
+  private onComplete: ((boardId: string) => void) | null = null;
 
   // Prepared statements (lazy init to avoid startup blocking)
   private rankingStmt: Database.Statement | null = null;
@@ -42,7 +42,7 @@ export class FeedRankingManager {
   /**
    * Set callback for when ranking calculation completes
    */
-  setOnComplete(callback: (displayId: string) => void): void {
+  setOnComplete(callback: (boardId: string) => void): void {
     this.onComplete = callback;
   }
 
@@ -56,7 +56,7 @@ export class FeedRankingManager {
         FROM feeds f
         LEFT JOIN diet_entries d ON f.id = d.feed_id
           AND (d.am_amount > 0 OR d.pm_amount > 0)
-        WHERE f.display_id = ?
+        WHERE f.board_id = ?
         GROUP BY f.id
         ORDER BY usage_count DESC
       `);
@@ -70,23 +70,23 @@ export class FeedRankingManager {
   /**
    * Schedule a ranking recalculation (debounced)
    *
-   * Calling this multiple times for the same displayId within `debounceMs`
+   * Calling this multiple times for the same boardId within `debounceMs`
    * will only trigger one actual recalculation.
    */
-  scheduleRecalculation(displayId: string): void {
-    // Cancel any pending calculation for this display
-    const existing = this.pending.get(displayId);
+  scheduleRecalculation(boardId: string): void {
+    // Cancel any pending calculation for this board
+    const existing = this.pending.get(boardId);
     if (existing) {
       clearTimeout(existing.timeoutId);
     }
 
     // Schedule new calculation
     const timeoutId = setTimeout(() => {
-      this.executeRecalculation(displayId);
+      this.executeRecalculation(boardId);
     }, this.debounceMs);
 
-    this.pending.set(displayId, {
-      displayId,
+    this.pending.set(boardId, {
+      boardId,
       scheduledAt: Date.now(),
       timeoutId,
     });
@@ -96,13 +96,13 @@ export class FeedRankingManager {
    * Execute the ranking recalculation
    * Uses a transaction for atomic batch updates
    */
-  private executeRecalculation(displayId: string): void {
-    this.pending.delete(displayId);
+  private executeRecalculation(boardId: string): void {
+    this.pending.delete(boardId);
 
     try {
       this.ensureStatements();
 
-      const rankings = this.rankingStmt!.all(displayId) as Array<{
+      const rankings = this.rankingStmt!.all(boardId) as Array<{
         id: string;
         usage_count: number;
       }>;
@@ -122,28 +122,28 @@ export class FeedRankingManager {
 
       // Notify completion (triggers SSE broadcast)
       if (this.onComplete) {
-        this.onComplete(displayId);
+        this.onComplete(boardId);
       }
     } catch (err) {
-      console.error(`[Rankings] Error recalculating for display ${displayId}:`, err);
+      console.error(`[Rankings] Error recalculating for board ${boardId}:`, err);
     }
   }
 
   /**
    * Force immediate recalculation (bypasses debounce)
-   * Used for explicit API calls like POST /api/displays/:id/feeds/recalculate-rankings
+   * Used for explicit API calls like POST /api/boards/:id/feeds/recalculate-rankings
    */
-  recalculateNow(displayId: string): number {
+  recalculateNow(boardId: string): number {
     // Cancel any pending debounced calculation
-    const existing = this.pending.get(displayId);
+    const existing = this.pending.get(boardId);
     if (existing) {
       clearTimeout(existing.timeoutId);
-      this.pending.delete(displayId);
+      this.pending.delete(boardId);
     }
 
     this.ensureStatements();
 
-    const rankings = this.rankingStmt!.all(displayId) as Array<{
+    const rankings = this.rankingStmt!.all(boardId) as Array<{
       id: string;
       usage_count: number;
     }>;
@@ -165,19 +165,19 @@ export class FeedRankingManager {
   }
 
   /**
-   * Check if there's a pending calculation for a display
+   * Check if there's a pending calculation for a board
    */
-  hasPending(displayId: string): boolean {
-    return this.pending.has(displayId);
+  hasPending(boardId: string): boolean {
+    return this.pending.has(boardId);
   }
 
   /**
    * Get stats for monitoring
    */
-  getStats(): { pendingCount: number; displayIds: string[] } {
+  getStats(): { pendingCount: number; boardIds: string[] } {
     return {
       pendingCount: this.pending.size,
-      displayIds: Array.from(this.pending.keys()),
+      boardIds: Array.from(this.pending.keys()),
     };
   }
 
@@ -196,7 +196,7 @@ export class FeedRankingManager {
  * Legacy synchronous recalculation (kept for backwards compatibility)
  * @deprecated Use FeedRankingManager.scheduleRecalculation() instead
  */
-export function recalculateFeedRankings(db: Database.Database, displayId: string): number {
+export function recalculateFeedRankings(db: Database.Database, boardId: string): number {
   const rankings = db
     .prepare(
       `
@@ -204,12 +204,12 @@ export function recalculateFeedRankings(db: Database.Database, displayId: string
     FROM feeds f
     LEFT JOIN diet_entries d ON f.id = d.feed_id
       AND (d.am_amount > 0 OR d.pm_amount > 0)
-    WHERE f.display_id = ?
+    WHERE f.board_id = ?
     GROUP BY f.id
     ORDER BY usage_count DESC
   `
     )
-    .all(displayId) as Array<{ id: string; usage_count: number }>;
+    .all(boardId) as Array<{ id: string; usage_count: number }>;
 
   const updateRank = db.prepare('UPDATE feeds SET rank = ? WHERE id = ?');
 

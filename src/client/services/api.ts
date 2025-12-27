@@ -1,10 +1,10 @@
-import { setDisplay, setHorses, setFeeds, setDietEntries } from '../stores';
-import type { Display, Horse, Feed, DietEntry } from '@shared/resources';
+import { setBoard, setHorses, setFeeds, setDietEntries } from '../stores';
+import type { Board, Horse, Feed, DietEntry } from '@shared/resources';
 
 interface BootstrapResponse {
   success: boolean;
   data?: {
-    display: Display;
+    board: Board;
     horses: Horse[];
     feeds: Feed[];
     dietEntries: DietEntry[];
@@ -14,20 +14,20 @@ interface BootstrapResponse {
 
 interface PairResponse {
   success: boolean;
-  displayId?: string;
+  boardId?: string;
   error?: string;
 }
 
 /**
  * Bootstrap the application with initial data
  */
-export async function bootstrap(displayId: string): Promise<boolean> {
+export async function bootstrap(boardId: string): Promise<boolean> {
   try {
-    const response = await fetch(`/api/bootstrap/${displayId}`);
+    const response = await fetch(`/api/bootstrap/${boardId}`);
     const result: BootstrapResponse = await response.json();
 
     if (result.success && result.data) {
-      setDisplay(result.data.display);
+      setBoard(result.data.board);
       setHorses(result.data.horses);
       setFeeds(result.data.feeds);
       setDietEntries(result.data.dietEntries);
@@ -43,9 +43,9 @@ export async function bootstrap(displayId: string): Promise<boolean> {
 }
 
 /**
- * Pair with a display using a 6-digit code
+ * Pair with a board using a 6-digit code
  */
-export async function pairWithCode(code: string): Promise<{ success: boolean; displayId?: string; error?: string }> {
+export async function pairWithCode(code: string): Promise<{ success: boolean; boardId?: string; error?: string }> {
   try {
     const response = await fetch('/api/pair', {
       method: 'POST',
@@ -55,9 +55,9 @@ export async function pairWithCode(code: string): Promise<{ success: boolean; di
 
     const result: PairResponse = await response.json();
 
-    if (result.success && result.displayId) {
-      // Bootstrap the display data
-      await bootstrap(result.displayId);
+    if (result.success && result.boardId) {
+      // Bootstrap the board data
+      await bootstrap(result.boardId);
     }
 
     return result;
@@ -68,27 +68,27 @@ export async function pairWithCode(code: string): Promise<{ success: boolean; di
 }
 
 /**
- * Create a new display
+ * Create a new board
  */
-export async function createDisplay(): Promise<{ success: boolean; display?: Display; error?: string }> {
+export async function createBoard(): Promise<{ success: boolean; board?: Board; error?: string }> {
   try {
-    const response = await fetch('/api/displays', {
+    const response = await fetch('/api/boards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
 
-    const display: Display = await response.json();
+    const board: Board = await response.json();
 
-    if (display.id) {
-      setDisplay(display);
-      return { success: true, display };
+    if (board.id) {
+      setBoard(board);
+      return { success: true, board };
     }
 
-    return { success: false, error: 'Failed to create display' };
+    return { success: false, error: 'Failed to create board' };
   } catch (err) {
-    console.error('Create display error:', err);
+    console.error('Create board error:', err);
     return { success: false, error: 'Connection failed' };
   }
 }
 
-export default { bootstrap, pairWithCode, createDisplay };
+export default { bootstrap, pairWithCode, createBoard };

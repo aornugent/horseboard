@@ -256,13 +256,13 @@ test.describe('End-to-End Workflows', () => {
   });
 
   test.describe('Real-Time Updates', () => {
-    test('display should update when diet changes', async ({ page, context }) => {
-      // Open display in one tab
-      const displayPage = await context.newPage();
-      await displayPage.goto('/display');
+    test('board should update when diet changes', async ({ page, context }) => {
+      // Open board in one tab
+      const boardPage = await context.newPage();
+      await boardPage.goto('/board');
 
       // Wait for grid to load
-      await expect(displayPage.locator(selectors.swimLaneGrid)).toBeVisible();
+      await expect(boardPage.locator(selectors.swimLaneGrid)).toBeVisible();
 
       // Open controller in another tab
       await page.goto('/');
@@ -280,22 +280,22 @@ test.describe('End-to-End Workflows', () => {
         }
       }
 
-      // Display should update via SSE (give it time)
-      await displayPage.waitForTimeout(1000);
+      // Board should update via SSE (give it time)
+      await boardPage.waitForTimeout(1000);
 
       // Grid should still be visible
-      await expect(displayPage.locator(selectors.swimLaneGrid)).toBeVisible();
+      await expect(boardPage.locator(selectors.swimLaneGrid)).toBeVisible();
 
-      await displayPage.close();
+      await boardPage.close();
     });
 
-    test('display theme should update with time mode changes', async ({ page, context }) => {
-      // Open display
-      const displayPage = await context.newPage();
-      await displayPage.goto('/display');
+    test('board theme should update with time mode changes', async ({ page, context }) => {
+      // Open board
+      const boardPage = await context.newPage();
+      await boardPage.goto('/board');
 
-      await expect(displayPage.locator(selectors.displayView)).toBeVisible();
-      const initialTheme = await displayPage.locator(selectors.displayView).getAttribute('data-theme');
+      await expect(boardPage.locator(selectors.boardView)).toBeVisible();
+      const initialTheme = await boardPage.locator(selectors.boardView).getAttribute('data-theme');
 
       // Open settings
       await page.goto('/settings');
@@ -308,13 +308,13 @@ test.describe('End-to-End Workflows', () => {
       }
 
       // Wait for SSE update
-      await displayPage.waitForTimeout(1000);
+      await boardPage.waitForTimeout(1000);
 
       // Check theme changed
-      const newTheme = await displayPage.locator(selectors.displayView).getAttribute('data-theme');
+      const newTheme = await boardPage.locator(selectors.boardView).getAttribute('data-theme');
       expect(newTheme).not.toBe(initialTheme);
 
-      await displayPage.close();
+      await boardPage.close();
     });
   });
 
@@ -339,8 +339,8 @@ test.describe('End-to-End Workflows', () => {
       }
     });
 
-    test('should display notes in grid footer', async ({ page }) => {
-      await page.goto('/display');
+    test('should show notes in grid footer', async ({ page }) => {
+      await page.goto('/board');
 
       const footer = page.locator(selectors.gridFooter);
       await expect(footer).toBeVisible();
@@ -355,8 +355,8 @@ test.describe('End-to-End Workflows', () => {
   });
 
   test.describe('Fraction Display', () => {
-    test('should display fractions correctly in grid', async ({ page }) => {
-      await page.goto('/display');
+    test('should show fractions correctly in grid', async ({ page }) => {
+      await page.goto('/board');
 
       const badges = page.locator('[data-testid^="badge-"]');
       const count = await badges.count();
@@ -393,14 +393,14 @@ test.describe('End-to-End Workflows', () => {
   });
 
   test.describe('Board Preview', () => {
-    test('should show accurate preview of display', async ({ page }) => {
+    test('should show accurate board preview', async ({ page }) => {
       await page.goto('/board');
 
       // Board tab should have the grid
       await expect(page.locator(selectors.boardTab)).toBeVisible();
       await expect(page.locator(selectors.swimLaneGrid)).toBeVisible();
 
-      // Grid should show same data as display
+      // Grid should show the board data
       const gridHeader = page.locator(selectors.gridHeader);
       await expect(gridHeader).toBeVisible();
     });
