@@ -22,14 +22,14 @@ function initializeTestDatabase() {
 
 describe('Database Integration Tests', () => {
   let db;
-  let displayRepo;
+  let boardRepo;
   let horseRepo;
   let feedRepo;
   let dietRepo;
 
   beforeEach(() => {
     db = initializeTestDatabase();
-    displayRepo = createRepository(db, 'displays');
+    boardRepo = createRepository(db, 'boards');
     horseRepo = createRepository(db, 'horses');
     feedRepo = createRepository(db, 'feeds');
     dietRepo = createRepository(db, 'diet');
@@ -39,71 +39,71 @@ describe('Database Integration Tests', () => {
     db.close();
   });
 
-  describe('DisplayRepository', () => {
-    test('creates a display with unique ID and pair code', () => {
-      const display = displayRepo.create({});
-      assert.ok(display.id.startsWith('d_'));
-      assert.ok(/^\d{6}$/.test(display.pairCode));
+  describe('BoardRepository', () => {
+    test('creates a board with unique ID and pair code', () => {
+      const board = boardRepo.create({});
+      assert.ok(board.id.startsWith('b_'));
+      assert.ok(/^\d{6}$/.test(board.pairCode));
     });
 
-    test('retrieves display by ID', () => {
-      const created = displayRepo.create({});
-      const display = displayRepo.getById(created.id);
-      assert.equal(display.id, created.id);
-      assert.equal(display.pairCode, created.pairCode);
-      assert.equal(display.timeMode, 'AUTO');
-      assert.equal(display.zoomLevel, 2);
+    test('retrieves board by ID', () => {
+      const created = boardRepo.create({});
+      const board = boardRepo.getById(created.id);
+      assert.equal(board.id, created.id);
+      assert.equal(board.pairCode, created.pairCode);
+      assert.equal(board.timeMode, 'AUTO');
+      assert.equal(board.zoomLevel, 2);
     });
 
-    test('updates display settings', () => {
-      const created = displayRepo.create({});
-      displayRepo.update({ zoomLevel: 3, currentPage: 1 }, created.id);
-      const display = displayRepo.getById(created.id);
-      assert.equal(display.zoomLevel, 3);
-      assert.equal(display.currentPage, 1);
+    test('updates board settings', () => {
+      const created = boardRepo.create({});
+      boardRepo.update({ zoomLevel: 3, currentPage: 1 }, created.id);
+      const board = boardRepo.getById(created.id);
+      assert.equal(board.zoomLevel, 3);
+      assert.equal(board.currentPage, 1);
     });
 
-    test('deletes display', () => {
-      const created = displayRepo.create({});
-      assert.ok(displayRepo.delete(created.id));
-      assert.equal(displayRepo.getById(created.id), null);
+    test('deletes board', () => {
+      const created = boardRepo.create({});
+      assert.ok(boardRepo.delete(created.id));
+      assert.equal(boardRepo.getById(created.id), null);
     });
   });
 
   describe('HorseRepository', () => {
-    let displayId;
+    let boardId;
 
     beforeEach(() => {
-      const display = displayRepo.create({});
-      displayId = display.id;
+      const board = boardRepo.create({});
+      boardId = board.id;
     });
 
     test('creates a horse', () => {
-      const horse = horseRepo.create({ name: 'Thunder' }, displayId);
+      const horse = horseRepo.create({ name: 'Thunder' }, boardId);
       assert.ok(horse.id.startsWith('h_'));
       assert.equal(horse.name, 'Thunder');
-      assert.equal(horse.displayId, displayId);
+      assert.equal(horse.boardId, boardId);
     });
 
     test('creates horse with note', () => {
       const noteExpiry = new Date(Date.now() + 86400000).toISOString();
       const horse = horseRepo.create(
         { name: 'Storm', note: 'Needs extra hay', noteExpiry },
-        displayId
+        boardId
       );
       assert.equal(horse.note, 'Needs extra hay');
       assert.equal(horse.noteExpiry, noteExpiry);
     });
 
-    test('lists horses for display', () => {
-      horseRepo.create({ name: 'Thunder' }, displayId);
-      horseRepo.create({ name: 'Lightning' }, displayId);
-      const horses = horseRepo.getByParent(displayId);
+    test('lists horses for board', () => {
+      horseRepo.create({ name: 'Thunder' }, boardId);
+      horseRepo.create({ name: 'Lightning' }, boardId);
+      const horses = horseRepo.getByParent(boardId);
       assert.equal(horses.length, 2);
     });
 
     test('updates horse', () => {
-      const created = horseRepo.create({ name: 'Thunder' }, displayId);
+      const created = horseRepo.create({ name: 'Thunder' }, boardId);
       horseRepo.update({ name: 'Thunder II', note: 'Updated' }, created.id);
       const horse = horseRepo.getById(created.id);
       assert.equal(horse.name, 'Thunder II');
@@ -111,36 +111,36 @@ describe('Database Integration Tests', () => {
     });
 
     test('deletes horse', () => {
-      const created = horseRepo.create({ name: 'Thunder' }, displayId);
+      const created = horseRepo.create({ name: 'Thunder' }, boardId);
       assert.ok(horseRepo.delete(created.id));
       assert.equal(horseRepo.getById(created.id), null);
     });
   });
 
   describe('FeedRepository', () => {
-    let displayId;
+    let boardId;
 
     beforeEach(() => {
-      const display = displayRepo.create({});
-      displayId = display.id;
+      const board = boardRepo.create({});
+      boardId = board.id;
     });
 
     test('creates a feed', () => {
-      const feed = feedRepo.create({ name: 'Oats', unit: 'scoop' }, displayId);
+      const feed = feedRepo.create({ name: 'Oats', unit: 'scoop' }, boardId);
       assert.ok(feed.id.startsWith('f_'));
       assert.equal(feed.name, 'Oats');
       assert.equal(feed.unit, 'scoop');
     });
 
-    test('lists feeds for display', () => {
-      feedRepo.create({ name: 'Oats' }, displayId);
-      feedRepo.create({ name: 'Barley' }, displayId);
-      const feeds = feedRepo.getByParent(displayId);
+    test('lists feeds for board', () => {
+      feedRepo.create({ name: 'Oats' }, boardId);
+      feedRepo.create({ name: 'Barley' }, boardId);
+      const feeds = feedRepo.getByParent(boardId);
       assert.equal(feeds.length, 2);
     });
 
     test('updates feed', () => {
-      const created = feedRepo.create({ name: 'Oats' }, displayId);
+      const created = feedRepo.create({ name: 'Oats' }, boardId);
       feedRepo.update({ unit: 'ml', stockLevel: 100 }, created.id);
       const feed = feedRepo.getById(created.id);
       assert.equal(feed.unit, 'ml');
@@ -148,23 +148,23 @@ describe('Database Integration Tests', () => {
     });
 
     test('deletes feed', () => {
-      const created = feedRepo.create({ name: 'Oats' }, displayId);
+      const created = feedRepo.create({ name: 'Oats' }, boardId);
       assert.ok(feedRepo.delete(created.id));
       assert.equal(feedRepo.getById(created.id), null);
     });
   });
 
   describe('DietEntryRepository', () => {
-    let displayId;
+    let boardId;
     let horseId;
     let feedId;
 
     beforeEach(() => {
-      const display = displayRepo.create({});
-      displayId = display.id;
-      const horse = horseRepo.create({ name: 'Thunder' }, displayId);
+      const board = boardRepo.create({});
+      boardId = board.id;
+      const horse = horseRepo.create({ name: 'Thunder' }, boardId);
       horseId = horse.id;
-      const feed = feedRepo.create({ name: 'Oats' }, displayId);
+      const feed = feedRepo.create({ name: 'Oats' }, boardId);
       feedId = feed.id;
     });
 
@@ -183,11 +183,11 @@ describe('Database Integration Tests', () => {
       assert.equal(entry.pmAmount, 2);
     });
 
-    test('lists diet entries for display', () => {
-      const horse2 = horseRepo.create({ name: 'Lightning' }, displayId);
+    test('lists diet entries for board', () => {
+      const horse2 = horseRepo.create({ name: 'Lightning' }, boardId);
       dietRepo.upsert({ horseId, feedId, amAmount: 2, pmAmount: 1 });
       dietRepo.upsert({ horseId: horse2.id, feedId, amAmount: 1, pmAmount: 0.5 });
-      const entries = dietRepo.getByDisplayId(displayId);
+      const entries = dietRepo.getByBoardId(boardId);
       assert.equal(entries.length, 2);
     });
 
@@ -199,13 +199,13 @@ describe('Database Integration Tests', () => {
   });
 
   describe('CASCADE deletes', () => {
-    test('deleting display cascades to horses, feeds, and diet', () => {
-      const display = displayRepo.create({});
-      const horse = horseRepo.create({ name: 'Thunder' }, display.id);
-      const feed = feedRepo.create({ name: 'Oats' }, display.id);
+    test('deleting board cascades to horses, feeds, and diet', () => {
+      const board = boardRepo.create({});
+      const horse = horseRepo.create({ name: 'Thunder' }, board.id);
+      const feed = feedRepo.create({ name: 'Oats' }, board.id);
       dietRepo.upsert({ horseId: horse.id, feedId: feed.id, amAmount: 2, pmAmount: 1 });
 
-      displayRepo.delete(display.id);
+      boardRepo.delete(board.id);
 
       assert.equal(horseRepo.getById(horse.id), null);
       assert.equal(feedRepo.getById(feed.id), null);
@@ -213,9 +213,9 @@ describe('Database Integration Tests', () => {
     });
 
     test('deleting horse cascades to diet entries', () => {
-      const display = displayRepo.create({});
-      const horse = horseRepo.create({ name: 'Thunder' }, display.id);
-      const feed = feedRepo.create({ name: 'Oats' }, display.id);
+      const board = boardRepo.create({});
+      const horse = horseRepo.create({ name: 'Thunder' }, board.id);
+      const feed = feedRepo.create({ name: 'Oats' }, board.id);
       dietRepo.upsert({ horseId: horse.id, feedId: feed.id, amAmount: 2, pmAmount: 1 });
 
       horseRepo.delete(horse.id);
@@ -226,9 +226,9 @@ describe('Database Integration Tests', () => {
     });
 
     test('deleting feed cascades to diet entries', () => {
-      const display = displayRepo.create({});
-      const horse = horseRepo.create({ name: 'Thunder' }, display.id);
-      const feed = feedRepo.create({ name: 'Oats' }, display.id);
+      const board = boardRepo.create({});
+      const horse = horseRepo.create({ name: 'Thunder' }, board.id);
+      const feed = feedRepo.create({ name: 'Oats' }, board.id);
       dietRepo.upsert({ horseId: horse.id, feedId: feed.id, amAmount: 2, pmAmount: 1 });
 
       feedRepo.delete(feed.id);
@@ -241,14 +241,14 @@ describe('Database Integration Tests', () => {
 
   describe('Feed Rankings', () => {
     test('calculates feed rankings based on usage', () => {
-      const display = displayRepo.create({});
-      const horse1 = horseRepo.create({ name: 'Thunder' }, display.id);
-      const horse2 = horseRepo.create({ name: 'Lightning' }, display.id);
-      const horse3 = horseRepo.create({ name: 'Storm' }, display.id);
+      const board = boardRepo.create({});
+      const horse1 = horseRepo.create({ name: 'Thunder' }, board.id);
+      const horse2 = horseRepo.create({ name: 'Lightning' }, board.id);
+      const horse3 = horseRepo.create({ name: 'Storm' }, board.id);
 
-      const oats = feedRepo.create({ name: 'Oats' }, display.id);
-      const barley = feedRepo.create({ name: 'Barley' }, display.id);
-      const hay = feedRepo.create({ name: 'Hay' }, display.id);
+      const oats = feedRepo.create({ name: 'Oats' }, board.id);
+      const barley = feedRepo.create({ name: 'Barley' }, board.id);
+      const hay = feedRepo.create({ name: 'Hay' }, board.id);
 
       // Oats: used by 3 horses
       dietRepo.upsert({ horseId: horse1.id, feedId: oats.id, amAmount: 2, pmAmount: 1 });
@@ -262,9 +262,9 @@ describe('Database Integration Tests', () => {
       // Hay: used by 1 horse
       dietRepo.upsert({ horseId: horse1.id, feedId: hay.id, amAmount: 1, pmAmount: 1 });
 
-      recalculateFeedRankings(db, display.id);
+      recalculateFeedRankings(db, board.id);
 
-      const feeds = feedRepo.getByParent(display.id);
+      const feeds = feedRepo.getByParent(board.id);
       // Should be ordered by rank DESC
       assert.equal(feeds[0].name, 'Oats');
       assert.equal(feeds[1].name, 'Barley');

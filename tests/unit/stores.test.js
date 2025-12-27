@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import {
   createResourceStore,
   createDietStore,
-  createDisplayStore,
+  createBoardStore,
   createHorseStore,
   createFeedStore,
 } from '../../src/client/lib/engine.js';
@@ -19,7 +19,7 @@ function mockHorse(overrides = {}) {
   const now = new Date().toISOString();
   return {
     id: `h_${Math.random().toString(36).slice(2)}`,
-    displayId: 'd_test',
+    boardId: 'b_test',
     name: 'Test Horse',
     note: null,
     noteExpiry: null,
@@ -37,7 +37,7 @@ function mockFeed(overrides = {}) {
   const now = new Date().toISOString();
   return {
     id: `f_${Math.random().toString(36).slice(2)}`,
-    displayId: 'd_test',
+    boardId: 'b_test',
     name: 'Test Feed',
     unit: 'scoop',
     rank: 1,
@@ -66,12 +66,12 @@ function mockDietEntry(overrides = {}) {
 }
 
 /**
- * Create a mock display with timestamps
+ * Create a mock board with timestamps
  */
-function mockDisplay(overrides = {}) {
+function mockBoard(overrides = {}) {
   const now = new Date().toISOString();
   return {
-    id: 'd_test',
+    id: 'b_test',
     pairCode: '123456',
     timezone: 'Australia/Sydney',
     timeMode: 'AUTO',
@@ -407,33 +407,33 @@ describe('createDietStore', () => {
 });
 
 // =============================================================================
-// DISPLAY STORE TESTS
+// BOARD STORE TESTS
 // =============================================================================
 
-describe('createDisplayStore', () => {
+describe('createBoardStore', () => {
   describe('computed properties', () => {
-    test('derives configuredMode from display', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay({ timeMode: 'PM' }));
+    test('derives configuredMode from board', () => {
+      const store = createBoardStore();
+      store.set(mockBoard({ timeMode: 'PM' }));
 
       assert.equal(store.configuredMode.value, 'PM');
     });
 
-    test('derives timezone from display', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay({ timezone: 'America/New_York' }));
+    test('derives timezone from board', () => {
+      const store = createBoardStore();
+      store.set(mockBoard({ timezone: 'America/New_York' }));
 
       assert.equal(store.timezone.value, 'America/New_York');
     });
 
-    test('defaults to AUTO when display is null', () => {
-      const store = createDisplayStore();
+    test('defaults to AUTO when board is null', () => {
+      const store = createBoardStore();
 
       assert.equal(store.configuredMode.value, 'AUTO');
     });
 
-    test('defaults timezone to UTC when display is null', () => {
-      const store = createDisplayStore();
+    test('defaults timezone to UTC when board is null', () => {
+      const store = createBoardStore();
 
       assert.equal(store.timezone.value, 'UTC');
     });
@@ -441,84 +441,84 @@ describe('createDisplayStore', () => {
 
   describe('mutations', () => {
     test('updateTimeMode changes mode and override', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay());
+      const store = createBoardStore();
+      store.set(mockBoard());
       const overrideTime = timestamp(3600000);
 
       store.updateTimeMode('AM', overrideTime);
 
-      assert.equal(store.display.value.timeMode, 'AM');
-      assert.equal(store.display.value.overrideUntil, overrideTime);
+      assert.equal(store.board.value.timeMode, 'AM');
+      assert.equal(store.board.value.overrideUntil, overrideTime);
     });
 
     test('setZoomLevel updates zoom', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay({ zoomLevel: 1 }));
+      const store = createBoardStore();
+      store.set(mockBoard({ zoomLevel: 1 }));
 
       store.setZoomLevel(3);
 
-      assert.equal(store.display.value.zoomLevel, 3);
+      assert.equal(store.board.value.zoomLevel, 3);
       assert.equal(store.zoomLevel.value, 3);
     });
 
     test('setCurrentPage updates page', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay({ currentPage: 0 }));
+      const store = createBoardStore();
+      store.set(mockBoard({ currentPage: 0 }));
 
       store.setCurrentPage(2);
 
-      assert.equal(store.display.value.currentPage, 2);
+      assert.equal(store.board.value.currentPage, 2);
       assert.equal(store.currentPage.value, 2);
     });
   });
 
   describe('reconciliation', () => {
-    test('SSE source always replaces display', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay({
+    test('SSE source always replaces board', () => {
+      const store = createBoardStore();
+      store.set(mockBoard({
         timeMode: 'AM',
         updatedAt: timestamp(1000),
       }));
 
       store.set(
-        mockDisplay({
+        mockBoard({
           timeMode: 'PM',
           updatedAt: timestamp(-1000), // Older but SSE
         }),
         'sse'
       );
 
-      assert.equal(store.display.value.timeMode, 'PM');
+      assert.equal(store.board.value.timeMode, 'PM');
     });
 
     test('API source respects timestamps', () => {
-      const store = createDisplayStore();
-      store.set(mockDisplay({
+      const store = createBoardStore();
+      store.set(mockBoard({
         timeMode: 'AM',
         updatedAt: timestamp(0),
       }));
 
       // Older API update rejected
       store.set(
-        mockDisplay({
+        mockBoard({
           timeMode: 'PM',
           updatedAt: timestamp(-1000),
         }),
         'api'
       );
 
-      assert.equal(store.display.value.timeMode, 'AM');
+      assert.equal(store.board.value.timeMode, 'AM');
 
       // Newer API update accepted
       store.set(
-        mockDisplay({
+        mockBoard({
           timeMode: 'PM',
           updatedAt: timestamp(1000),
         }),
         'api'
       );
 
-      assert.equal(store.display.value.timeMode, 'PM');
+      assert.equal(store.board.value.timeMode, 'PM');
     });
   });
 });

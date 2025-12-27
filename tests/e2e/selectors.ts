@@ -16,7 +16,7 @@ import { UNITS, TIME_MODES, type Unit, type TimeMode } from '../../src/shared/re
 
 export const selectors = {
   // ============================================
-  // SwimLaneGrid (TV Display Grid)
+  // SwimLaneGrid (TV Board Grid)
   // ============================================
   swimLaneGrid: '[data-testid="swim-lane-grid"]',
   gridHeader: '[data-testid="grid-header"]',
@@ -119,13 +119,13 @@ export const selectors = {
   zoomSelector: '[data-testid="zoom-selector"]',
   zoomLevel: (level: number) => `[data-testid="zoom-level-${level}"]`,
   timezoneSelector: '[data-testid="timezone-selector"]',
-  displayPairCode: '[data-testid="display-pair-code"]',
-  displayId: '[data-testid="display-id"]',
+  boardPairCode: '[data-testid="board-pair-code"]',
+  boardId: '[data-testid="board-id"]',
 
   // ============================================
-  // Display View (TV)
+  // Board View (TV)
   // ============================================
-  displayView: '[data-testid="display-view"]',
+  boardView: '[data-testid="board-view"]',
   timeModeBadge: '[data-testid="time-mode-badge"]',
 
   // ============================================
@@ -177,10 +177,10 @@ export const timeModeSelectors = {
  *
  * | Test File           | Old Selector                     | New Selector                          |
  * |---------------------|----------------------------------|---------------------------------------|
- * | display.spec.js     | .grid-cell.header.horse-name     | selectors.horseHeader(id)             |
- * | display.spec.js     | .grid-cell.value                 | selectors.cell(horseId, feedId)       |
- * | display.spec.js     | .grid-cell.feed-name             | selectors.feedName(id)                |
- * | display.spec.js     | .grid-cell.note                  | selectors.note(id)                    |
+ * | board.spec.js       | .grid-cell.header.horse-name     | selectors.horseHeader(id)             |
+ * | board.spec.js       | .grid-cell.value                 | selectors.cell(horseId, feedId)       |
+ * | board.spec.js       | .grid-cell.feed-name             | selectors.feedName(id)                |
+ * | board.spec.js       | .grid-cell.note                  | selectors.note(id)                    |
  * | controller.spec.js  | .grid-cell.value (keypad)        | selectors.feedPad + preset/stepper    |
  * | controller.spec.js  | .code-digit[data-index="N"]      | selectors.codeInput(N)                |
  * | controller.spec.js  | .mode-btn[data-mode="..."]       | timeModeSelectors.timeMode(mode)      |
