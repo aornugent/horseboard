@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { Display } from './views/Display';
+import { Board } from './views/Board';
 import {
   HorsesTab,
   HorseDetail,
@@ -9,14 +9,14 @@ import {
   SettingsTab,
 } from './views/Controller';
 import { bootstrap, sseClient } from './services';
-import { display } from './stores';
+import { board } from './stores';
 import './styles/theme.css';
 
 // =============================================================================
 // ROUTING STATE
 // =============================================================================
 
-const STORAGE_KEY = 'horseboard_display_id';
+const STORAGE_KEY = 'horseboard_board_id';
 
 const pathname = signal(window.location.pathname);
 const isInitialized = signal(false);
@@ -172,16 +172,16 @@ function Landing() {
           </a>
 
           <a
-            href="/display"
+            href="/board"
             class="landing-link"
-            data-testid="landing-display-link"
+            data-testid="landing-board-link"
             onClick={(e) => {
               e.preventDefault();
-              navigate('/display');
+              navigate('/board');
             }}
           >
             <span class="landing-link-icon">📺</span>
-            <span class="landing-link-text">Display</span>
+            <span class="landing-link-text">Board</span>
             <span class="landing-link-description">Show feed board on TV</span>
           </a>
         </div>
@@ -191,7 +191,7 @@ function Landing() {
 }
 
 // =============================================================================
-// PAIRING VIEW (when no display ID is stored)
+// PAIRING VIEW (when no board ID is stored)
 // =============================================================================
 
 const pairCode = signal('');
@@ -213,9 +213,9 @@ async function handlePair() {
 
     const result = await response.json();
 
-    if (result.success && result.displayId) {
-      localStorage.setItem(STORAGE_KEY, result.displayId);
-      await initializeApp(result.displayId);
+    if (result.success && result.boardId) {
+      localStorage.setItem(STORAGE_KEY, result.boardId);
+      await initializeApp(result.boardId);
     } else {
       pairError.value = result.error || 'Invalid pair code';
     }
@@ -226,12 +226,12 @@ async function handlePair() {
   }
 }
 
-async function handleCreateDisplay() {
+async function handleCreateBoard() {
   isPairing.value = true;
   pairError.value = null;
 
   try {
-    const response = await fetch('/api/displays', {
+    const response = await fetch('/api/boards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -242,7 +242,7 @@ async function handleCreateDisplay() {
       localStorage.setItem(STORAGE_KEY, result.id);
       await initializeApp(result.id);
     } else {
-      pairError.value = 'Failed to create display';
+      pairError.value = 'Failed to create board';
     }
   } catch {
     pairError.value = 'Connection failed';
@@ -260,7 +260,7 @@ function PairingView() {
         <div class="pairing-section">
           <h2 class="pairing-section-title">Join Existing Board</h2>
           <p class="pairing-description">
-            Enter the 6-digit code shown on your TV display
+            Enter the 6-digit code shown on your TV board
           </p>
           <input
             type="text"
@@ -292,9 +292,9 @@ function PairingView() {
           </p>
           <button
             class="pairing-btn"
-            data-testid="create-display-btn"
+            data-testid="create-board-btn"
             disabled={isPairing.value}
-            onClick={handleCreateDisplay}
+            onClick={handleCreateBoard}
           >
             {isPairing.value ? 'Creating...' : 'Create New Board'}
           </button>
@@ -314,15 +314,15 @@ function PairingView() {
 // APP INITIALIZATION
 // =============================================================================
 
-async function initializeApp(displayId: string): Promise<boolean> {
+async function initializeApp(boardId: string): Promise<boolean> {
   try {
-    const success = await bootstrap(displayId);
+    const success = await bootstrap(boardId);
     if (!success) {
       connectionError.value = 'Failed to load data';
       return false;
     }
 
-    await sseClient.connect(displayId);
+    await sseClient.connect(boardId);
     isInitialized.value = true;
     connectionError.value = null;
     return true;
@@ -339,12 +339,12 @@ async function initializeApp(displayId: string): Promise<boolean> {
 export function App() {
   // Initialize on mount
   useEffect(() => {
-    const storedDisplayId = localStorage.getItem(STORAGE_KEY);
+    const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
-    if (storedDisplayId) {
-      initializeApp(storedDisplayId);
+    if (storedBoardId) {
+      initializeApp(storedBoardId);
     } else {
-      // No display ID - redirect to controller for pairing if not on landing
+      // No board ID - redirect to controller for pairing if not on landing
       isInitialized.value = false;
     }
 
@@ -369,15 +369,15 @@ export function App() {
   }
 
   // Check if we need to pair first (for controller views)
-  const needsPairing = !display.value && !isInitialized.value;
-  const storedDisplayId = localStorage.getItem(STORAGE_KEY);
+  const needsPairing = !board.value && !isInitialized.value;
+  const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
-  if ((path === '/controller' || path === '/board') && needsPairing && !storedDisplayId) {
+  if ((path === '/controller' || path === '/board') && needsPairing && !storedBoardId) {
     return <PairingView />;
   }
 
   // Show connection error if any
-  if (connectionError.value && storedDisplayId) {
+  if (connectionError.value && storedBoardId) {
     return (
       <div class="error-view" data-testid="error-view">
         <div class="error-content">
@@ -385,7 +385,7 @@ export function App() {
           <p>{connectionError.value}</p>
           <button
             class="error-retry-btn"
-            onClick={() => initializeApp(storedDisplayId)}
+            onClick={() => initializeApp(storedBoardId)}
           >
             Retry
           </button>
@@ -406,14 +406,11 @@ export function App() {
 
   // Route to appropriate view
   switch (path) {
-    case '/display':
-      return <Display />;
+    case '/board':
+      return <Board />;
 
     case '/controller':
       return <Controller />;
-
-    case '/board':
-      return <BoardTab />;
 
     default:
       // 404 - redirect to landing

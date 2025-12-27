@@ -5,7 +5,7 @@ import {
   type ResourceName,
   type TimeMode,
   type EffectiveTimeMode,
-  type Display,
+  type Board,
   type Unit,
 } from '@shared/resources';
 
@@ -438,11 +438,11 @@ export function createDietStore(): DietStore {
 }
 
 // =============================================================================
-// DISPLAY STORE
+// BOARD STORE
 // =============================================================================
 
-export interface DisplayStore {
-  display: Signal<Display | null>;
+export interface BoardStore {
+  board: Signal<Board | null>;
   configuredMode: ReadonlySignal<TimeMode>;
   timezone: ReadonlySignal<string>;
   overrideUntil: ReadonlySignal<string | null>;
@@ -450,26 +450,26 @@ export interface DisplayStore {
   currentPage: ReadonlySignal<number>;
   effectiveTimeMode: ReadonlySignal<EffectiveTimeMode>;
 
-  set: (display: Display, source?: UpdateSource) => void;
-  update: (updates: Partial<Display>, source?: UpdateSource) => void;
+  set: (board: Board, source?: UpdateSource) => void;
+  update: (updates: Partial<Board>, source?: UpdateSource) => void;
   updateTimeMode: (mode: TimeMode, overrideUntilDate?: string | null) => void;
   setZoomLevel: (level: number) => void;
   setCurrentPage: (page: number) => void;
 }
 
-// Display type imported from @shared/resources
+// Board type imported from @shared/resources
 
 import { getEffectiveTimeMode } from '@shared/time-mode';
 
 /**
- * Create specialized display store with reconciliation
+ * Create specialized board store with reconciliation
  */
-export function createDisplayStore(): DisplayStore {
-  const display = signal<Display | null>(null);
+export function createBoardStore(): BoardStore {
+  const board = signal<Board | null>(null);
 
   const shouldReplace = (
-    existing: Display | null,
-    incoming: Display,
+    existing: Board | null,
+    incoming: Board,
     source: UpdateSource
   ): boolean => {
     if (source === 'sse') return true;
@@ -479,11 +479,11 @@ export function createDisplayStore(): DisplayStore {
     return incomingTime >= existingTime;
   };
 
-  const configuredMode = computed<TimeMode>(() => display.value?.timeMode ?? DEFAULT_TIME_MODE);
-  const timezone = computed(() => display.value?.timezone ?? 'UTC');
-  const overrideUntil = computed(() => display.value?.overrideUntil ?? null);
-  const zoomLevel = computed(() => display.value?.zoomLevel ?? 2);
-  const currentPage = computed(() => display.value?.currentPage ?? 0);
+  const configuredMode = computed<TimeMode>(() => board.value?.timeMode ?? DEFAULT_TIME_MODE);
+  const timezone = computed(() => board.value?.timezone ?? 'UTC');
+  const overrideUntil = computed(() => board.value?.overrideUntil ?? null);
+  const zoomLevel = computed(() => board.value?.zoomLevel ?? 2);
+  const currentPage = computed(() => board.value?.currentPage ?? 0);
 
   const effectiveTimeMode = computed<EffectiveTimeMode>(() => {
     return getEffectiveTimeMode(
@@ -494,7 +494,7 @@ export function createDisplayStore(): DisplayStore {
   });
 
   return {
-    display,
+    board,
     configuredMode,
     timezone,
     overrideUntil,
@@ -502,30 +502,30 @@ export function createDisplayStore(): DisplayStore {
     currentPage,
     effectiveTimeMode,
 
-    set(newDisplay: Display, source: UpdateSource = 'api') {
-      if (shouldReplace(display.value, newDisplay, source)) {
-        display.value = newDisplay;
+    set(newBoard: Board, source: UpdateSource = 'api') {
+      if (shouldReplace(board.value, newBoard, source)) {
+        board.value = newBoard;
       }
     },
 
-    update(updates: Partial<Display>, source: UpdateSource = 'api') {
-      if (!display.value) return;
+    update(updates: Partial<Board>, source: UpdateSource = 'api') {
+      if (!board.value) return;
 
-      const updated: Display = {
-        ...display.value,
+      const updated: Board = {
+        ...board.value,
         ...updates,
         updatedAt: new Date().toISOString(),
       };
 
-      if (shouldReplace(display.value, updated, source)) {
-        display.value = updated;
+      if (shouldReplace(board.value, updated, source)) {
+        board.value = updated;
       }
     },
 
     updateTimeMode(mode: TimeMode, overrideUntilDate?: string | null) {
-      if (display.value) {
-        display.value = {
-          ...display.value,
+      if (board.value) {
+        board.value = {
+          ...board.value,
           timeMode: mode,
           overrideUntil: overrideUntilDate ?? null,
           updatedAt: new Date().toISOString(),
@@ -534,9 +534,9 @@ export function createDisplayStore(): DisplayStore {
     },
 
     setZoomLevel(level: number) {
-      if (display.value) {
-        display.value = {
-          ...display.value,
+      if (board.value) {
+        board.value = {
+          ...board.value,
           zoomLevel: level,
           updatedAt: new Date().toISOString(),
         };
@@ -544,9 +544,9 @@ export function createDisplayStore(): DisplayStore {
     },
 
     setCurrentPage(page: number) {
-      if (display.value) {
-        display.value = {
-          ...display.value,
+      if (board.value) {
+        board.value = {
+          ...board.value,
           currentPage: page,
           updatedAt: new Date().toISOString(),
         };
@@ -567,7 +567,7 @@ export interface HorseStore extends ResourceStore<Horse> {
 
 interface Horse {
   id: string;
-  displayId: string;
+  boardId: string;
   name: string;
   note: string | null;
   noteExpiry: string | null;
@@ -611,7 +611,7 @@ export interface FeedStore extends ResourceStore<Feed> {
 
 interface Feed {
   id: string;
-  displayId: string;
+  boardId: string;
   name: string;
   unit: Unit;
   rank: number;

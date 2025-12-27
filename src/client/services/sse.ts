@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { batch } from '@preact/signals';
-import { setDisplay, setHorses, setFeeds, setDietEntries } from '../stores';
+import { setBoard, setHorses, setFeeds, setDietEntries } from '../stores';
 import {
-  DisplaySchema,
+  BoardSchema,
   HorseSchema,
   FeedSchema,
   DietEntrySchema,
@@ -14,7 +14,7 @@ import {
 const SSEStateEventSchema = z.object({
   type: z.literal('state'),
   data: z.object({
-    display: DisplaySchema,
+    board: BoardSchema,
   }),
   timestamp: z.string().optional(),
 });
@@ -32,7 +32,7 @@ const SSEDataEventSchema = z.object({
 const SSEFullEventSchema = z.object({
   type: z.literal('full'),
   data: z.object({
-    display: DisplaySchema,
+    board: BoardSchema,
     horses: z.array(HorseSchema),
     feeds: z.array(FeedSchema),
     dietEntries: z.array(DietEntrySchema),
@@ -78,7 +78,7 @@ type SSEEvent = z.infer<typeof SSEEventSchema>;
  */
 class SSEClient {
   private eventSource: EventSource | null = null;
-  private displayId: string | null = null;
+  private boardId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
@@ -87,16 +87,16 @@ class SSEClient {
   private onErrorCallback?: (error: Event) => void;
 
   /**
-   * Connect to SSE endpoint for a display
+   * Connect to SSE endpoint for a board
    */
-  connect(displayId: string): Promise<void> {
+  connect(boardId: string): Promise<void> {
     return new Promise((resolve, _reject) => {
       if (this.eventSource) {
         this.disconnect();
       }
 
-      this.displayId = displayId;
-      this.eventSource = new EventSource(`/api/displays/${displayId}/events`);
+      this.boardId = boardId;
+      this.eventSource = new EventSource(`/api/boards/${boardId}/events`);
 
       this.eventSource.onopen = () => {
         this.reconnectAttempts = 0;
@@ -138,7 +138,7 @@ class SSEClient {
       this.eventSource.close();
       this.eventSource = null;
     }
-    this.displayId = null;
+    this.boardId = null;
     this.reconnectAttempts = 0;
   }
 
@@ -154,8 +154,8 @@ class SSEClient {
     batch(() => {
       switch (event.type) {
         case 'state':
-          // Display state update only
-          setDisplay(event.data.display, 'sse');
+          // Board state update only
+          setBoard(event.data.board, 'sse');
           break;
 
         case 'data':
@@ -167,7 +167,7 @@ class SSEClient {
 
         case 'full':
           // Complete state + data update
-          setDisplay(event.data.display, 'sse');
+          setBoard(event.data.board, 'sse');
           setHorses(event.data.horses, 'sse');
           setFeeds(event.data.feeds, 'sse');
           setDietEntries(event.data.dietEntries, 'sse');
@@ -207,14 +207,14 @@ class SSEClient {
    * Refetch a specific resource when SSE event doesn't include data
    */
   private async refetchResource(resource: 'horses' | 'feeds' | 'diet'): Promise<void> {
-    if (!this.displayId) return;
+    if (!this.boardId) return;
 
     try {
       let url: string;
       if (resource === 'diet') {
-        url = `/api/diet?displayId=${this.displayId}`;
+        url = `/api/diet?boardId=${this.boardId}`;
       } else {
-        url = `/api/displays/${this.displayId}/${resource}`;
+        url = `/api/boards/${this.boardId}/${resource}`;
       }
 
       const response = await fetch(url);
@@ -256,8 +256,8 @@ class SSEClient {
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      if (this.displayId) {
-        this.connect(this.displayId).catch(console.error);
+      if (this.boardId) {
+        this.connect(this.boardId).catch(console.error);
       }
     }, delay);
   }
@@ -270,10 +270,10 @@ class SSEClient {
   }
 
   /**
-   * Get current display ID
+   * Get current board ID
    */
-  getDisplayId(): string | null {
-    return this.displayId;
+  getBoardId(): string | null {
+    return this.boardId;
   }
 
   /**

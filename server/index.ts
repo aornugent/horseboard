@@ -38,9 +38,13 @@ function initializeDatabase(dbPath: string): Database.Database {
   db.pragma('foreign_keys = ON');
 
   // Run migrations
-  const migrationPath = join(__dirname, '../src/server/db/migrations/001_initial_schema.sql');
-  const migration = readFileSync(migrationPath, 'utf-8');
-  db.exec(migration);
+  const migration1Path = join(__dirname, '../src/server/db/migrations/001_initial_schema.sql');
+  const migration1 = readFileSync(migration1Path, 'utf-8');
+  db.exec(migration1);
+
+  const migration2Path = join(__dirname, '../src/server/db/migrations/002_rename_display_to_board.sql');
+  const migration2 = readFileSync(migration2Path, 'utf-8');
+  db.exec(migration2);
 
   return db;
 }
@@ -56,7 +60,7 @@ interface ServerContext {
   rankingManager: FeedRankingManager;
   expiryScheduler: ExpiryScheduler;
   repos: {
-    displays: Repository<'displays'>;
+    boards: Repository<'boards'>;
     horses: Repository<'horses'>;
     feeds: Repository<'feeds'>;
     diet: Repository<'diet'>;
@@ -69,15 +73,15 @@ interface ServerContext {
 // =============================================================================
 
 function createBroadcastHelper(ctx: ServerContext) {
-  return function broadcast(displayId: string): void {
-    const display = ctx.repos.displays.getById(displayId);
-    if (!display) return;
+  return function broadcast(boardId: string): void {
+    const board = ctx.repos.boards.getById(boardId);
+    if (!board) return;
 
-    const horses = ctx.repos.horses.getByParent?.(displayId) ?? [];
-    const feeds = ctx.repos.feeds.getByParent?.(displayId) ?? [];
-    const dietEntries = ctx.repos.diet.getByDisplayId?.(displayId) ?? [];
+    const horses = ctx.repos.horses.getByParent?.(boardId) ?? [];
+    const feeds = ctx.repos.feeds.getByParent?.(boardId) ?? [];
+    const dietEntries = ctx.repos.diet.getByBoardId?.(boardId) ?? [];
 
-    ctx.sse.broadcast(displayId, 'full', { display, horses, feeds, dietEntries });
+    ctx.sse.broadcast(boardId, 'full', { board, horses, feeds, dietEntries });
   };
 }
 
@@ -85,16 +89,16 @@ function createBroadcastHelper(ctx: ServerContext) {
 // ROUTE MOUNTING
 // =============================================================================
 
-function mountResources(ctx: ServerContext, broadcast: (displayId: string) => void): void {
+function mountResources(ctx: ServerContext, broadcast: (boardId: string) => void): void {
   // Create hooks that use the async ranking manager
   const hooks = {
-    scheduleRankingRecalculation: (displayId: string) => {
-      ctx.rankingManager.scheduleRecalculation(displayId);
+    scheduleRankingRecalculation: (boardId: string) => {
+      ctx.rankingManager.scheduleRecalculation(boardId);
     },
   };
 
   // Mount resources and store references
-  ctx.repos.displays = mountResource(ctx.app, ctx.db, 'displays', { broadcast });
+  ctx.repos.boards = mountResource(ctx.app, ctx.db, 'boards', { broadcast });
   ctx.repos.horses = mountResource(ctx.app, ctx.db, 'horses', { broadcast });
   ctx.repos.feeds = mountResource(ctx.app, ctx.db, 'feeds', { broadcast, hooks });
   ctx.repos.diet = mountResource(ctx.app, ctx.db, 'diet', {
@@ -104,54 +108,54 @@ function mountResources(ctx: ServerContext, broadcast: (displayId: string) => vo
   });
 }
 
-function mountSpecialEndpoints(ctx: ServerContext, broadcast: (displayId: string) => void): void {
+function mountSpecialEndpoints(ctx: ServerContext, broadcast: (boardId: string) => void): void {
   const { app, repos } = ctx;
 
   // Bootstrap - full state for UI hydration
-  app.get('/api/bootstrap/:displayId', (req, res) => {
-    const display = repos.displays.getById(req.params.displayId);
-    if (!display) {
-      return res.status(404).json({ success: false, error: 'Display not found' });
+  app.get('/api/bootstrap/:boardId', (req, res) => {
+    const board = repos.boards.getById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
     }
 
-    const horses = repos.horses.getByParent?.(req.params.displayId) ?? [];
-    const feeds = repos.feeds.getByParent?.(req.params.displayId) ?? [];
-    const dietEntries = repos.diet.getByDisplayId?.(req.params.displayId) ?? [];
+    const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
+    const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
+    const dietEntries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
 
     res.json({
       success: true,
-      data: { display, horses, feeds, dietEntries },
+      data: { board, horses, feeds, dietEntries },
     });
   });
 
   // Pair by code - returns full state
   app.get('/api/bootstrap/pair/:code', (req, res) => {
-    const display = repos.displays.getByPairCode?.(req.params.code);
+    const board = repos.boards.getByPairCode?.(req.params.code);
 
-    if (!display) {
+    if (!board) {
       return res.status(404).json({ success: false, error: 'Invalid pairing code' });
     }
 
-    const horses = repos.horses.getByParent?.(display.id) ?? [];
-    const feeds = repos.feeds.getByParent?.(display.id) ?? [];
-    const dietEntries = repos.diet.getByDisplayId?.(display.id) ?? [];
+    const horses = repos.horses.getByParent?.(board.id) ?? [];
+    const feeds = repos.feeds.getByParent?.(board.id) ?? [];
+    const dietEntries = repos.diet.getByBoardId?.(board.id) ?? [];
 
     res.json({
       success: true,
-      data: { display, horses, feeds, dietEntries },
+      data: { board, horses, feeds, dietEntries },
     });
   });
 
   // Time mode update with override
-  app.put('/api/displays/:id/time-mode', (req, res) => {
+  app.put('/api/boards/:id/time-mode', (req, res) => {
     const { timeMode, overrideUntil } = req.body;
 
-    const existing = repos.displays.getById(req.params.id);
+    const existing = repos.boards.getById(req.params.id);
     if (!existing) {
-      return res.status(404).json({ success: false, error: 'Display not found' });
+      return res.status(404).json({ success: false, error: 'Board not found' });
     }
 
-    const updated = repos.displays.update(
+    const updated = repos.boards.update(
       { timeMode, overrideUntil: overrideUntil ?? null },
       req.params.id
     );
@@ -160,7 +164,7 @@ function mountSpecialEndpoints(ctx: ServerContext, broadcast: (displayId: string
     if (overrideUntil) {
       ctx.expiryScheduler.schedule({
         id: req.params.id,
-        displayId: req.params.id,
+        boardId: req.params.id,
         expiresAt: new Date(overrideUntil),
         type: 'override',
       });
@@ -174,14 +178,14 @@ function mountSpecialEndpoints(ctx: ServerContext, broadcast: (displayId: string
   });
 
   // Recalculate feed rankings (explicit, synchronous for immediate feedback)
-  app.post('/api/displays/:displayId/feeds/recalculate-rankings', (req, res) => {
-    const display = repos.displays.getById(req.params.displayId);
-    if (!display) {
-      return res.status(404).json({ success: false, error: 'Display not found' });
+  app.post('/api/boards/:boardId/feeds/recalculate-rankings', (req, res) => {
+    const board = repos.boards.getById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
     }
 
-    const count = ctx.rankingManager.recalculateNow(req.params.displayId);
-    broadcast(req.params.displayId);
+    const count = ctx.rankingManager.recalculateNow(req.params.boardId);
+    broadcast(req.params.boardId);
 
     res.json({ success: true, data: { feedsRanked: count } });
   });
@@ -202,10 +206,10 @@ function mountSpecialEndpoints(ctx: ServerContext, broadcast: (displayId: string
 function mountSSEEndpoint(ctx: ServerContext): void {
   const { app, repos, sse } = ctx;
 
-  app.get('/api/displays/:displayId/events', (req, res) => {
-    const display = repos.displays.getById(req.params.displayId);
-    if (!display) {
-      return res.status(404).json({ success: false, error: 'Display not found' });
+  app.get('/api/boards/:boardId/events', (req, res) => {
+    const board = repos.boards.getById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
     }
 
     // Set SSE headers
@@ -215,16 +219,16 @@ function mountSSEEndpoint(ctx: ServerContext): void {
     res.flushHeaders();
 
     // Add client to SSE manager
-    sse.addClient(req.params.displayId, res);
+    sse.addClient(req.params.boardId, res);
 
     // Send initial full state
-    const horses = repos.horses.getByParent?.(req.params.displayId) ?? [];
-    const feeds = repos.feeds.getByParent?.(req.params.displayId) ?? [];
-    const dietEntries = repos.diet.getByDisplayId?.(req.params.displayId) ?? [];
+    const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
+    const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
+    const dietEntries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
 
     const initialData = JSON.stringify({
       type: 'full',
-      data: { display, horses, feeds, dietEntries },
+      data: { board, horses, feeds, dietEntries },
       timestamp: new Date().toISOString(),
     });
 
@@ -310,7 +314,7 @@ function createServer(): ServerContext {
   mountSSEEndpoint(ctx);
 
   // Initialize scheduler with repositories
-  expiryScheduler.init(ctx.repos.displays, ctx.repos.horses, broadcast);
+  expiryScheduler.init(ctx.repos.boards, ctx.repos.horses, broadcast);
 
   // Start background timers
   startTimers(ctx);

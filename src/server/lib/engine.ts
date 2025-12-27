@@ -29,7 +29,7 @@ export interface Repository<R extends ResourceName> {
   getById(...pkValues: string[]): ApiType<R> | null;
   getAll(): ApiType<R>[];
   getByParent?(parentId: string): ApiType<R>[];
-  getByDisplayId?(displayId: string): ApiType<R>[];
+  getByBoardId?(boardId: string): ApiType<R>[];
   getByPairCode?(pairCode: string): ApiType<R> | null;
   create(data: unknown, parentId?: string | null): ApiType<R>;
   upsert?(data: unknown): ApiType<R>;
@@ -92,7 +92,7 @@ export function generatePairCode(
   );
 
   const existing = db
-    .prepare('SELECT 1 FROM displays WHERE pair_code = ?')
+    .prepare('SELECT 1 FROM boards WHERE pair_code = ?')
     .get(code) as unknown;
 
   if (existing) {
@@ -225,11 +225,11 @@ export function createRepository<R extends ResourceName>(
 
   // For diet entries, add specific queries and upsert statement
   if (resourceName === 'diet') {
-    stmts.getByDisplayId = db.prepare(`
+    stmts.getByBoardId = db.prepare(`
       SELECT d.horse_id, d.feed_id, d.am_amount, d.pm_amount, d.created_at, d.updated_at
       FROM diet_entries d
       JOIN horses h ON d.horse_id = h.id
-      WHERE h.display_id = ?
+      WHERE h.board_id = ?
     `);
     // Upsert for diet entries (composite PK) - exclude auto-generated timestamps
     const dietInsertCols = (Object.values(columns) as string[]).filter(
@@ -246,8 +246,8 @@ export function createRepository<R extends ResourceName>(
     stmts.upsertCols = dietInsertCols;
   }
 
-  // For displays, add getByPairCode query
-  if (resourceName === 'displays') {
+  // For boards, add getByPairCode query
+  if (resourceName === 'boards') {
     stmts.getByPairCode = db.prepare(
       `SELECT ${selectCols} FROM ${table} WHERE pair_code = ?`
     );
@@ -287,8 +287,8 @@ export function createRepository<R extends ResourceName>(
         dbData[columns[parent.foreignKey as keyof typeof columns] as string] = parentId;
       }
 
-      // Special handling for displays (generate pair code)
-      if (resourceName === 'displays') {
+      // Special handling for boards (generate pair code)
+      if (resourceName === 'boards') {
         dbData.pair_code = generatePairCode(db);
         if (!dbData.timezone) dbData.timezone = 'Australia/Sydney';
       }
@@ -338,9 +338,9 @@ export function createRepository<R extends ResourceName>(
     };
   }
 
-  if (stmts.getByDisplayId) {
-    repo.getByDisplayId = function (displayId: string): ApiType<R>[] {
-      const rows = (stmts.getByDisplayId as Database.Statement).all(displayId) as DbRow[];
+  if (stmts.getByBoardId) {
+    repo.getByBoardId = function (boardId: string): ApiType<R>[] {
+      const rows = (stmts.getByBoardId as Database.Statement).all(boardId) as DbRow[];
       return convertRows(rows);
     };
   }
@@ -403,12 +403,12 @@ function validate(
  * Options for mounting a resource
  */
 interface MountOptions {
-  broadcast?: (displayId: string, type: string) => void;
+  broadcast?: (boardId: string, type: string) => void;
   hooks?: {
     /** @deprecated Use scheduleRankingRecalculation instead */
-    recalculateFeedRankings?: (db: Database.Database, displayId: string) => void;
+    recalculateFeedRankings?: (db: Database.Database, boardId: string) => void;
     /** Async ranking manager for non-blocking recalculation */
-    scheduleRankingRecalculation?: (displayId: string) => void;
+    scheduleRankingRecalculation?: (boardId: string) => void;
   };
   repos?: {
     horses?: Repository<'horses'>;
@@ -445,18 +445,18 @@ export function mountResource<R extends ResourceName>(
   const isComposite = Array.isArray(config.primaryKey);
 
   // Helper to broadcast SSE events
-  const notify = (displayId: string | undefined, type: string): void => {
-    if (broadcast && displayId) {
-      broadcast(displayId, type);
+  const notify = (boardId: string | undefined, type: string): void => {
+    if (broadcast && boardId) {
+      broadcast(boardId, type);
     }
   };
 
   // GET all (or by parent)
   const parent = 'parent' in config ? config.parent : undefined;
   if (parent) {
-    // Scoped under parent: GET /api/displays/:displayId/{resource}
-    app.get(`/api/displays/:displayId/${resourceName}`, (req: Request, res: Response) => {
-      const items = repo.getByParent?.(req.params.displayId) ?? [];
+    // Scoped under parent: GET /api/boards/:boardId/{resource}
+    app.get(`/api/boards/:boardId/${resourceName}`, (req: Request, res: Response) => {
+      const items = repo.getByParent?.(req.params.boardId) ?? [];
       res.json({ success: true, data: items });
     });
   } else if (resourceName !== 'diet') {
@@ -469,10 +469,10 @@ export function mountResource<R extends ResourceName>(
 
   // For diet, special handling
   if (resourceName === 'diet') {
-    // GET /api/diet?displayId=xxx
+    // GET /api/diet?boardId=xxx
     router.get('/', (req: Request, res: Response) => {
-      if (req.query.displayId) {
-        const items = repo.getByDisplayId?.(req.query.displayId as string) ?? [];
+      if (req.query.boardId) {
+        const items = repo.getByBoardId?.(req.query.boardId as string) ?? [];
         res.json({ success: true, data: items });
       } else {
         const items = repo.getAll();
@@ -494,11 +494,11 @@ export function mountResource<R extends ResourceName>(
         if (horse) {
           if (hooks.scheduleRankingRecalculation) {
             // Non-blocking: schedule async recalculation, respond immediately
-            hooks.scheduleRankingRecalculation(horse.displayId);
+            hooks.scheduleRankingRecalculation(horse.boardId);
           } else if (hooks.recalculateFeedRankings) {
             // Legacy blocking path (deprecated)
-            hooks.recalculateFeedRankings(db, horse.displayId);
-            notify(horse.displayId, 'feeds');
+            hooks.recalculateFeedRankings(db, horse.boardId);
+            notify(horse.boardId, 'feeds');
           }
         }
       }
@@ -534,14 +534,14 @@ export function mountResource<R extends ResourceName>(
 
   // POST - create
   if (parent) {
-    // Create under parent: POST /api/displays/:displayId/{resource}
+    // Create under parent: POST /api/boards/:boardId/{resource}
     app.post(
-      `/api/displays/:displayId/${resourceName}`,
+      `/api/boards/:boardId/${resourceName}`,
       validate(config.createSchema),
       (req: Request, res: Response) => {
         try {
-          const item = repo.create(req.body, req.params.displayId);
-          notify(req.params.displayId, resourceName);
+          const item = repo.create(req.body, req.params.boardId);
+          notify(req.params.boardId, resourceName);
           res.status(201).json({ success: true, data: item });
         } catch (error) {
           const err = error as Error;
@@ -575,9 +575,9 @@ export function mountResource<R extends ResourceName>(
       }
 
       const updated = repo.update(req.body, req.params.id);
-      const displayId = (existing as Record<string, unknown>).displayId as string | undefined;
-      if (displayId) {
-        notify(displayId, resourceName);
+      const boardId = (existing as Record<string, unknown>).boardId as string | undefined;
+      if (boardId) {
+        notify(boardId, resourceName);
       }
       res.json({ success: true, data: updated });
     });
@@ -592,9 +592,9 @@ export function mountResource<R extends ResourceName>(
         res.status(404).json({ success: false, error: `${resourceName} not found` });
         return;
       }
-      const displayId = (existing as Record<string, unknown>)?.displayId as string | undefined;
-      if (displayId) {
-        notify(displayId, resourceName);
+      const boardId = (existing as Record<string, unknown>)?.boardId as string | undefined;
+      if (boardId) {
+        notify(boardId, resourceName);
       }
       res.json({ success: true });
     });
@@ -625,19 +625,19 @@ export class SSEManager {
     this.clients = new Map();
   }
 
-  addClient(displayId: string, res: Response): void {
-    if (!this.clients.has(displayId)) {
-      this.clients.set(displayId, new Set());
+  addClient(boardId: string, res: Response): void {
+    if (!this.clients.has(boardId)) {
+      this.clients.set(boardId, new Set());
     }
-    this.clients.get(displayId)!.add(res);
+    this.clients.get(boardId)!.add(res);
 
     res.on('close', () => {
-      this.clients.get(displayId)?.delete(res);
+      this.clients.get(boardId)?.delete(res);
     });
   }
 
-  broadcast(displayId: string, type: string, data: unknown = null): void {
-    const clients = this.clients.get(displayId);
+  broadcast(boardId: string, type: string, data: unknown = null): void {
+    const clients = this.clients.get(boardId);
     if (!clients) return;
 
     const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
@@ -648,7 +648,7 @@ export class SSEManager {
   }
 
   sendKeepalive(): void {
-    for (const [_displayId, clients] of this.clients) {
+    for (const [_boardId, clients] of this.clients) {
       for (const client of clients) {
         try {
           client.write(': keepalive\n\n');

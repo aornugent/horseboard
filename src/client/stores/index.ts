@@ -13,7 +13,7 @@ import {
   createHorseStore,
   createFeedStore,
   createDietStore,
-  createDisplayStore,
+  createBoardStore,
   type UpdateSource,
 } from '../lib/engine';
 
@@ -21,27 +21,27 @@ import {
 export type { UpdateSource };
 
 // =============================================================================
-// DISPLAY STORE
+// BOARD STORE
 // =============================================================================
 
-const displayStore = createDisplayStore();
+const boardStore = createBoardStore();
 
-// Re-export display store properties
-export const display = displayStore.display;
-export const configuredMode = displayStore.configuredMode;
-export const timezone = displayStore.timezone;
-export const overrideUntil = displayStore.overrideUntil;
-export const zoomLevel = displayStore.zoomLevel;
-export const currentPage = displayStore.currentPage;
-export const effectiveTimeMode = displayStore.effectiveTimeMode;
+// Re-export board store properties
+export const board = boardStore.board;
+export const configuredMode = boardStore.configuredMode;
+export const timezone = boardStore.timezone;
+export const overrideUntil = boardStore.overrideUntil;
+export const zoomLevel = boardStore.zoomLevel;
+export const currentPage = boardStore.currentPage;
+export const effectiveTimeMode = boardStore.effectiveTimeMode;
 
-// Re-export display store methods with source parameter
-export const setDisplay = (d: Parameters<typeof displayStore.set>[0], source?: UpdateSource) =>
-  displayStore.set(d, source);
-export const updateDisplay = displayStore.update;
-export const updateTimeMode = displayStore.updateTimeMode;
-export const setZoomLevel = displayStore.setZoomLevel;
-export const setCurrentPage = displayStore.setCurrentPage;
+// Re-export board store methods with source parameter
+export const setBoard = (b: Parameters<typeof boardStore.set>[0], source?: UpdateSource) =>
+  boardStore.set(b, source);
+export const updateBoard = boardStore.update;
+export const updateTimeMode = boardStore.updateTimeMode;
+export const setZoomLevel = boardStore.setZoomLevel;
+export const setCurrentPage = boardStore.setCurrentPage;
 
 // =============================================================================
 // HORSES STORE

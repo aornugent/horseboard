@@ -1,21 +1,21 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid';
 import { horses, feeds, effectiveTimeMode } from '../stores';
-import './Display.css';
+import './Board.css';
 
-export function Display() {
+export function Board() {
   return (
     <div
-      class="display-view"
+      class="board-view"
       data-theme={effectiveTimeMode.value.toLowerCase()}
-      data-testid="display-view"
+      data-testid="board-view"
     >
-      <header class="display-header">
-        <div class="display-time-badge" data-testid="time-mode-badge">
+      <header class="board-header">
+        <div class="board-time-badge" data-testid="time-mode-badge">
           {effectiveTimeMode.value}
         </div>
       </header>
 
-      <main class="display-content">
+      <main class="board-content">
         <SwimLaneGrid
           horses={horses}
           feeds={feeds}

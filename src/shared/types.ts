@@ -2,7 +2,7 @@
  * Re-export types from resources for cleaner imports
  *
  * Components should import types from '@shared/types':
- *   import type { Horse, Feed, Display } from '@shared/types';
+ *   import type { Horse, Feed, Board } from '@shared/types';
  *
  * Server/validation code should import from '@shared/resources':
  *   import { HorseSchema, CreateHorseSchema } from '@shared/resources';
@@ -12,7 +12,7 @@ export type {
   Horse,
   Feed,
   DietEntry,
-  Display,
+  Board,
   Unit,
   TimeMode,
   EffectiveTimeMode,
