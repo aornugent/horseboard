@@ -1,94 +1,152 @@
-import { setBoard, setHorses, setFeeds, setDietEntries } from '../stores';
-import type { Board, Horse, Feed, DietEntry } from '@shared/resources';
+import type { Board, Horse, Feed, DietEntry, Unit, TimeMode } from '@shared/resources';
 
-interface BootstrapResponse {
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+interface ApiResponse<T> {
   success: boolean;
-  data?: {
-    board: Board;
-    horses: Horse[];
-    feeds: Feed[];
-    diet_entries: DietEntry[];
-  };
+  data?: T;
   error?: string;
 }
 
-interface PairResponse {
+async function request<T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    const text = await response.text();
+    let message = 'Request failed';
+    try {
+      const json = JSON.parse(text);
+      message = json.error || json.message || message;
+    } catch {
+      message = text || message;
+    }
+    throw new ApiError(message, response.status);
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text);
+}
+
+export interface BootstrapData {
+  board: Board;
+  horses: Horse[];
+  feeds: Feed[];
+  diet_entries: DietEntry[];
+}
+
+export interface PairResult {
   success: boolean;
   board_id?: string;
   error?: string;
 }
 
-/**
- * Bootstrap the application with initial data
- */
-export async function bootstrap(boardId: string): Promise<boolean> {
-  try {
-    const response = await fetch(`/api/bootstrap/${boardId}`);
-    const result: BootstrapResponse = await response.json();
-
-    if (result.success && result.data) {
-      setBoard(result.data.board);
-      setHorses(result.data.horses);
-      setFeeds(result.data.feeds);
-      setDietEntries(result.data.diet_entries);
-      return true;
-    }
-
-    console.error('Bootstrap failed:', result.error);
-    return false;
-  } catch (err) {
-    console.error('Bootstrap error:', err);
-    return false;
-  }
+export interface CreateBoardResult {
+  id: string;
+  pair_code: string;
 }
 
-/**
- * Pair with a board using a 6-digit code
- */
-export async function pairWithCode(code: string): Promise<{ success: boolean; board_id?: string; error?: string }> {
-  try {
-    const response = await fetch('/api/pair', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-
-    const result: PairResponse = await response.json();
-
-    if (result.success && result.board_id) {
-      // Bootstrap the board data
-      await bootstrap(result.board_id);
-    }
-
-    return result;
-  } catch (err) {
-    console.error('Pair error:', err);
-    return { success: false, error: 'Connection failed' };
+export async function bootstrap(board_id: string): Promise<BootstrapData> {
+  const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/${board_id}`);
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Bootstrap failed', 500);
   }
+  return result.data;
 }
 
-/**
- * Create a new board
- */
-export async function createBoard(): Promise<{ success: boolean; board?: Board; error?: string }> {
-  try {
-    const response = await fetch('/api/boards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const board: Board = await response.json();
-
-    if (board.id) {
-      setBoard(board);
-      return { success: true, board };
-    }
-
-    return { success: false, error: 'Failed to create board' };
-  } catch (err) {
-    console.error('Create board error:', err);
-    return { success: false, error: 'Connection failed' };
-  }
+export async function pairWithCode(code: string): Promise<PairResult> {
+  return request<PairResult>('/api/pair', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
 }
 
-export default { bootstrap, pairWithCode, createBoard };
+export async function createBoard(): Promise<Board> {
+  return request<Board>('/api/boards', {
+    method: 'POST',
+  });
+}
+
+export async function createFeed(
+  board_id: string,
+  name: string,
+  unit: Unit
+): Promise<Feed> {
+  const result = await request<ApiResponse<Feed>>(`/api/boards/${board_id}/feeds`, {
+    method: 'POST',
+    body: JSON.stringify({ name, unit }),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to create feed', 500);
+  }
+  return result.data;
+}
+
+export async function updateFeed(
+  feed_id: string,
+  updates: { name?: string; unit?: Unit }
+): Promise<Feed> {
+  const result = await request<ApiResponse<Feed>>(`/api/feeds/${feed_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to update feed', 500);
+  }
+  return result.data;
+}
+
+export async function deleteFeed(feed_id: string): Promise<void> {
+  await request<void>(`/api/feeds/${feed_id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateTimeMode(
+  board_id: string,
+  time_mode: TimeMode,
+  override_until: string | null
+): Promise<Board> {
+  const result = await request<ApiResponse<Board>>(`/api/boards/${board_id}/time-mode`, {
+    method: 'PUT',
+    body: JSON.stringify({ time_mode, override_until }),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to update time mode', 500);
+  }
+  return result.data;
+}
+
+export async function updateBoard(
+  board_id: string,
+  updates: { timezone?: string; zoom_level?: 1 | 2 | 3; current_page?: number }
+): Promise<Board> {
+  const result = await request<ApiResponse<Board>>(`/api/boards/${board_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to update board', 500);
+  }
+  return result.data;
+}

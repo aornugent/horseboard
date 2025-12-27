@@ -8,8 +8,8 @@ import {
   FeedsTab,
   SettingsTab,
 } from './views/Controller';
-import { bootstrap, sseClient } from './services';
-import { board } from './stores';
+import { bootstrap, pairWithCode, createBoard, sseClient } from './services';
+import { board, setBoard, setHorses, setFeeds, setDietEntries } from './stores';
 import './styles/theme.css';
 
 // =============================================================================
@@ -205,13 +205,7 @@ async function handlePair() {
   pairError.value = null;
 
   try {
-    const response = await fetch('/api/pair', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: pairCode.value }),
-    });
-
-    const result = await response.json();
+    const result = await pairWithCode(pairCode.value);
 
     if (result.success && result.board_id) {
       localStorage.setItem(STORAGE_KEY, result.board_id);
@@ -231,12 +225,7 @@ async function handleCreateBoard() {
   pairError.value = null;
 
   try {
-    const response = await fetch('/api/boards', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const result = await response.json();
+    const result = await createBoard();
 
     if (result.id) {
       localStorage.setItem(STORAGE_KEY, result.id);
@@ -316,11 +305,11 @@ function PairingView() {
 
 async function initializeApp(boardId: string): Promise<boolean> {
   try {
-    const success = await bootstrap(boardId);
-    if (!success) {
-      connectionError.value = 'Failed to load data';
-      return false;
-    }
+    const data = await bootstrap(boardId);
+    setBoard(data.board);
+    setHorses(data.horses);
+    setFeeds(data.feeds);
+    setDietEntries(data.diet_entries);
 
     await sseClient.connect(boardId);
     isInitialized.value = true;
