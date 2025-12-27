@@ -1,6 +1,6 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
-import { feeds, addFeed, removeFeed, updateFeed, display, dietEntries } from '../../stores';
+import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries } from '../../stores';
 import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
 import './FeedsTab.css';
 
@@ -22,15 +22,15 @@ const filteredFeeds = computed(() => {
 // Count horses using a specific feed
 function countHorsesUsingFeed(feedId: string): number {
   return dietEntries.value.filter(
-    entry => entry.feedId === feedId && (entry.amAmount || entry.pmAmount)
+    entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount)
   ).length;
 }
 
 // API helpers
 async function createFeed(name: string, unit: Unit) {
-  if (!display.value) return;
+  if (!board.value) return;
 
-  const response = await fetch(`/api/displays/${display.value.id}/feeds`, {
+  const response = await fetch(`/api/boards/${board.value.id}/feeds`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, unit }),

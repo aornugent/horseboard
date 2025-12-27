@@ -68,8 +68,6 @@ export interface ResourceConfig<T extends z.ZodObject<z.ZodRawShape>> {
   schema: T;
   createSchema: z.ZodObject<z.ZodRawShape>;
   updateSchema: z.ZodObject<z.ZodRawShape>;
-  // Column mapping: camelCase -> snake_case
-  columns: Record<string, string>;
   // Indexes for the table
   indexes?: string[];
   // Hook triggered after write operations
@@ -88,26 +86,26 @@ export interface ResourceConfig<T extends z.ZodObject<z.ZodRawShape>> {
 
 export const HorseSchema = z.object({
   id: z.string().min(1),
-  boardId: z.string().min(1),
+  board_id: z.string().min(1),
   name: z.string().min(1).max(50),
   note: z.string().max(200).nullable(),
-  noteExpiry: z.string().nullable(),
+  note_expiry: z.string().nullable(),
   archived: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 export type Horse = z.infer<typeof HorseSchema>;
 
 export const CreateHorseSchema = z.object({
   name: z.string().min(1).max(50),
   note: z.string().max(200).optional().nullable(),
-  noteExpiry: z.string().optional().nullable(),
+  note_expiry: z.string().optional().nullable(),
 });
 
 export const UpdateHorseSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   note: z.string().max(200).optional().nullable(),
-  noteExpiry: z.string().optional().nullable(),
+  note_expiry: z.string().optional().nullable(),
 });
 
 // =============================================================================
@@ -116,14 +114,14 @@ export const UpdateHorseSchema = z.object({
 
 export const FeedSchema = z.object({
   id: z.string().min(1),
-  boardId: z.string().min(1),
+  board_id: z.string().min(1),
   name: z.string().min(1).max(50),
   unit: UnitSchema,
   rank: z.number().int().min(0),
-  stockLevel: z.number().min(0),
-  lowStockThreshold: z.number().min(0),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  stock_level: z.number().min(0),
+  low_stock_threshold: z.number().min(0),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 export type Feed = z.infer<typeof FeedSchema>;
 
@@ -135,8 +133,8 @@ export const CreateFeedSchema = z.object({
 export const UpdateFeedSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   unit: UnitSchema.optional(),
-  stockLevel: z.number().min(0).optional(),
-  lowStockThreshold: z.number().min(0).optional(),
+  stock_level: z.number().min(0).optional(),
+  low_stock_threshold: z.number().min(0).optional(),
 });
 
 // =============================================================================
@@ -144,20 +142,20 @@ export const UpdateFeedSchema = z.object({
 // =============================================================================
 
 export const DietEntrySchema = z.object({
-  horseId: z.string().min(1),
-  feedId: z.string().min(1),
-  amAmount: z.number().min(0).nullable(),
-  pmAmount: z.number().min(0).nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  horse_id: z.string().min(1),
+  feed_id: z.string().min(1),
+  am_amount: z.number().min(0).nullable(),
+  pm_amount: z.number().min(0).nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 export type DietEntry = z.infer<typeof DietEntrySchema>;
 
 export const UpsertDietEntrySchema = z.object({
-  horseId: z.string().min(1),
-  feedId: z.string().min(1),
-  amAmount: z.number().min(0).optional().nullable(),
-  pmAmount: z.number().min(0).optional().nullable(),
+  horse_id: z.string().min(1),
+  feed_id: z.string().min(1),
+  am_amount: z.number().min(0).optional().nullable(),
+  pm_amount: z.number().min(0).optional().nullable(),
 });
 
 // =============================================================================
@@ -166,26 +164,26 @@ export const UpsertDietEntrySchema = z.object({
 
 export const BoardSchema = z.object({
   id: z.string().min(1),
-  pairCode: z.string().length(6),
+  pair_code: z.string().length(6),
   timezone: z.string().min(1),
-  timeMode: TimeModeSchema,
-  overrideUntil: z.string().nullable(),
-  zoomLevel: z.number().int().min(1).max(3),
-  currentPage: z.number().int().min(0),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  time_mode: TimeModeSchema,
+  override_until: z.string().nullable(),
+  zoom_level: z.number().int().min(1).max(3),
+  current_page: z.number().int().min(0),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 export type Board = z.infer<typeof BoardSchema>;
 
 export const UpdateBoardSchema = z.object({
   timezone: z.string().min(1).optional(),
-  zoomLevel: z.number().int().min(1).max(3).optional(),
-  currentPage: z.number().int().min(0).optional(),
+  zoom_level: z.number().int().min(1).max(3).optional(),
+  current_page: z.number().int().min(0).optional(),
 });
 
 export const SetTimeModeSchema = z.object({
-  timeMode: TimeModeSchema,
-  overrideUntil: z.string().optional().nullable(),
+  time_mode: TimeModeSchema,
+  override_until: z.string().optional().nullable(),
 });
 
 // =============================================================================
@@ -199,18 +197,8 @@ export const RESOURCES = {
     schema: HorseSchema,
     createSchema: CreateHorseSchema,
     updateSchema: UpdateHorseSchema,
-    columns: {
-      id: 'id',
-      boardId: 'board_id',
-      name: 'name',
-      note: 'note',
-      noteExpiry: 'note_expiry',
-      archived: 'archived',
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
-    },
     indexes: ['board_id'],
-    parent: { resource: 'boards', foreignKey: 'boardId' },
+    parent: { resource: 'boards', foreignKey: 'board_id' },
     orderBy: 'name',
     filter: 'archived = 0',
   },
@@ -221,38 +209,18 @@ export const RESOURCES = {
     schema: FeedSchema,
     createSchema: CreateFeedSchema,
     updateSchema: UpdateFeedSchema,
-    columns: {
-      id: 'id',
-      boardId: 'board_id',
-      name: 'name',
-      unit: 'unit',
-      rank: 'rank',
-      stockLevel: 'stock_level',
-      lowStockThreshold: 'low_stock_threshold',
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
-    },
     indexes: ['board_id'],
-    parent: { resource: 'boards', foreignKey: 'boardId' },
+    parent: { resource: 'boards', foreignKey: 'board_id' },
     orderBy: 'rank DESC, name',
-    // Trigger feed ranking recalculation after diet changes
     onWrite: 'recalculateFeedRankings',
   },
 
   diet: {
     table: 'diet_entries',
-    primaryKey: ['horseId', 'feedId'] as const,
+    primaryKey: ['horse_id', 'feed_id'] as const,
     schema: DietEntrySchema,
     createSchema: UpsertDietEntrySchema,
     updateSchema: UpsertDietEntrySchema,
-    columns: {
-      horseId: 'horse_id',
-      feedId: 'feed_id',
-      amAmount: 'am_amount',
-      pmAmount: 'pm_amount',
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
-    },
     indexes: ['horse_id', 'feed_id'],
   },
 
@@ -262,17 +230,6 @@ export const RESOURCES = {
     schema: BoardSchema,
     createSchema: z.object({ timezone: z.string().optional() }),
     updateSchema: UpdateBoardSchema,
-    columns: {
-      id: 'id',
-      pairCode: 'pair_code',
-      timezone: 'timezone',
-      timeMode: 'time_mode',
-      overrideUntil: 'override_until',
-      zoomLevel: 'zoom_level',
-      currentPage: 'current_page',
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
-    },
   },
 } as const;
 
@@ -283,20 +240,10 @@ export type ResourceName = keyof typeof RESOURCES;
 // =============================================================================
 
 /**
- * Extract the API type (camelCase) from a resource's schema
+ * Extract the resource type from a resource's schema
+ * Property names match database column names exactly (snake_case)
  */
-export type ApiType<R extends ResourceName> = z.infer<(typeof RESOURCES)[R]['schema']>;
-
-/**
- * Extract the column mapping type for a resource
- */
-export type ColumnMapping<R extends ResourceName> = (typeof RESOURCES)[R]['columns'];
-
-/**
- * Database row type - generic record returned by SQLite
- * The actual structure maps snake_case column names to values
- */
-export type DbRow = Record<string, unknown>;
+export type ResourceType<R extends ResourceName> = z.infer<(typeof RESOURCES)[R]['schema']>;
 
 /**
  * Type guard to check if a string is a valid resource name

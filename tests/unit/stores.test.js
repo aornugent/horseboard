@@ -19,13 +19,13 @@ function mockHorse(overrides = {}) {
   const now = new Date().toISOString();
   return {
     id: `h_${Math.random().toString(36).slice(2)}`,
-    boardId: 'b_test',
+    board_id: 'b_test',
     name: 'Test Horse',
     note: null,
-    noteExpiry: null,
+    note_expiry: null,
     archived: false,
-    createdAt: now,
-    updatedAt: now,
+    created_at: now,
+    updated_at: now,
     ...overrides,
   };
 }
@@ -37,14 +37,14 @@ function mockFeed(overrides = {}) {
   const now = new Date().toISOString();
   return {
     id: `f_${Math.random().toString(36).slice(2)}`,
-    boardId: 'b_test',
+    board_id: 'b_test',
     name: 'Test Feed',
     unit: 'scoop',
     rank: 1,
-    stockLevel: 100,
-    lowStockThreshold: 10,
-    createdAt: now,
-    updatedAt: now,
+    stock_level: 100,
+    low_stock_threshold: 10,
+    created_at: now,
+    updated_at: now,
     ...overrides,
   };
 }
@@ -55,12 +55,12 @@ function mockFeed(overrides = {}) {
 function mockDietEntry(overrides = {}) {
   const now = new Date().toISOString();
   return {
-    horseId: 'h_test',
-    feedId: 'f_test',
-    amAmount: null,
-    pmAmount: null,
-    createdAt: now,
-    updatedAt: now,
+    horse_id: 'h_test',
+    feed_id: 'f_test',
+    am_amount: null,
+    pm_amount: null,
+    created_at: now,
+    updated_at: now,
     ...overrides,
   };
 }
@@ -72,14 +72,14 @@ function mockBoard(overrides = {}) {
   const now = new Date().toISOString();
   return {
     id: 'b_test',
-    pairCode: '123456',
+    pair_code: '123456',
     timezone: 'Australia/Sydney',
-    timeMode: 'AUTO',
-    overrideUntil: null,
-    zoomLevel: 2,
-    currentPage: 0,
-    createdAt: now,
-    updatedAt: now,
+    time_mode: 'AUTO',
+    override_until: null,
+    zoom_level: 2,
+    current_page: 0,
+    created_at: now,
+    updated_at: now,
     ...overrides,
   };
 }
@@ -205,14 +205,14 @@ describe('createResourceStore', () => {
       const oldHorse = mockHorse({
         id: 'h_1',
         name: 'Old Name',
-        updatedAt: timestamp(1000), // Future timestamp
+        updated_at: timestamp(1000), // Future timestamp
       });
       store.add(oldHorse);
 
       const sseHorse = mockHorse({
         id: 'h_1',
         name: 'SSE Name',
-        updatedAt: timestamp(-1000), // Past timestamp - should still win
+        updated_at: timestamp(-1000), // Past timestamp - should still win
       });
       store.add(sseHorse, 'sse');
 
@@ -224,7 +224,7 @@ describe('createResourceStore', () => {
       const existingHorse = mockHorse({
         id: 'h_1',
         name: 'Existing',
-        updatedAt: timestamp(0),
+        updated_at: timestamp(0),
       });
       store.add(existingHorse);
 
@@ -232,7 +232,7 @@ describe('createResourceStore', () => {
       const olderHorse = mockHorse({
         id: 'h_1',
         name: 'Older Update',
-        updatedAt: timestamp(-1000),
+        updated_at: timestamp(-1000),
       });
       store.add(olderHorse, 'api');
 
@@ -242,7 +242,7 @@ describe('createResourceStore', () => {
       const newerHorse = mockHorse({
         id: 'h_1',
         name: 'Newer Update',
-        updatedAt: timestamp(1000),
+        updated_at: timestamp(1000),
       });
       store.add(newerHorse, 'api');
 
@@ -267,12 +267,12 @@ describe('createResourceStore', () => {
 
     test('reconcile() merges items based on timestamps', () => {
       const store = createResourceStore('horses');
-      store.add(mockHorse({ id: 'h_1', name: 'Original', updatedAt: timestamp(0) }));
+      store.add(mockHorse({ id: 'h_1', name: 'Original', updated_at: timestamp(0) }));
 
       store.reconcile(
         [
-          mockHorse({ id: 'h_1', name: 'Updated', updatedAt: timestamp(1000) }),
-          mockHorse({ id: 'h_2', name: 'New Horse', updatedAt: timestamp(0) }),
+          mockHorse({ id: 'h_1', name: 'Updated', updated_at: timestamp(1000) }),
+          mockHorse({ id: 'h_2', name: 'New Horse', updated_at: timestamp(0) }),
         ],
         'api'
       );
@@ -302,9 +302,9 @@ describe('createResourceStore', () => {
 
 describe('createDietStore', () => {
   describe('composite key handling', () => {
-    test('uses horseId:feedId as composite key', () => {
+    test('uses horse_id:feed_id as composite key', () => {
       const store = createDietStore();
-      const entry = mockDietEntry({ horseId: 'h_1', feedId: 'f_1' });
+      const entry = mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' });
 
       store.upsert(entry);
 
@@ -314,9 +314,9 @@ describe('createDietStore', () => {
 
     test('byHorse groups entries by horse', () => {
       const store = createDietStore();
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_1' }));
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_2' }));
-      store.upsert(mockDietEntry({ horseId: 'h_2', feedId: 'f_1' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_2', feed_id: 'f_1' }));
 
       const horse1Entries = store.byHorse.value.get('h_1');
       assert.equal(horse1Entries.length, 2);
@@ -327,9 +327,9 @@ describe('createDietStore', () => {
 
     test('byFeed groups entries by feed', () => {
       const store = createDietStore();
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_1' }));
-      store.upsert(mockDietEntry({ horseId: 'h_2', feedId: 'f_1' }));
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_2' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_2', feed_id: 'f_1' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
 
       const feed1Entries = store.byFeed.value.get('f_1');
       assert.equal(feed1Entries.length, 2);
@@ -342,41 +342,41 @@ describe('createDietStore', () => {
   describe('updateAmount', () => {
     test('updates existing entry amount', () => {
       const store = createDietStore();
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_1', amAmount: 1 }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 }));
 
-      store.updateAmount('h_1', 'f_1', 'amAmount', 2);
+      store.updateAmount('h_1', 'f_1', 'am_amount', 2);
 
-      assert.equal(store.get('h_1', 'f_1').amAmount, 2);
+      assert.equal(store.get('h_1', 'f_1').am_amount, 2);
     });
 
     test('creates new entry if not exists', () => {
       const store = createDietStore();
 
-      store.updateAmount('h_1', 'f_1', 'pmAmount', 1.5);
+      store.updateAmount('h_1', 'f_1', 'pm_amount', 1.5);
 
       const entry = store.get('h_1', 'f_1');
       assert.notEqual(entry, undefined);
-      assert.equal(entry.pmAmount, 1.5);
-      assert.equal(entry.amAmount, null);
+      assert.equal(entry.pm_amount, 1.5);
+      assert.equal(entry.am_amount, null);
     });
 
     test('handles null values', () => {
       const store = createDietStore();
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_1', amAmount: 2 }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 2 }));
 
-      store.updateAmount('h_1', 'f_1', 'amAmount', null);
+      store.updateAmount('h_1', 'f_1', 'am_amount', null);
 
-      assert.equal(store.get('h_1', 'f_1').amAmount, null);
+      assert.equal(store.get('h_1', 'f_1').am_amount, null);
     });
   });
 
   describe('countActiveFeeds', () => {
     test('counts feeds with non-zero amounts', () => {
       const store = createDietStore();
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_1', amAmount: 1 }));
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_2', pmAmount: 2 }));
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_3', amAmount: null, pmAmount: null }));
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_4', amAmount: 0, pmAmount: 0 }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2', pm_amount: 2 }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3', am_amount: null, pm_amount: null }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_4', am_amount: 0, pm_amount: 0 }));
 
       assert.equal(store.countActiveFeeds('h_1'), 2);
     });
@@ -391,11 +391,11 @@ describe('createDietStore', () => {
   describe('reconciliation', () => {
     test('SSE source replaces all entries', () => {
       const store = createDietStore();
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_1' }));
-      store.upsert(mockDietEntry({ horseId: 'h_1', feedId: 'f_2' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
+      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
 
       store.set(
-        [mockDietEntry({ horseId: 'h_1', feedId: 'f_3' })],
+        [mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3' })],
         'sse'
       );
 
@@ -412,11 +412,11 @@ describe('createDietStore', () => {
 
 describe('createBoardStore', () => {
   describe('computed properties', () => {
-    test('derives configuredMode from board', () => {
+    test('derives configured_mode from board', () => {
       const store = createBoardStore();
-      store.set(mockBoard({ timeMode: 'PM' }));
+      store.set(mockBoard({ time_mode: 'PM' }));
 
-      assert.equal(store.configuredMode.value, 'PM');
+      assert.equal(store.configured_mode.value, 'PM');
     });
 
     test('derives timezone from board', () => {
@@ -429,7 +429,7 @@ describe('createBoardStore', () => {
     test('defaults to AUTO when board is null', () => {
       const store = createBoardStore();
 
-      assert.equal(store.configuredMode.value, 'AUTO');
+      assert.equal(store.configured_mode.value, 'AUTO');
     });
 
     test('defaults timezone to UTC when board is null', () => {
@@ -447,28 +447,28 @@ describe('createBoardStore', () => {
 
       store.updateTimeMode('AM', overrideTime);
 
-      assert.equal(store.board.value.timeMode, 'AM');
-      assert.equal(store.board.value.overrideUntil, overrideTime);
+      assert.equal(store.board.value.time_mode, 'AM');
+      assert.equal(store.board.value.override_until, overrideTime);
     });
 
     test('setZoomLevel updates zoom', () => {
       const store = createBoardStore();
-      store.set(mockBoard({ zoomLevel: 1 }));
+      store.set(mockBoard({ zoom_level: 1 }));
 
       store.setZoomLevel(3);
 
-      assert.equal(store.board.value.zoomLevel, 3);
-      assert.equal(store.zoomLevel.value, 3);
+      assert.equal(store.board.value.zoom_level, 3);
+      assert.equal(store.zoom_level.value, 3);
     });
 
     test('setCurrentPage updates page', () => {
       const store = createBoardStore();
-      store.set(mockBoard({ currentPage: 0 }));
+      store.set(mockBoard({ current_page: 0 }));
 
       store.setCurrentPage(2);
 
-      assert.equal(store.board.value.currentPage, 2);
-      assert.equal(store.currentPage.value, 2);
+      assert.equal(store.board.value.current_page, 2);
+      assert.equal(store.current_page.value, 2);
     });
   });
 
@@ -476,49 +476,49 @@ describe('createBoardStore', () => {
     test('SSE source always replaces board', () => {
       const store = createBoardStore();
       store.set(mockBoard({
-        timeMode: 'AM',
-        updatedAt: timestamp(1000),
+        time_mode: 'AM',
+        updated_at: timestamp(1000),
       }));
 
       store.set(
         mockBoard({
-          timeMode: 'PM',
-          updatedAt: timestamp(-1000), // Older but SSE
+          time_mode: 'PM',
+          updated_at: timestamp(-1000), // Older but SSE
         }),
         'sse'
       );
 
-      assert.equal(store.board.value.timeMode, 'PM');
+      assert.equal(store.board.value.time_mode, 'PM');
     });
 
     test('API source respects timestamps', () => {
       const store = createBoardStore();
       store.set(mockBoard({
-        timeMode: 'AM',
-        updatedAt: timestamp(0),
+        time_mode: 'AM',
+        updated_at: timestamp(0),
       }));
 
       // Older API update rejected
       store.set(
         mockBoard({
-          timeMode: 'PM',
-          updatedAt: timestamp(-1000),
+          time_mode: 'PM',
+          updated_at: timestamp(-1000),
         }),
         'api'
       );
 
-      assert.equal(store.board.value.timeMode, 'AM');
+      assert.equal(store.board.value.time_mode, 'AM');
 
       // Newer API update accepted
       store.set(
         mockBoard({
-          timeMode: 'PM',
-          updatedAt: timestamp(1000),
+          time_mode: 'PM',
+          updated_at: timestamp(1000),
         }),
         'api'
       );
 
-      assert.equal(store.board.value.timeMode, 'PM');
+      assert.equal(store.board.value.time_mode, 'PM');
     });
   });
 });

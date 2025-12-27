@@ -49,24 +49,24 @@ describe('Database Integration Tests', () => {
     test('creates a board with unique ID and pair code', () => {
       const board = boardRepo.create({});
       assert.ok(board.id.startsWith('b_'));
-      assert.ok(/^\d{6}$/.test(board.pairCode));
+      assert.ok(/^\d{6}$/.test(board.pair_code));
     });
 
     test('retrieves board by ID', () => {
       const created = boardRepo.create({});
       const board = boardRepo.getById(created.id);
       assert.equal(board.id, created.id);
-      assert.equal(board.pairCode, created.pairCode);
-      assert.equal(board.timeMode, 'AUTO');
-      assert.equal(board.zoomLevel, 2);
+      assert.equal(board.pair_code, created.pair_code);
+      assert.equal(board.time_mode, 'AUTO');
+      assert.equal(board.zoom_level, 2);
     });
 
     test('updates board settings', () => {
       const created = boardRepo.create({});
-      boardRepo.update({ zoomLevel: 3, currentPage: 1 }, created.id);
+      boardRepo.update({ zoom_level: 3, current_page: 1 }, created.id);
       const board = boardRepo.getById(created.id);
-      assert.equal(board.zoomLevel, 3);
-      assert.equal(board.currentPage, 1);
+      assert.equal(board.zoom_level, 3);
+      assert.equal(board.current_page, 1);
     });
 
     test('deletes board', () => {
@@ -88,17 +88,17 @@ describe('Database Integration Tests', () => {
       const horse = horseRepo.create({ name: 'Thunder' }, boardId);
       assert.ok(horse.id.startsWith('h_'));
       assert.equal(horse.name, 'Thunder');
-      assert.equal(horse.boardId, boardId);
+      assert.equal(horse.board_id, boardId);
     });
 
     test('creates horse with note', () => {
-      const noteExpiry = new Date(Date.now() + 86400000).toISOString();
+      const note_expiry = new Date(Date.now() + 86400000).toISOString();
       const horse = horseRepo.create(
-        { name: 'Storm', note: 'Needs extra hay', noteExpiry },
+        { name: 'Storm', note: 'Needs extra hay', note_expiry },
         boardId
       );
       assert.equal(horse.note, 'Needs extra hay');
-      assert.equal(horse.noteExpiry, noteExpiry);
+      assert.equal(horse.note_expiry, note_expiry);
     });
 
     test('lists horses for board', () => {
@@ -147,10 +147,10 @@ describe('Database Integration Tests', () => {
 
     test('updates feed', () => {
       const created = feedRepo.create({ name: 'Oats' }, boardId);
-      feedRepo.update({ unit: 'ml', stockLevel: 100 }, created.id);
+      feedRepo.update({ unit: 'ml', stock_level: 100 }, created.id);
       const feed = feedRepo.getById(created.id);
       assert.equal(feed.unit, 'ml');
-      assert.equal(feed.stockLevel, 100);
+      assert.equal(feed.stock_level, 100);
     });
 
     test('deletes feed', () => {
@@ -175,30 +175,30 @@ describe('Database Integration Tests', () => {
     });
 
     test('creates diet entry', () => {
-      const entry = dietRepo.upsert({ horseId, feedId, amAmount: 2, pmAmount: 1.5 });
-      assert.equal(entry.horseId, horseId);
-      assert.equal(entry.feedId, feedId);
-      assert.equal(entry.amAmount, 2);
-      assert.equal(entry.pmAmount, 1.5);
+      const entry = dietRepo.upsert({ horse_id: horseId, feed_id: feedId, am_amount: 2, pm_amount: 1.5 });
+      assert.equal(entry.horse_id, horseId);
+      assert.equal(entry.feed_id, feedId);
+      assert.equal(entry.am_amount, 2);
+      assert.equal(entry.pm_amount, 1.5);
     });
 
     test('upserts diet entry (update existing)', () => {
-      dietRepo.upsert({ horseId, feedId, amAmount: 2, pmAmount: 1.5 });
-      const entry = dietRepo.upsert({ horseId, feedId, amAmount: 3, pmAmount: 2 });
-      assert.equal(entry.amAmount, 3);
-      assert.equal(entry.pmAmount, 2);
+      dietRepo.upsert({ horse_id: horseId, feed_id: feedId, am_amount: 2, pm_amount: 1.5 });
+      const entry = dietRepo.upsert({ horse_id: horseId, feed_id: feedId, am_amount: 3, pm_amount: 2 });
+      assert.equal(entry.am_amount, 3);
+      assert.equal(entry.pm_amount, 2);
     });
 
     test('lists diet entries for board', () => {
       const horse2 = horseRepo.create({ name: 'Lightning' }, boardId);
-      dietRepo.upsert({ horseId, feedId, amAmount: 2, pmAmount: 1 });
-      dietRepo.upsert({ horseId: horse2.id, feedId, amAmount: 1, pmAmount: 0.5 });
+      dietRepo.upsert({ horse_id: horseId, feed_id: feedId, am_amount: 2, pm_amount: 1 });
+      dietRepo.upsert({ horse_id: horse2.id, feed_id: feedId, am_amount: 1, pm_amount: 0.5 });
       const entries = dietRepo.getByBoardId(boardId);
       assert.equal(entries.length, 2);
     });
 
     test('deletes diet entry', () => {
-      dietRepo.upsert({ horseId, feedId, amAmount: 2, pmAmount: 1 });
+      dietRepo.upsert({ horse_id: horseId, feed_id: feedId, am_amount: 2, pm_amount: 1 });
       assert.ok(dietRepo.delete(horseId, feedId));
       assert.equal(dietRepo.getById(horseId, feedId), null);
     });
@@ -209,7 +209,7 @@ describe('Database Integration Tests', () => {
       const board = boardRepo.create({});
       const horse = horseRepo.create({ name: 'Thunder' }, board.id);
       const feed = feedRepo.create({ name: 'Oats' }, board.id);
-      dietRepo.upsert({ horseId: horse.id, feedId: feed.id, amAmount: 2, pmAmount: 1 });
+      dietRepo.upsert({ horse_id: horse.id, feed_id: feed.id, am_amount: 2, pm_amount: 1 });
 
       boardRepo.delete(board.id);
 
@@ -222,7 +222,7 @@ describe('Database Integration Tests', () => {
       const board = boardRepo.create({});
       const horse = horseRepo.create({ name: 'Thunder' }, board.id);
       const feed = feedRepo.create({ name: 'Oats' }, board.id);
-      dietRepo.upsert({ horseId: horse.id, feedId: feed.id, amAmount: 2, pmAmount: 1 });
+      dietRepo.upsert({ horse_id: horse.id, feed_id: feed.id, am_amount: 2, pm_amount: 1 });
 
       horseRepo.delete(horse.id);
 
@@ -235,7 +235,7 @@ describe('Database Integration Tests', () => {
       const board = boardRepo.create({});
       const horse = horseRepo.create({ name: 'Thunder' }, board.id);
       const feed = feedRepo.create({ name: 'Oats' }, board.id);
-      dietRepo.upsert({ horseId: horse.id, feedId: feed.id, amAmount: 2, pmAmount: 1 });
+      dietRepo.upsert({ horse_id: horse.id, feed_id: feed.id, am_amount: 2, pm_amount: 1 });
 
       feedRepo.delete(feed.id);
 
@@ -257,16 +257,16 @@ describe('Database Integration Tests', () => {
       const hay = feedRepo.create({ name: 'Hay' }, board.id);
 
       // Oats: used by 3 horses
-      dietRepo.upsert({ horseId: horse1.id, feedId: oats.id, amAmount: 2, pmAmount: 1 });
-      dietRepo.upsert({ horseId: horse2.id, feedId: oats.id, amAmount: 1, pmAmount: 0.5 });
-      dietRepo.upsert({ horseId: horse3.id, feedId: oats.id, amAmount: 1.5, pmAmount: 1 });
+      dietRepo.upsert({ horse_id: horse1.id, feed_id: oats.id, am_amount: 2, pm_amount: 1 });
+      dietRepo.upsert({ horse_id: horse2.id, feed_id: oats.id, am_amount: 1, pm_amount: 0.5 });
+      dietRepo.upsert({ horse_id: horse3.id, feed_id: oats.id, am_amount: 1.5, pm_amount: 1 });
 
       // Barley: used by 2 horses
-      dietRepo.upsert({ horseId: horse1.id, feedId: barley.id, amAmount: 1, pmAmount: null });
-      dietRepo.upsert({ horseId: horse2.id, feedId: barley.id, amAmount: 0.5, pmAmount: 0.5 });
+      dietRepo.upsert({ horse_id: horse1.id, feed_id: barley.id, am_amount: 1, pm_amount: null });
+      dietRepo.upsert({ horse_id: horse2.id, feed_id: barley.id, am_amount: 0.5, pm_amount: 0.5 });
 
       // Hay: used by 1 horse
-      dietRepo.upsert({ horseId: horse1.id, feedId: hay.id, amAmount: 1, pmAmount: 1 });
+      dietRepo.upsert({ horse_id: horse1.id, feed_id: hay.id, am_amount: 1, pm_amount: 1 });
 
       recalculateFeedRankings(db, board.id);
 

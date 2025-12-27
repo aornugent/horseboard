@@ -24,7 +24,7 @@ const SSEDataEventSchema = z.object({
   data: z.object({
     horses: z.array(HorseSchema),
     feeds: z.array(FeedSchema),
-    dietEntries: z.array(DietEntrySchema),
+    diet_entries: z.array(DietEntrySchema),
   }),
   timestamp: z.string().optional(),
 });
@@ -35,7 +35,7 @@ const SSEFullEventSchema = z.object({
     board: BoardSchema,
     horses: z.array(HorseSchema),
     feeds: z.array(FeedSchema),
-    dietEntries: z.array(DietEntrySchema),
+    diet_entries: z.array(DietEntrySchema),
   }),
   timestamp: z.string().optional(),
 });
@@ -162,7 +162,7 @@ class SSEClient {
           // Full data update (horses, feeds, diet)
           setHorses(event.data.horses, 'sse');
           setFeeds(event.data.feeds, 'sse');
-          setDietEntries(event.data.dietEntries, 'sse');
+          setDietEntries(event.data.diet_entries, 'sse');
           break;
 
         case 'full':
@@ -170,7 +170,7 @@ class SSEClient {
           setBoard(event.data.board, 'sse');
           setHorses(event.data.horses, 'sse');
           setFeeds(event.data.feeds, 'sse');
-          setDietEntries(event.data.dietEntries, 'sse');
+          setDietEntries(event.data.diet_entries, 'sse');
           break;
 
         case 'horses':
