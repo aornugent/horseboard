@@ -20,7 +20,7 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
 
   // GET /api/boards/:boardId/horses - list horses for a board
   boardScoped.get('/', (req: Request, res: Response) => {
-    const items = repos.horses.getByParent?.(req.params.boardId) ?? [];
+    const items = repos.horses.getByParent(req.params.boardId);
     res.json({ success: true, data: items });
   });
 

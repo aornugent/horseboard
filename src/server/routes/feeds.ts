@@ -21,7 +21,7 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
 
   // GET /api/boards/:boardId/feeds - list feeds for a board
   boardScoped.get('/', (req: Request, res: Response) => {
-    const items = repos.feeds.getByParent?.(req.params.boardId) ?? [];
+    const items = repos.feeds.getByParent(req.params.boardId);
     res.json({ success: true, data: items });
   });
 

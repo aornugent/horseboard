@@ -6,10 +6,16 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  createRepository,
+  createBoardsRepository,
+  createHorsesRepository,
+  createFeedsRepository,
+  createDietRepository,
   SSEManager,
   FeedRankingManager,
-  Repository,
+  type HorsesRepository,
+  type FeedsRepository,
+  type DietRepository,
+  type BoardsRepository,
 } from '@server/lib/engine';
 import { ExpiryScheduler } from '@server/scheduler';
 import { mountRoutes, RouteContext } from '@server/routes';
@@ -47,10 +53,10 @@ interface ServerContext {
   rankingManager: FeedRankingManager;
   expiryScheduler: ExpiryScheduler;
   repos: {
-    boards: Repository<'boards'>;
-    horses: Repository<'horses'>;
-    feeds: Repository<'feeds'>;
-    diet: Repository<'diet'>;
+    boards: BoardsRepository;
+    horses: HorsesRepository;
+    feeds: FeedsRepository;
+    diet: DietRepository;
   };
   timers: NodeJS.Timeout[];
 }
@@ -60,9 +66,9 @@ function createBroadcastHelper(ctx: ServerContext) {
     const board = ctx.repos.boards.getById(boardId);
     if (!board) return;
 
-    const horses = ctx.repos.horses.getByParent?.(boardId) ?? [];
-    const feeds = ctx.repos.feeds.getByParent?.(boardId) ?? [];
-    const diet_entries = ctx.repos.diet.getByBoardId?.(boardId) ?? [];
+    const horses = ctx.repos.horses.getByParent(boardId);
+    const feeds = ctx.repos.feeds.getByParent(boardId);
+    const diet_entries = ctx.repos.diet.getByBoardId(boardId);
 
     ctx.sse.broadcast(boardId, 'full', { board, horses, feeds, diet_entries });
   };
@@ -70,10 +76,10 @@ function createBroadcastHelper(ctx: ServerContext) {
 
 function createRepositories(db: Database.Database): ServerContext['repos'] {
   return {
-    boards: createRepository(db, 'boards'),
-    horses: createRepository(db, 'horses'),
-    feeds: createRepository(db, 'feeds'),
-    diet: createRepository(db, 'diet'),
+    boards: createBoardsRepository(db),
+    horses: createHorsesRepository(db),
+    feeds: createFeedsRepository(db),
+    diet: createDietRepository(db),
   };
 }
 

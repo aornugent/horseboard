@@ -4,7 +4,9 @@ import {
   type TimeMode,
   type EffectiveTimeMode,
   type Board,
-  type Unit,
+  type Horse,
+  type Feed,
+  type DietEntry,
 } from '@shared/resources';
 import { getEffectiveTimeMode } from '@shared/time-mode';
 
@@ -163,17 +165,6 @@ export function createResourceStore<T extends { id: string } & Timestamped>(): C
   return createCollectionStore<T>((item) => item.id);
 }
 
-interface Horse {
-  id: string;
-  board_id: string;
-  name: string;
-  note: string | null;
-  note_expiry: string | null;
-  archived: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface HorseStore extends CollectionStore<Horse> {
   searchQuery: Signal<string>;
   filtered: ReadonlySignal<Horse[]>;
@@ -202,18 +193,6 @@ export function createHorseStore(): HorseStore {
   };
 }
 
-interface Feed {
-  id: string;
-  board_id: string;
-  name: string;
-  unit: Unit;
-  rank: number;
-  stock_level: number;
-  low_stock_threshold: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface FeedStore extends CollectionStore<Feed> {
   byRank: ReadonlySignal<Feed[]>;
 }
@@ -229,15 +208,6 @@ export function createFeedStore(): FeedStore {
     ...base,
     byRank,
   };
-}
-
-interface DietEntry {
-  horse_id: string;
-  feed_id: string;
-  am_amount: number | null;
-  pm_amount: number | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface DietStore {

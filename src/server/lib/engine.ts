@@ -1,25 +1,58 @@
 import { Response } from 'express';
 import { z } from 'zod';
-import {
-  ResourceName,
-  ResourceType,
-  isResourceName,
-  getResourceConfig,
-} from '@shared/resources';
 import type Database from 'better-sqlite3';
+import {
+  HorseSchema,
+  CreateHorseSchema,
+  UpdateHorseSchema,
+  FeedSchema,
+  CreateFeedSchema,
+  UpdateFeedSchema,
+  DietEntrySchema,
+  UpsertDietEntrySchema,
+  BoardSchema,
+  UpdateBoardSchema,
+  type Horse,
+  type Feed,
+  type DietEntry,
+  type Board,
+} from '@shared/resources';
 
 type DbRow = Record<string, unknown>;
 
-export interface Repository<R extends ResourceName> {
-  getById(...pkValues: string[]): ResourceType<R> | null;
-  getAll(): ResourceType<R>[];
-  getByParent?(parentId: string): ResourceType<R>[];
-  getByBoardId?(boardId: string): ResourceType<R>[];
-  getByPairCode?(pairCode: string): ResourceType<R> | null;
-  create(data: unknown, parentId?: string | null): ResourceType<R>;
-  upsert?(data: unknown): ResourceType<R>;
-  update(data: unknown, ...pkValues: string[]): ResourceType<R> | null;
-  delete(...pkValues: string[]): boolean;
+export interface HorsesRepository {
+  getById(id: string): Horse | null;
+  getAll(): Horse[];
+  getByParent(boardId: string): Horse[];
+  create(data: unknown, boardId: string): Horse;
+  update(data: unknown, id: string): Horse | null;
+  delete(id: string): boolean;
+}
+
+export interface FeedsRepository {
+  getById(id: string): Feed | null;
+  getAll(): Feed[];
+  getByParent(boardId: string): Feed[];
+  create(data: unknown, boardId: string): Feed;
+  update(data: unknown, id: string): Feed | null;
+  delete(id: string): boolean;
+}
+
+export interface DietRepository {
+  getById(horseId: string, feedId: string): DietEntry | null;
+  getAll(): DietEntry[];
+  getByBoardId(boardId: string): DietEntry[];
+  upsert(data: unknown): DietEntry;
+  delete(horseId: string, feedId: string): boolean;
+}
+
+export interface BoardsRepository {
+  getById(id: string): Board | null;
+  getAll(): Board[];
+  getByPairCode(pairCode: string): Board | null;
+  create(data: unknown): Board;
+  update(data: unknown, id: string): Board | null;
+  delete(id: string): boolean;
 }
 
 interface PairCodeConfig {
@@ -72,195 +105,281 @@ export function generatePairCode(
   return code;
 }
 
-function toResourceType<R extends ResourceName>(
-  row: DbRow | undefined
-): ResourceType<R> | null {
+function toHorse(row: DbRow | undefined): Horse | null {
   if (!row) return null;
+  row.archived = Boolean(row.archived);
+  return row as Horse;
+}
 
-  if ('archived' in row) {
-    row.archived = Boolean(row.archived);
-  }
+function toFeed(row: DbRow | undefined): Feed | null {
+  if (!row) return null;
+  return row as Feed;
+}
 
-  return row as ResourceType<R>;
+function toDietEntry(row: DbRow | undefined): DietEntry | null {
+  if (!row) return null;
+  return row as DietEntry;
+}
+
+function toBoard(row: DbRow | undefined): Board | null {
+  if (!row) return null;
+  return row as Board;
 }
 
 function getSchemaColumns(schema: z.ZodObject<z.ZodRawShape>): string[] {
   return Object.keys(schema.shape);
 }
 
-export function createRepository<R extends ResourceName>(
-  db: Database.Database,
-  resourceName: R
-): Repository<R> {
-  if (!isResourceName(resourceName)) {
-    throw new Error(`Unknown resource: ${resourceName}`);
-  }
-
-  const config = getResourceConfig(resourceName);
-  const { table, primaryKey, schema } = config;
-  const orderBy = 'orderBy' in config ? config.orderBy : undefined;
-  const filter = 'filter' in config ? config.filter : undefined;
-  const isComposite = Array.isArray(primaryKey);
-  const pkColumns = isComposite ? (primaryKey as string[]) : [primaryKey as string];
-
-  const allColumns = getSchemaColumns(schema);
-  const selectCols = allColumns.join(', ');
-  const pkWhere = pkColumns.map((col) => `${col} = ?`).join(' AND ');
-
-  const updateCols = allColumns.filter(
-    (col) => !pkColumns.includes(col) && col !== 'created_at' && col !== 'updated_at'
+export function createHorsesRepository(db: Database.Database): HorsesRepository {
+  const columns = getSchemaColumns(HorseSchema);
+  const selectCols = columns.join(', ');
+  const updateCols = columns.filter(
+    (col) => col !== 'id' && col !== 'created_at' && col !== 'updated_at'
   );
   const updateSetClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
 
-  const stmts: Record<string, Database.Statement | string[] | null> = {
-    getById: db.prepare(`SELECT ${selectCols} FROM ${table} WHERE ${pkWhere}`),
+  const stmts = {
+    getById: db.prepare(`SELECT ${selectCols} FROM horses WHERE id = ?`),
     getAll: db.prepare(
-      `SELECT ${selectCols} FROM ${table}` +
-        (filter ? ` WHERE ${filter}` : '') +
-        (orderBy ? ` ORDER BY ${orderBy}` : '')
+      `SELECT ${selectCols} FROM horses WHERE archived = 0 ORDER BY name`
     ),
-    delete: db.prepare(`DELETE FROM ${table} WHERE ${pkWhere}`),
-    update:
-      updateCols.length > 0
-        ? db.prepare(`UPDATE ${table} SET ${updateSetClause} WHERE ${pkWhere}`)
-        : null,
+    getByParent: db.prepare(
+      `SELECT ${selectCols} FROM horses WHERE board_id = ? AND archived = 0 ORDER BY name`
+    ),
+    delete: db.prepare('DELETE FROM horses WHERE id = ?'),
+    update: db.prepare(`UPDATE horses SET ${updateSetClause} WHERE id = ?`),
   };
 
-  const parent = 'parent' in config ? config.parent : undefined;
-  if (parent) {
-    stmts.getByParent = db.prepare(
-      `SELECT ${selectCols} FROM ${table} WHERE ${parent.foreignKey} = ?` +
-        (filter ? ` AND ${filter}` : '') +
-        (orderBy ? ` ORDER BY ${orderBy}` : '')
-    );
-  }
-
-  if (resourceName === 'diet') {
-    stmts.getByBoardId = db.prepare(`
-      SELECT d.horse_id, d.feed_id, d.am_amount, d.pm_amount, d.created_at, d.updated_at
-      FROM diet_entries d
-      JOIN horses h ON d.horse_id = h.id
-      WHERE h.board_id = ?
-    `);
-    const dietInsertCols = allColumns.filter(
-      (c) => c !== 'created_at' && c !== 'updated_at'
-    );
-    const dietPlaceholders = dietInsertCols.map(() => '?').join(', ');
-    const dietUpdateCols = dietInsertCols.filter((c) => !pkColumns.includes(c));
-    const dietUpdateSet = dietUpdateCols.map((c) => `${c} = excluded.${c}`).join(', ');
-    stmts.upsert = db.prepare(
-      `INSERT INTO ${table} (${dietInsertCols.join(', ')}) VALUES (${dietPlaceholders})
-       ON CONFLICT(${pkColumns.join(', ')}) DO UPDATE SET ${dietUpdateSet}`
-    );
-    stmts.upsertCols = dietInsertCols;
-  }
-
-  if (resourceName === 'boards') {
-    stmts.getByPairCode = db.prepare(
-      `SELECT ${selectCols} FROM ${table} WHERE pair_code = ?`
-    );
-  }
-
-  const convertRow = (row: DbRow | undefined): ResourceType<R> | null =>
-    toResourceType<R>(row);
-
-  const convertRows = (rows: DbRow[]): ResourceType<R>[] =>
-    rows.map((row) => convertRow(row)).filter((r): r is ResourceType<R> => r !== null);
-
-  const repo: Repository<R> = {
-    getById(...pkValues: string[]): ResourceType<R> | null {
-      const row = (stmts.getById as Database.Statement).get(...pkValues) as DbRow | undefined;
-      return convertRow(row);
+  return {
+    getById(id: string): Horse | null {
+      return toHorse(stmts.getById.get(id) as DbRow | undefined);
     },
 
-    getAll(): ResourceType<R>[] {
-      const rows = (stmts.getAll as Database.Statement).all() as DbRow[];
-      return convertRows(rows);
+    getAll(): Horse[] {
+      return (stmts.getAll.all() as DbRow[])
+        .map(toHorse)
+        .filter((h): h is Horse => h !== null);
     },
 
-    create(data: unknown, parentId: string | null = null): ResourceType<R> {
-      const parsed = config.createSchema.parse(data) as DbRow;
+    getByParent(boardId: string): Horse[] {
+      return (stmts.getByParent.all(boardId) as DbRow[])
+        .map(toHorse)
+        .filter((h): h is Horse => h !== null);
+    },
 
-      if (!isComposite) {
-        const prefix = resourceName.charAt(0);
-        parsed[primaryKey as string] = generateId(prefix);
-      }
-
-      if (parentId && parent) {
-        parsed[parent.foreignKey] = parentId;
-      }
-
-      if (resourceName === 'boards') {
-        parsed.pair_code = generatePairCode(db);
-        if (!parsed.timezone) parsed.timezone = 'Australia/Sydney';
-      }
+    create(data: unknown, boardId: string): Horse {
+      const parsed = CreateHorseSchema.parse(data) as DbRow;
+      parsed.id = generateId('h');
+      parsed.board_id = boardId;
 
       const cols = Object.keys(parsed);
       const placeholders = cols.map(() => '?').join(', ');
       const values = cols.map((c) => parsed[c]);
 
-      db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`).run(
+      db.prepare(`INSERT INTO horses (${cols.join(', ')}) VALUES (${placeholders})`).run(
         ...values
       );
 
-      if (isComposite) {
-        const pkValues = pkColumns.map((k) => parsed[k] as string);
-        return this.getById(...pkValues) as ResourceType<R>;
-      }
-      return this.getById(parsed[primaryKey as string] as string) as ResourceType<R>;
+      return this.getById(parsed.id as string) as Horse;
     },
 
-    update(data: unknown, ...pkValues: string[]): ResourceType<R> | null {
-      if (!stmts.update) return this.getById(...pkValues);
-
+    update(data: unknown, id: string): Horse | null {
       const dbData = data as DbRow;
       const values = updateCols.map((col) => dbData[col] ?? null);
-      (stmts.update as Database.Statement).run(...values, ...pkValues);
-
-      return this.getById(...pkValues);
+      stmts.update.run(...values, id);
+      return this.getById(id);
     },
 
-    delete(...pkValues: string[]): boolean {
-      const result = (stmts.delete as Database.Statement).run(...pkValues);
+    delete(id: string): boolean {
+      const result = stmts.delete.run(id);
       return result.changes > 0;
     },
   };
+}
 
-  if (stmts.getByParent) {
-    repo.getByParent = function (parentId: string): ResourceType<R>[] {
-      const rows = (stmts.getByParent as Database.Statement).all(parentId) as DbRow[];
-      return convertRows(rows);
-    };
-  }
+export function createFeedsRepository(db: Database.Database): FeedsRepository {
+  const columns = getSchemaColumns(FeedSchema);
+  const selectCols = columns.join(', ');
+  const updateCols = columns.filter(
+    (col) => col !== 'id' && col !== 'created_at' && col !== 'updated_at'
+  );
+  const updateSetClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
 
-  if (stmts.getByBoardId) {
-    repo.getByBoardId = function (boardId: string): ResourceType<R>[] {
-      const rows = (stmts.getByBoardId as Database.Statement).all(boardId) as DbRow[];
-      return convertRows(rows);
-    };
-  }
+  const stmts = {
+    getById: db.prepare(`SELECT ${selectCols} FROM feeds WHERE id = ?`),
+    getAll: db.prepare(`SELECT ${selectCols} FROM feeds ORDER BY rank DESC, name`),
+    getByParent: db.prepare(
+      `SELECT ${selectCols} FROM feeds WHERE board_id = ? ORDER BY rank DESC, name`
+    ),
+    delete: db.prepare('DELETE FROM feeds WHERE id = ?'),
+    update: db.prepare(`UPDATE feeds SET ${updateSetClause} WHERE id = ?`),
+  };
 
-  if (stmts.getByPairCode) {
-    repo.getByPairCode = function (pairCode: string): ResourceType<R> | null {
-      const row = (stmts.getByPairCode as Database.Statement).get(pairCode) as
-        | DbRow
-        | undefined;
-      return convertRow(row);
-    };
-  }
+  return {
+    getById(id: string): Feed | null {
+      return toFeed(stmts.getById.get(id) as DbRow | undefined);
+    },
 
-  if (stmts.upsert && stmts.upsertCols) {
-    repo.upsert = function (data: unknown): ResourceType<R> {
+    getAll(): Feed[] {
+      return (stmts.getAll.all() as DbRow[])
+        .map(toFeed)
+        .filter((f): f is Feed => f !== null);
+    },
+
+    getByParent(boardId: string): Feed[] {
+      return (stmts.getByParent.all(boardId) as DbRow[])
+        .map(toFeed)
+        .filter((f): f is Feed => f !== null);
+    },
+
+    create(data: unknown, boardId: string): Feed {
+      const parsed = CreateFeedSchema.parse(data) as DbRow;
+      parsed.id = generateId('f');
+      parsed.board_id = boardId;
+
+      const cols = Object.keys(parsed);
+      const placeholders = cols.map(() => '?').join(', ');
+      const values = cols.map((c) => parsed[c]);
+
+      db.prepare(`INSERT INTO feeds (${cols.join(', ')}) VALUES (${placeholders})`).run(
+        ...values
+      );
+
+      return this.getById(parsed.id as string) as Feed;
+    },
+
+    update(data: unknown, id: string): Feed | null {
       const dbData = data as DbRow;
-      const pkValues = pkColumns.map((col) => dbData[col] as string);
-      const values = (stmts.upsertCols as string[]).map((col) => dbData[col] ?? null);
-      (stmts.upsert as Database.Statement).run(...values);
+      const values = updateCols.map((col) => dbData[col] ?? null);
+      stmts.update.run(...values, id);
+      return this.getById(id);
+    },
 
-      return repo.getById(...pkValues) as ResourceType<R>;
-    };
-  }
+    delete(id: string): boolean {
+      const result = stmts.delete.run(id);
+      return result.changes > 0;
+    },
+  };
+}
 
-  return repo;
+export function createDietRepository(db: Database.Database): DietRepository {
+  const columns = getSchemaColumns(DietEntrySchema);
+  const selectCols = columns.join(', ');
+  const insertCols = columns.filter((c) => c !== 'created_at' && c !== 'updated_at');
+  const updateCols = insertCols.filter((c) => c !== 'horse_id' && c !== 'feed_id');
+
+  const stmts = {
+    getById: db.prepare(
+      `SELECT ${selectCols} FROM diet_entries WHERE horse_id = ? AND feed_id = ?`
+    ),
+    getAll: db.prepare(`SELECT ${selectCols} FROM diet_entries`),
+    getByBoardId: db.prepare(`
+      SELECT d.horse_id, d.feed_id, d.am_amount, d.pm_amount, d.created_at, d.updated_at
+      FROM diet_entries d
+      JOIN horses h ON d.horse_id = h.id
+      WHERE h.board_id = ?
+    `),
+    delete: db.prepare('DELETE FROM diet_entries WHERE horse_id = ? AND feed_id = ?'),
+    upsert: db.prepare(
+      `INSERT INTO diet_entries (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})
+       ON CONFLICT(horse_id, feed_id) DO UPDATE SET ${updateCols.map((c) => `${c} = excluded.${c}`).join(', ')}`
+    ),
+  };
+
+  return {
+    getById(horseId: string, feedId: string): DietEntry | null {
+      return toDietEntry(stmts.getById.get(horseId, feedId) as DbRow | undefined);
+    },
+
+    getAll(): DietEntry[] {
+      return (stmts.getAll.all() as DbRow[])
+        .map(toDietEntry)
+        .filter((d): d is DietEntry => d !== null);
+    },
+
+    getByBoardId(boardId: string): DietEntry[] {
+      return (stmts.getByBoardId.all(boardId) as DbRow[])
+        .map(toDietEntry)
+        .filter((d): d is DietEntry => d !== null);
+    },
+
+    upsert(data: unknown): DietEntry {
+      const parsed = UpsertDietEntrySchema.parse(data) as DbRow;
+      const values = insertCols.map((col) => parsed[col] ?? null);
+      stmts.upsert.run(...values);
+      return this.getById(parsed.horse_id as string, parsed.feed_id as string) as DietEntry;
+    },
+
+    delete(horseId: string, feedId: string): boolean {
+      const result = stmts.delete.run(horseId, feedId);
+      return result.changes > 0;
+    },
+  };
+}
+
+export function createBoardsRepository(db: Database.Database): BoardsRepository {
+  const columns = getSchemaColumns(BoardSchema);
+  const selectCols = columns.join(', ');
+  const updateCols = columns.filter(
+    (col) => col !== 'id' && col !== 'created_at' && col !== 'updated_at'
+  );
+  const updateSetClause = updateCols.map((c) => `${c} = COALESCE(?, ${c})`).join(', ');
+
+  const stmts = {
+    getById: db.prepare(`SELECT ${selectCols} FROM boards WHERE id = ?`),
+    getAll: db.prepare(`SELECT ${selectCols} FROM boards`),
+    getByPairCode: db.prepare(`SELECT ${selectCols} FROM boards WHERE pair_code = ?`),
+    delete: db.prepare('DELETE FROM boards WHERE id = ?'),
+    update: db.prepare(`UPDATE boards SET ${updateSetClause} WHERE id = ?`),
+  };
+
+  const CreateBoardSchema = UpdateBoardSchema.extend({
+    timezone: UpdateBoardSchema.shape.timezone.default('Australia/Sydney'),
+  });
+
+  return {
+    getById(id: string): Board | null {
+      return toBoard(stmts.getById.get(id) as DbRow | undefined);
+    },
+
+    getAll(): Board[] {
+      return (stmts.getAll.all() as DbRow[])
+        .map(toBoard)
+        .filter((b): b is Board => b !== null);
+    },
+
+    getByPairCode(pairCode: string): Board | null {
+      return toBoard(stmts.getByPairCode.get(pairCode) as DbRow | undefined);
+    },
+
+    create(data: unknown): Board {
+      const parsed = CreateBoardSchema.parse(data) as DbRow;
+      parsed.id = generateId('b');
+      parsed.pair_code = generatePairCode(db);
+
+      const cols = Object.keys(parsed);
+      const placeholders = cols.map(() => '?').join(', ');
+      const values = cols.map((c) => parsed[c]);
+
+      db.prepare(`INSERT INTO boards (${cols.join(', ')}) VALUES (${placeholders})`).run(
+        ...values
+      );
+
+      return this.getById(parsed.id as string) as Board;
+    },
+
+    update(data: unknown, id: string): Board | null {
+      const dbData = data as DbRow;
+      const values = updateCols.map((col) => dbData[col] ?? null);
+      stmts.update.run(...values, id);
+      return this.getById(id);
+    },
+
+    delete(id: string): boolean {
+      const result = stmts.delete.run(id);
+      return result.changes > 0;
+    },
+  };
 }
 
 export { recalculateFeedRankings, FeedRankingManager } from './rankings';
