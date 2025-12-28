@@ -4,7 +4,13 @@ import Database from 'better-sqlite3';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createRepository, recalculateFeedRankings } from '../../src/server/lib/engine.js';
+import {
+  createBoardsRepository,
+  createHorsesRepository,
+  createFeedsRepository,
+  createDietRepository,
+  recalculateFeedRankings,
+} from '../../src/server/lib/engine.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -13,12 +19,10 @@ function initializeTestDatabase() {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  // Apply initial schema
   const migration1Path = join(__dirname, '../../src/server/db/migrations/001_initial_schema.sql');
   const migration1 = readFileSync(migration1Path, 'utf-8');
   db.exec(migration1);
 
-  // Apply display->board rename migration
   const migration2Path = join(__dirname, '../../src/server/db/migrations/002_rename_display_to_board.sql');
   const migration2 = readFileSync(migration2Path, 'utf-8');
   db.exec(migration2);
@@ -35,10 +39,10 @@ describe('Database Integration Tests', () => {
 
   beforeEach(() => {
     db = initializeTestDatabase();
-    boardRepo = createRepository(db, 'boards');
-    horseRepo = createRepository(db, 'horses');
-    feedRepo = createRepository(db, 'feeds');
-    dietRepo = createRepository(db, 'diet');
+    boardRepo = createBoardsRepository(db);
+    horseRepo = createHorsesRepository(db);
+    feedRepo = createFeedsRepository(db);
+    dietRepo = createDietRepository(db);
   });
 
   afterEach(() => {

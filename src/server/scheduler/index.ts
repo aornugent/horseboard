@@ -1,9 +1,6 @@
 import type Database from 'better-sqlite3';
-import type { Repository } from '@server/lib/engine';
+import type { BoardsRepository, HorsesRepository } from '@server/lib/engine';
 
-/**
- * Tracked expiry record for in-memory scheduling
- */
 interface ExpiryRecord {
   id: string;
   board_id: string;
@@ -11,48 +8,31 @@ interface ExpiryRecord {
   type: 'override' | 'note';
 }
 
-/**
- * Event-driven scheduler that avoids blind database polling
- *
- * Instead of querying the database every N seconds, this scheduler:
- * 1. Maintains an in-memory min-heap of pending expirations
- * 2. Only queries the database when an expiry time is reached
- * 3. Supports dynamic registration/cancellation of expiries
- */
 export class ExpiryScheduler {
   private expiryQueue: ExpiryRecord[] = [];
   private timeoutId: NodeJS.Timeout | null = null;
   private db: Database.Database;
-  private boardRepo: Repository<'boards'> | null = null;
-  private horseRepo: Repository<'horses'> | null = null;
+  private boardRepo: BoardsRepository | null = null;
+  private horseRepo: HorsesRepository | null = null;
   private onExpiry: ((boardId: string) => void) | null = null;
 
   constructor(db: Database.Database) {
     this.db = db;
   }
 
-  /**
-   * Initialize with repositories and callback
-   */
   init(
-    boardRepo: Repository<'boards'>,
-    horseRepo: Repository<'horses'>,
+    boardRepo: BoardsRepository,
+    horseRepo: HorsesRepository,
     onExpiry: (boardId: string) => void
   ): void {
     this.boardRepo = boardRepo;
     this.horseRepo = horseRepo;
     this.onExpiry = onExpiry;
 
-    // Load existing expiries from database on startup
     this.loadExistingExpiries();
   }
 
-  /**
-   * Load any existing unexpired overrides/notes from database
-   * Called once at startup to hydrate the in-memory queue
-   */
   private loadExistingExpiries(): void {
-    // Load unexpired board overrides
     const overrides = this.db
       .prepare(
         `SELECT id, id as board_id, override_until
@@ -70,7 +50,6 @@ export class ExpiryScheduler {
       });
     }
 
-    // Load unexpired horse notes
     const notes = this.db
       .prepare(
         `SELECT id, board_id, note_expiry
@@ -93,25 +72,15 @@ export class ExpiryScheduler {
     );
   }
 
-  /**
-   * Schedule a new expiry event
-   * Called when an override or note is created/updated with an expiry time
-   */
   schedule(record: ExpiryRecord): void {
-    // Remove any existing entry for this id+type
     this.cancel(record.id, record.type);
 
-    // Add to queue (maintain sorted order by expires_at)
     this.expiryQueue.push(record);
     this.expiryQueue.sort((a, b) => a.expires_at.getTime() - b.expires_at.getTime());
 
-    // Reschedule the next check
     this.scheduleNextCheck();
   }
 
-  /**
-   * Cancel a pending expiry (e.g., when manually cleared)
-   */
   cancel(id: string, type: 'override' | 'note'): void {
     this.expiryQueue = this.expiryQueue.filter(
       (r) => !(r.id === id && r.type === type)
@@ -119,11 +88,7 @@ export class ExpiryScheduler {
     this.scheduleNextCheck();
   }
 
-  /**
-   * Schedule the next timeout based on the earliest expiry
-   */
   private scheduleNextCheck(): void {
-    // Clear any existing timeout
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -139,30 +104,21 @@ export class ExpiryScheduler {
     this.timeoutId = setTimeout(() => this.processExpiries(), delay);
   }
 
-  /**
-   * Process all expired items
-   */
   private processExpiries(): void {
     const now = Date.now();
     const expired: ExpiryRecord[] = [];
 
-    // Collect all expired records
     while (this.expiryQueue.length > 0 && this.expiryQueue[0].expires_at.getTime() <= now) {
       expired.push(this.expiryQueue.shift()!);
     }
 
-    // Process each expired record
     for (const record of expired) {
       this.handleExpiry(record);
     }
 
-    // Schedule next check
     this.scheduleNextCheck();
   }
 
-  /**
-   * Handle a single expiry event
-   */
   private handleExpiry(record: ExpiryRecord): void {
     if (!this.boardRepo || !this.horseRepo || !this.onExpiry) {
       console.error('[Scheduler] Not initialized');
@@ -178,16 +134,12 @@ export class ExpiryScheduler {
         console.log(`[Scheduler] Cleared note for horse ${record.id}`);
       }
 
-      // Notify via SSE
       this.onExpiry(record.board_id);
     } catch (err) {
       console.error(`[Scheduler] Error processing expiry:`, err);
     }
   }
 
-  /**
-   * Get stats for monitoring
-   */
   getStats(): { pendingOverrides: number; pendingNotes: number } {
     return {
       pendingOverrides: this.expiryQueue.filter((r) => r.type === 'override').length,
@@ -195,9 +147,6 @@ export class ExpiryScheduler {
     };
   }
 
-  /**
-   * Cleanup on shutdown
-   */
   shutdown(): void {
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
