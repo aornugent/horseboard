@@ -4,10 +4,8 @@ import type Database from 'better-sqlite3';
 import {
   HorseSchema,
   CreateHorseSchema,
-  UpdateHorseSchema,
   FeedSchema,
   CreateFeedSchema,
-  UpdateFeedSchema,
   DietEntrySchema,
   UpsertDietEntrySchema,
   BoardSchema,
