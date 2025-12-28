@@ -142,6 +142,15 @@ function createServer(): ServerContext {
 
   mountRoutes(app, routeContext, sse);
 
+  // Serve static files from the client build directory
+  const clientDistPath = join(__dirname, '../dist/client');
+  app.use(express.static(clientDistPath));
+
+  // Fallback to index.html for client-side routing (SPA)
+  app.get('*', (_req, res) => {
+    res.sendFile(join(clientDistPath, 'index.html'));
+  });
+
   expiryScheduler.init(repos.boards, repos.horses, broadcast);
   startTimers(ctx);
   setupGracefulShutdown(ctx);
