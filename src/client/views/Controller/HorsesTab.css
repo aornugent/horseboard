@@ -8,6 +8,9 @@
 }
 
 .horses-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1rem;
 }
 
@@ -15,11 +18,24 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-text-primary);
-  margin: 0 0 1rem;
+  margin: 0;
+}
+
+.horses-tab-add-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 44px;
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .horses-tab-search {
   position: relative;
+  margin-bottom: 1rem;
 }
 
 .horse-search-input {

@@ -99,6 +99,21 @@ export async function createBoard(): Promise<Board> {
   return result.data;
 }
 
+export async function createHorse(
+  board_id: string,
+  name: string,
+  note?: string | null
+): Promise<Horse> {
+  const result = await request<ApiResponse<Horse>>(`/api/boards/${board_id}/horses`, {
+    method: 'POST',
+    body: JSON.stringify({ name, note }),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to create horse', 500);
+  }
+  return result.data;
+}
+
 export async function createFeed(
   board_id: string,
   name: string,
