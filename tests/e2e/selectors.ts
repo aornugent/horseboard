@@ -83,6 +83,21 @@ export const selectors = {
   feedTileAM: (id: string) => `[data-testid="feed-tile-am-${id}"]`,
   feedTilePM: (id: string) => `[data-testid="feed-tile-pm-${id}"]`,
 
+  // Horse Detail Actions
+  editHorseBtn: '[data-testid="edit-horse-btn"]',
+  deleteHorseBtn: '[data-testid="delete-horse-btn"]',
+
+  // Edit Horse Modal
+  editHorseModal: '[data-testid="edit-horse-modal"]',
+  editHorseName: '[data-testid="edit-horse-name"]',
+  cancelEditHorse: '[data-testid="cancel-edit-horse"]',
+  confirmEditHorse: '[data-testid="confirm-edit-horse"]',
+
+  // Delete Horse Modal
+  deleteHorseModal: '[data-testid="delete-horse-modal"]',
+  cancelDeleteHorse: '[data-testid="cancel-delete-horse"]',
+  confirmDeleteHorse: '[data-testid="confirm-delete-horse"]',
+
   // ============================================
   // BoardTab (Mobile Controller - TV Preview)
   // ============================================

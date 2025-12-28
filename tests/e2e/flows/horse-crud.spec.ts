@@ -16,8 +16,8 @@ import { createHorse } from '../helpers/api';
  * - View horse list
  * - Add a new horse
  * - View horse detail
- * - Edit horse name (MISSING UI - documented below)
- * - Delete a horse (MISSING UI - documented below)
+ * - Edit horse name
+ * - Delete a horse
  *
  * Each test creates its own isolated data via API to ensure determinism.
  */
@@ -225,63 +225,152 @@ test.describe('Horse CRUD Operations', () => {
     });
   });
 
-  /**
-   * MISSING FEATURE: Edit horse name
-   *
-   * The API supports updating horses via PATCH /api/horses/:id
-   * (see TECHNICAL_SPECIFICATION.md section 5.1), but the controller
-   * UI does not currently provide a way to edit horse details.
-   *
-   * The HorseDetail component (src/client/views/Controller/HorseDetail.tsx)
-   * only displays the horse name and note - it has no edit button or
-   * inline editing capability.
-   *
-   * To implement this feature, the UI would need:
-   * - An edit button on HorseDetail (data-testid="edit-horse-btn")
-   * - An edit modal with name/note inputs (data-testid="edit-horse-modal")
-   * - Save/cancel buttons for the edit
-   */
   test.describe('Edit horse name', () => {
-    test.skip('UI NOT IMPLEMENTED: should edit horse name via modal', async () => {
-      // This test is skipped because the edit UI doesn't exist.
-      // The API supports PATCH /api/horses/:id but there's no UI for it.
-      //
-      // Expected flow when implemented:
-      // 1. Navigate to horse detail
-      // 2. Click edit button (data-testid="edit-horse-btn")
-      // 3. Modal opens with current name (data-testid="edit-horse-modal")
-      // 4. Change name
-      // 5. Save
-      // 6. Verify name changed in detail view
-      // 7. Go back, verify name changed in list
+    test('should edit horse name via modal', async ({ page, request }) => {
+      // Seed 1 horse
+      testData = await seedTestData(page, request, {
+        horseCount: 1,
+        feedCount: 0,
+        createDietEntries: false,
+      });
+
+      await navigateWithBoard(page, '/controller', testData.board.id);
+      await waitForControllerReady(page);
+
+      const horse = testData.horses[0];
+      const originalName = horse.name;
+      const newName = 'Updated Horse Name';
+
+      // Click on horse card to go to detail
+      await page.locator(selectors.horseCard(horse.id)).click();
+      await expect(page.locator(selectors.horseDetail)).toBeVisible();
+
+      // Click edit button
+      await page.locator(selectors.editHorseBtn).click();
+
+      // Modal should appear with current name
+      await expect(page.locator(selectors.editHorseModal)).toBeVisible();
+      await expect(page.locator(selectors.editHorseName)).toHaveValue(originalName);
+
+      // Clear and enter new name
+      await page.locator(selectors.editHorseName).fill(newName);
+
+      // Save changes
+      await page.locator(selectors.confirmEditHorse).click();
+
+      // Modal should close
+      await expect(page.locator(selectors.editHorseModal)).not.toBeVisible();
+
+      // Verify name changed in detail view
+      await expect(page.locator(selectors.horseDetailName)).toHaveText(newName);
+
+      // Go back to list
+      await page.locator(selectors.horseDetailBack).click();
+
+      // Verify name changed in list
+      await expect(page.locator(selectors.horseCardName(horse.id))).toHaveText(newName);
+    });
+
+    test('should cancel editing horse name', async ({ page, request }) => {
+      testData = await seedTestData(page, request, {
+        horseCount: 1,
+        feedCount: 0,
+        createDietEntries: false,
+      });
+
+      await navigateWithBoard(page, '/controller', testData.board.id);
+      await waitForControllerReady(page);
+
+      const horse = testData.horses[0];
+      const originalName = horse.name;
+
+      // Go to detail and open edit modal
+      await page.locator(selectors.horseCard(horse.id)).click();
+      await page.locator(selectors.editHorseBtn).click();
+      await expect(page.locator(selectors.editHorseModal)).toBeVisible();
+
+      // Change name but cancel
+      await page.locator(selectors.editHorseName).fill('Changed Name');
+      await page.locator(selectors.cancelEditHorse).click();
+
+      // Modal should close
+      await expect(page.locator(selectors.editHorseModal)).not.toBeVisible();
+
+      // Name should remain unchanged
+      await expect(page.locator(selectors.horseDetailName)).toHaveText(originalName);
     });
   });
 
-  /**
-   * MISSING FEATURE: Delete horse
-   *
-   * The API supports deleting horses via DELETE /api/horses/:id
-   * (see TECHNICAL_SPECIFICATION.md section 5.1), but the controller
-   * UI does not currently provide a way to delete horses.
-   *
-   * Neither HorseCard nor HorseDetail components have delete buttons.
-   *
-   * To implement this feature, the UI would need:
-   * - A delete button (data-testid="delete-horse-btn")
-   * - A confirmation modal (data-testid="delete-horse-modal")
-   * - Confirm/cancel buttons for deletion
-   */
   test.describe('Delete a horse', () => {
-    test.skip('UI NOT IMPLEMENTED: should delete horse with confirmation', async () => {
-      // This test is skipped because the delete UI doesn't exist.
-      // The API supports DELETE /api/horses/:id but there's no UI for it.
-      //
-      // Expected flow when implemented:
-      // 1. Seed 2 horses
-      // 2. Click delete on one horse (data-testid="delete-horse-btn")
-      // 3. Confirmation modal appears (data-testid="delete-horse-modal")
-      // 4. Confirm deletion
-      // 5. Verify only 1 horse remains in list
+    test('should delete horse with confirmation', async ({ page, request }) => {
+      // Seed 2 horses
+      testData = await seedTestData(page, request, {
+        horseCount: 2,
+        feedCount: 0,
+        createDietEntries: false,
+      });
+
+      await navigateWithBoard(page, '/controller', testData.board.id);
+      await waitForControllerReady(page);
+
+      const horse1 = testData.horses[0];
+      const horse2 = testData.horses[1];
+
+      // Verify both horses are visible
+      await expect(page.locator(selectors.horseCard(horse1.id))).toBeVisible();
+      await expect(page.locator(selectors.horseCard(horse2.id))).toBeVisible();
+
+      // Click on first horse to go to detail
+      await page.locator(selectors.horseCard(horse1.id)).click();
+      await expect(page.locator(selectors.horseDetail)).toBeVisible();
+
+      // Click delete button
+      await page.locator(selectors.deleteHorseBtn).click();
+
+      // Confirmation modal should appear
+      await expect(page.locator(selectors.deleteHorseModal)).toBeVisible();
+
+      // Confirm deletion
+      await page.locator(selectors.confirmDeleteHorse).click();
+
+      // Should be redirected back to list
+      await expect(page.locator(selectors.horseList)).toBeVisible();
+
+      // Only second horse should remain
+      await expect(page.locator(selectors.horseCard(horse1.id))).not.toBeVisible();
+      await expect(page.locator(selectors.horseCard(horse2.id))).toBeVisible();
+    });
+
+    test('should cancel deleting a horse', async ({ page, request }) => {
+      testData = await seedTestData(page, request, {
+        horseCount: 1,
+        feedCount: 0,
+        createDietEntries: false,
+      });
+
+      await navigateWithBoard(page, '/controller', testData.board.id);
+      await waitForControllerReady(page);
+
+      const horse = testData.horses[0];
+
+      // Go to detail and open delete modal
+      await page.locator(selectors.horseCard(horse.id)).click();
+      await page.locator(selectors.deleteHorseBtn).click();
+      await expect(page.locator(selectors.deleteHorseModal)).toBeVisible();
+
+      // Cancel deletion
+      await page.locator(selectors.cancelDeleteHorse).click();
+
+      // Modal should close
+      await expect(page.locator(selectors.deleteHorseModal)).not.toBeVisible();
+
+      // Should still be on detail view
+      await expect(page.locator(selectors.horseDetail)).toBeVisible();
+      await expect(page.locator(selectors.horseDetailName)).toHaveText(horse.name);
+
+      // Go back and verify horse still exists
+      await page.locator(selectors.horseDetailBack).click();
+      await expect(page.locator(selectors.horseCard(horse.id))).toBeVisible();
     });
   });
 });

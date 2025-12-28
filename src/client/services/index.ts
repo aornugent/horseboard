@@ -4,6 +4,8 @@ export {
   pairWithCode,
   createBoard,
   createHorse,
+  updateHorse,
+  deleteHorse,
   createFeed,
   updateFeed,
   deleteFeed,

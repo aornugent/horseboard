@@ -1,8 +1,9 @@
 import { useState } from 'preact/hooks';
-import { computed } from '@preact/signals';
+import { signal, computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad';
 import { formatQuantity } from '@shared/fractions';
-import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry } from '../../stores';
+import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry, updateHorse as storeUpdateHorse, removeHorse } from '../../stores';
+import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse } from '../../services';
 import './HorseDetail.css';
 
 interface HorseDetailProps {
@@ -14,6 +15,11 @@ interface SelectedFeed {
   feed_id: string;
   field: 'am_amount' | 'pm_amount';
 }
+
+// Local UI state for modals
+const isEditing = signal(false);
+const editName = signal('');
+const isDeleting = signal(false);
 
 export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
@@ -67,6 +73,48 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     };
   };
 
+  const handleOpenEdit = () => {
+    editName.value = horse.name;
+    isEditing.value = true;
+  };
+
+  const handleSaveEdit = async () => {
+    const newName = editName.value.trim();
+    if (!newName) return;
+
+    try {
+      const updated = await apiUpdateHorse(horseId, { name: newName });
+      storeUpdateHorse(horseId, updated);
+      isEditing.value = false;
+    } catch (err) {
+      console.error('Failed to update horse:', err);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    isEditing.value = false;
+    editName.value = '';
+  };
+
+  const handleOpenDelete = () => {
+    isDeleting.value = true;
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await apiDeleteHorse(horseId);
+      removeHorse(horseId);
+      isDeleting.value = false;
+      onBack();
+    } catch (err) {
+      console.error('Failed to delete horse:', err);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    isDeleting.value = false;
+  };
+
   const feedInfo = getSelectedFeedInfo();
 
   return (
@@ -92,6 +140,44 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         <h2 class="horse-detail-name" data-testid="horse-detail-name">
           {horse.name}
         </h2>
+        <div class="horse-detail-actions">
+          <button
+            class="horse-detail-action-btn"
+            data-testid="edit-horse-btn"
+            onClick={handleOpenEdit}
+            aria-label="Edit horse"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button
+            class="horse-detail-action-btn horse-detail-action-btn-danger"
+            data-testid="delete-horse-btn"
+            onClick={handleOpenDelete}
+            aria-label="Delete horse"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       {horse.note && (
@@ -156,6 +242,73 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         feedName={feedInfo.name}
         unit={feedInfo.unit}
       />
+
+      {/* Edit Horse Modal */}
+      {isEditing.value && (
+        <div class="modal-overlay" data-testid="edit-horse-modal">
+          <div class="modal-content">
+            <h3 class="modal-title">Edit Horse</h3>
+            <div class="modal-field">
+              <label class="modal-label">Name</label>
+              <input
+                type="text"
+                class="modal-input"
+                data-testid="edit-horse-name"
+                value={editName.value}
+                onInput={(e) => {
+                  editName.value = (e.target as HTMLInputElement).value;
+                }}
+              />
+            </div>
+            <div class="modal-actions">
+              <button
+                class="modal-btn modal-btn-cancel"
+                data-testid="cancel-edit-horse"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+              <button
+                class="modal-btn modal-btn-confirm"
+                data-testid="confirm-edit-horse"
+                disabled={!editName.value.trim()}
+                onClick={handleSaveEdit}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleting.value && (
+        <div class="modal-overlay" data-testid="delete-horse-modal">
+          <div class="modal-content">
+            <h3 class="modal-title">Delete Horse?</h3>
+            <p class="modal-description">
+              Are you sure you want to delete <strong>{horse.name}</strong>?
+              This will also remove all their diet entries.
+            </p>
+            <div class="modal-actions">
+              <button
+                class="modal-btn modal-btn-cancel"
+                data-testid="cancel-delete-horse"
+                onClick={handleCancelDelete}
+              >
+                Cancel
+              </button>
+              <button
+                class="modal-btn modal-btn-danger"
+                data-testid="confirm-delete-horse"
+                onClick={handleConfirmDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

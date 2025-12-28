@@ -29,10 +29,41 @@
 }
 
 .horse-detail-name {
+  flex: 1;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.horse-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.horse-detail-action-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: var(--color-bg-secondary);
+  border: none;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.horse-detail-action-btn:hover {
+  background: var(--color-bg-tertiary, #e0e0e0);
+  color: var(--color-text-primary);
+}
+
+.horse-detail-action-btn-danger:hover {
+  background: var(--color-danger, #dc2626);
+  color: white;
 }
 
 .horse-detail-note {

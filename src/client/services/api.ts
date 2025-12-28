@@ -114,6 +114,26 @@ export async function createHorse(
   return result.data;
 }
 
+export async function updateHorse(
+  horse_id: string,
+  updates: { name?: string; note?: string | null }
+): Promise<Horse> {
+  const result = await request<ApiResponse<Horse>>(`/api/horses/${horse_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to update horse', 500);
+  }
+  return result.data;
+}
+
+export async function deleteHorse(horse_id: string): Promise<void> {
+  await request<void>(`/api/horses/${horse_id}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function createFeed(
   board_id: string,
   name: string,
