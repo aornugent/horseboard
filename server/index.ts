@@ -6,28 +6,20 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 import {
-  mountResource,
+  createRepository,
   SSEManager,
   FeedRankingManager,
   Repository,
 } from '@server/lib/engine';
 import { ExpiryScheduler } from '@server/scheduler';
-
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
+import { mountRoutes, RouteContext } from '@server/routes';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || './data/horseboard.db';
-const SSE_KEEPALIVE_INTERVAL = 30000; // 30 seconds
-
-// =============================================================================
-// DATABASE INITIALIZATION
-// =============================================================================
+const SSE_KEEPALIVE_INTERVAL = 30000;
 
 function initializeDatabase(dbPath: string): Database.Database {
-  // Ensure data directory exists
   const dataDir = dirname(dbPath);
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir, { recursive: true });
@@ -37,7 +29,6 @@ function initializeDatabase(dbPath: string): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  // Run migrations
   const migration1Path = join(__dirname, '../src/server/db/migrations/001_initial_schema.sql');
   const migration1 = readFileSync(migration1Path, 'utf-8');
   db.exec(migration1);
@@ -48,10 +39,6 @@ function initializeDatabase(dbPath: string): Database.Database {
 
   return db;
 }
-
-// =============================================================================
-// SERVER CONTEXT (dependency injection container)
-// =============================================================================
 
 interface ServerContext {
   db: Database.Database;
@@ -68,10 +55,6 @@ interface ServerContext {
   timers: NodeJS.Timeout[];
 }
 
-// =============================================================================
-// BROADCAST HELPER FACTORY
-// =============================================================================
-
 function createBroadcastHelper(ctx: ServerContext) {
   return function broadcast(boardId: string): void {
     const board = ctx.repos.boards.getById(boardId);
@@ -85,163 +68,16 @@ function createBroadcastHelper(ctx: ServerContext) {
   };
 }
 
-// =============================================================================
-// ROUTE MOUNTING
-// =============================================================================
-
-function mountResources(ctx: ServerContext, broadcast: (boardId: string) => void): void {
-  // Create hooks that use the async ranking manager
-  const hooks = {
-    scheduleRankingRecalculation: (boardId: string) => {
-      ctx.rankingManager.scheduleRecalculation(boardId);
-    },
+function createRepositories(db: Database.Database): ServerContext['repos'] {
+  return {
+    boards: createRepository(db, 'boards'),
+    horses: createRepository(db, 'horses'),
+    feeds: createRepository(db, 'feeds'),
+    diet: createRepository(db, 'diet'),
   };
-
-  // Mount resources and store references
-  ctx.repos.boards = mountResource(ctx.app, ctx.db, 'boards', { broadcast });
-  ctx.repos.horses = mountResource(ctx.app, ctx.db, 'horses', { broadcast });
-  ctx.repos.feeds = mountResource(ctx.app, ctx.db, 'feeds', { broadcast, hooks });
-  ctx.repos.diet = mountResource(ctx.app, ctx.db, 'diet', {
-    broadcast,
-    hooks,
-    repos: { horses: ctx.repos.horses },
-  });
 }
-
-function mountSpecialEndpoints(ctx: ServerContext, broadcast: (boardId: string) => void): void {
-  const { app, repos } = ctx;
-
-  // Bootstrap - full state for UI hydration
-  app.get('/api/bootstrap/:boardId', (req, res) => {
-    const board = repos.boards.getById(req.params.boardId);
-    if (!board) {
-      return res.status(404).json({ success: false, error: 'Board not found' });
-    }
-
-    const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
-    const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
-    const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
-
-    res.json({
-      success: true,
-      data: { board, horses, feeds, diet_entries },
-    });
-  });
-
-  // Pair by code - returns full state
-  app.get('/api/bootstrap/pair/:code', (req, res) => {
-    const board = repos.boards.getByPairCode?.(req.params.code);
-
-    if (!board) {
-      return res.status(404).json({ success: false, error: 'Invalid pairing code' });
-    }
-
-    const horses = repos.horses.getByParent?.(board.id) ?? [];
-    const feeds = repos.feeds.getByParent?.(board.id) ?? [];
-    const diet_entries = repos.diet.getByBoardId?.(board.id) ?? [];
-
-    res.json({
-      success: true,
-      data: { board, horses, feeds, diet_entries },
-    });
-  });
-
-  // Time mode update with override
-  app.put('/api/boards/:id/time-mode', (req, res) => {
-    const { time_mode, override_until } = req.body;
-
-    const existing = repos.boards.getById(req.params.id);
-    if (!existing) {
-      return res.status(404).json({ success: false, error: 'Board not found' });
-    }
-
-    const updated = repos.boards.update(
-      { time_mode, override_until: override_until ?? null },
-      req.params.id
-    );
-
-    // Schedule expiry if override is set
-    if (override_until) {
-      ctx.expiryScheduler.schedule({
-        id: req.params.id,
-        board_id: req.params.id,
-        expires_at: new Date(override_until),
-        type: 'override',
-      });
-    } else if (time_mode === 'AUTO') {
-      // Cancel any pending override expiry
-      ctx.expiryScheduler.cancel(req.params.id, 'override');
-    }
-
-    broadcast(req.params.id);
-    res.json({ success: true, data: updated });
-  });
-
-  // Recalculate feed rankings (explicit, synchronous for immediate feedback)
-  app.post('/api/boards/:boardId/feeds/recalculate-rankings', (req, res) => {
-    const board = repos.boards.getById(req.params.boardId);
-    if (!board) {
-      return res.status(404).json({ success: false, error: 'Board not found' });
-    }
-
-    const count = ctx.rankingManager.recalculateNow(req.params.boardId);
-    broadcast(req.params.boardId);
-
-    res.json({ success: true, data: { feedsRanked: count } });
-  });
-
-  // Health/stats endpoint for monitoring
-  app.get('/api/health', (_req, res) => {
-    res.json({
-      success: true,
-      data: {
-        uptime: process.uptime(),
-        scheduler: ctx.expiryScheduler.getStats(),
-        rankings: ctx.rankingManager.getStats(),
-      },
-    });
-  });
-}
-
-function mountSSEEndpoint(ctx: ServerContext): void {
-  const { app, repos, sse } = ctx;
-
-  app.get('/api/boards/:boardId/events', (req, res) => {
-    const board = repos.boards.getById(req.params.boardId);
-    if (!board) {
-      return res.status(404).json({ success: false, error: 'Board not found' });
-    }
-
-    // Set SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-
-    // Add client to SSE manager
-    sse.addClient(req.params.boardId, res);
-
-    // Send initial full state
-    const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
-    const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
-    const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
-
-    const initialData = JSON.stringify({
-      type: 'full',
-      data: { board, horses, feeds, diet_entries },
-      timestamp: new Date().toISOString(),
-    });
-
-    res.write(`data: ${initialData}\n\n`);
-  });
-}
-
-// =============================================================================
-// TIMER MANAGEMENT
-// =============================================================================
 
 function startTimers(ctx: ServerContext): void {
-  // SSE keepalive - only timer we still need
   const keepaliveTimer = setInterval(() => {
     ctx.sse.sendKeepalive();
   }, SSE_KEEPALIVE_INTERVAL);
@@ -249,24 +85,16 @@ function startTimers(ctx: ServerContext): void {
   ctx.timers.push(keepaliveTimer);
 }
 
-// =============================================================================
-// GRACEFUL SHUTDOWN
-// =============================================================================
-
 function setupGracefulShutdown(ctx: ServerContext): void {
   const shutdown = () => {
     console.log('\n[Server] Shutting down gracefully...');
 
-    // Stop all timers
     for (const timer of ctx.timers) {
       clearInterval(timer);
     }
 
-    // Shutdown async managers
     ctx.expiryScheduler.shutdown();
     ctx.rankingManager.shutdown();
-
-    // Close database
     ctx.db.close();
 
     console.log('[Server] Shutdown complete');
@@ -277,10 +105,6 @@ function setupGracefulShutdown(ctx: ServerContext): void {
   process.on('SIGTERM', shutdown);
 }
 
-// =============================================================================
-// SERVER FACTORY
-// =============================================================================
-
 function createServer(): ServerContext {
   const db = initializeDatabase(DB_PATH);
 
@@ -289,8 +113,9 @@ function createServer(): ServerContext {
   app.use(express.json());
 
   const sse = new SSEManager();
-  const rankingManager = new FeedRankingManager(db, 500); // 500ms debounce
+  const rankingManager = new FeedRankingManager(db, 500);
   const expiryScheduler = new ExpiryScheduler(db);
+  const repos = createRepositories(db);
 
   const ctx: ServerContext = {
     db,
@@ -298,36 +123,29 @@ function createServer(): ServerContext {
     sse,
     rankingManager,
     expiryScheduler,
-    repos: {} as ServerContext['repos'], // Populated by mountResources
+    repos,
     timers: [],
   };
 
-  // Create broadcast helper with access to context
   const broadcast = createBroadcastHelper(ctx);
-
-  // Set up ranking manager callback to broadcast after async recalculation
   rankingManager.setOnComplete(broadcast);
 
-  // Mount all resources and endpoints
-  mountResources(ctx, broadcast);
-  mountSpecialEndpoints(ctx, broadcast);
-  mountSSEEndpoint(ctx);
+  const routeContext: RouteContext = {
+    db,
+    repos,
+    broadcast,
+    rankingManager,
+    expiryScheduler,
+  };
 
-  // Initialize scheduler with repositories
-  expiryScheduler.init(ctx.repos.boards, ctx.repos.horses, broadcast);
+  mountRoutes(app, routeContext, sse);
 
-  // Start background timers
+  expiryScheduler.init(repos.boards, repos.horses, broadcast);
   startTimers(ctx);
-
-  // Set up graceful shutdown
   setupGracefulShutdown(ctx);
 
   return ctx;
 }
-
-// =============================================================================
-// START SERVER
-// =============================================================================
 
 const ctx = createServer();
 
