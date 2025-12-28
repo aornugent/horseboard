@@ -3,6 +3,7 @@ import { computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad';
 import { formatQuantity } from '@shared/fractions';
 import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry } from '../../stores';
+import { upsertDiet } from '../../services/api';
 import './HorseDetail.css';
 
 interface HorseDetailProps {
@@ -53,9 +54,24 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     return entry?.[selectedFeed.field] ?? null;
   };
 
-  const handleValueChange = (value: number | null) => {
+  const handleConfirm = async (value: number | null) => {
     if (!selectedFeed) return;
+
+    // Update local store immediately for optimistic UI
     updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
+
+    // Get current entry to preserve the other field's value
+    const currentEntry = getDietEntry(horseId, selectedFeed.feed_id);
+    const am_amount = selectedFeed.field === 'am_amount' ? value : currentEntry?.am_amount;
+    const pm_amount = selectedFeed.field === 'pm_amount' ? value : currentEntry?.pm_amount;
+
+    // Persist to server
+    try {
+      await upsertDiet(horseId, selectedFeed.feed_id, am_amount, pm_amount);
+    } catch (error) {
+      console.error('Failed to save diet entry:', error);
+      // TODO: Could add error handling/retry logic here
+    }
   };
 
   const getSelectedFeedInfo = () => {
@@ -151,7 +167,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       <FeedPad
         isOpen={!!selectedFeed}
         currentValue={getCurrentValue()}
-        onValueChange={handleValueChange}
+        onConfirm={handleConfirm}
         onClose={() => setSelectedFeed(null)}
         feedName={feedInfo.name}
         unit={feedInfo.unit}
