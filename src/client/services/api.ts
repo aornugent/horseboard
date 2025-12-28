@@ -197,3 +197,19 @@ export async function updateBoard(
   }
   return result.data;
 }
+
+export async function upsertDiet(
+  horse_id: string,
+  feed_id: string,
+  am_amount?: number | null,
+  pm_amount?: number | null
+): Promise<DietEntry> {
+  const result = await request<ApiResponse<DietEntry>>('/api/diet', {
+    method: 'PUT',
+    body: JSON.stringify({ horse_id, feed_id, am_amount, pm_amount }),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to update diet', 500);
+  }
+  return result.data;
+}
