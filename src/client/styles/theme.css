@@ -333,3 +333,47 @@ button:hover {
   color: var(--color-text-secondary);
   border: 1px solid var(--color-bg-secondary);
 }
+
+.board-setup-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: var(--color-bg-primary);
+}
+
+.board-setup-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.board-setup-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.board-setup-status {
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+.board-setup-error {
+  font-size: 1.125rem;
+  color: #dc2626;
+  margin-bottom: 1.5rem;
+}
+
+.board-setup-retry-btn {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
