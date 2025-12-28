@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import Database from 'better-sqlite3';
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,11 +19,13 @@ import {
 } from '@server/lib/engine';
 import { ExpiryScheduler } from '@server/scheduler';
 import { mountRoutes, RouteContext } from '@server/routes';
+import { runMigrations } from '@server/db/migrate';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || './data/horseboard.db';
 const SSE_KEEPALIVE_INTERVAL = 30000;
+const MIGRATIONS_DIR = join(__dirname, '../src/server/db/migrations');
 
 function initializeDatabase(dbPath: string): Database.Database {
   const dataDir = dirname(dbPath);
@@ -35,13 +37,7 @@ function initializeDatabase(dbPath: string): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  const migration1Path = join(__dirname, '../src/server/db/migrations/001_initial_schema.sql');
-  const migration1 = readFileSync(migration1Path, 'utf-8');
-  db.exec(migration1);
-
-  const migration2Path = join(__dirname, '../src/server/db/migrations/002_rename_display_to_board.sql');
-  const migration2 = readFileSync(migration2Path, 'utf-8');
-  db.exec(migration2);
+  runMigrations(db, MIGRATIONS_DIR);
 
   return db;
 }

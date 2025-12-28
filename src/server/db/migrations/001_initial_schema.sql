@@ -1,8 +1,8 @@
 -- Schema Definition: Normalized relational tables
--- Foreign key relationships between displays, horses, feeds, and diet entries
+-- Foreign key relationships between boards, horses, feeds, and diet entries
 
--- Displays: stable instances with settings
-CREATE TABLE IF NOT EXISTS displays (
+-- Boards: stable instances with settings
+CREATE TABLE IF NOT EXISTS boards (
   id TEXT PRIMARY KEY,
   pair_code TEXT UNIQUE NOT NULL,
   timezone TEXT NOT NULL DEFAULT 'UTC',
@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS displays (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Feeds with future inventory columns
+-- Feeds with inventory columns
 CREATE TABLE IF NOT EXISTS feeds (
   id TEXT PRIMARY KEY,
-  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
+  board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   unit TEXT NOT NULL CHECK (unit IN ('scoop', 'ml', 'sachet', 'biscuit')),
   rank INTEGER NOT NULL DEFAULT 0,
@@ -25,20 +25,20 @@ CREATE TABLE IF NOT EXISTS feeds (
   low_stock_threshold REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(display_id, name)
+  UNIQUE(board_id, name)
 );
 
--- Horses with future archive column
+-- Horses with archive support
 CREATE TABLE IF NOT EXISTS horses (
   id TEXT PRIMARY KEY,
-  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
+  board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   note TEXT,
   note_expiry TEXT,
   archived INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(display_id, name)
+  UNIQUE(board_id, name)
 );
 
 -- Diet entries with composite primary key
@@ -53,17 +53,17 @@ CREATE TABLE IF NOT EXISTS diet_entries (
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_feeds_display ON feeds(display_id);
-CREATE INDEX IF NOT EXISTS idx_horses_display ON horses(display_id);
+CREATE INDEX IF NOT EXISTS idx_feeds_board ON feeds(board_id);
+CREATE INDEX IF NOT EXISTS idx_horses_board ON horses(board_id);
 CREATE INDEX IF NOT EXISTS idx_diet_horse ON diet_entries(horse_id);
 CREATE INDEX IF NOT EXISTS idx_diet_feed ON diet_entries(feed_id);
 
 -- Triggers for updated_at
-CREATE TRIGGER IF NOT EXISTS displays_updated_at
-  AFTER UPDATE ON displays
+CREATE TRIGGER IF NOT EXISTS boards_updated_at
+  AFTER UPDATE ON boards
   FOR EACH ROW
   BEGIN
-    UPDATE displays SET updated_at = datetime('now') WHERE id = OLD.id;
+    UPDATE boards SET updated_at = datetime('now') WHERE id = OLD.id;
   END;
 
 CREATE TRIGGER IF NOT EXISTS feeds_updated_at
