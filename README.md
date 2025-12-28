@@ -1,6 +1,6 @@
 # HorseBoard
 
-A feed management system for equine care. Display feeding schedules on a stable TV, edit via mobile phone.
+A feed management system for equine care. Show feeding schedules on a stable TV board, edit via mobile phone.
 
 ## Overview
 
@@ -9,7 +9,7 @@ A feed management system for equine care. Display feeding schedules on a stable 
 │   Mobile Web    │────▶│     Backend     │◀────│    TV Web App   │
 │      (PWA)      │     │  (Node/Express) │ SSE │  (Browser Tab)  │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
-     Controller              API + SSE              Display
+     Controller              API + SSE               Board
 ```
 
 **Domain Model:**
@@ -48,7 +48,7 @@ npm start
 ### Usage
 
 1. **Start the server:** `npm start` (runs at `http://localhost:3000`)
-2. **On your TV:** Open `http://<server-ip>:3000/display` — note the 6-digit code
+2. **On your TV:** Open `http://<server-ip>:3000/board` — note the 6-digit code
 3. **On your phone:** Open `http://<server-ip>:3000/controller` — enter the code
 
 ## Development
@@ -78,7 +78,7 @@ This app deploys to [Railway](https://railway.app) with zero configuration.
 | Document | Contents |
 |----------|----------|
 | [Technical Specification](./TECHNICAL_SPECIFICATION.md) | API, data formats, business logic |
-| [Implementation Plan](./IMPLEMENTATION_PLAN.md) | Pending tasks |
+| [Database Guide](./DATABASE.md) | Database administration, migrations, backups |
 | [Agent Guidelines](./AGENTS.md) | Instructions for AI agents |
 
 ## License
