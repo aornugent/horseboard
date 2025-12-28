@@ -12,10 +12,6 @@
  * - 0.6 → 0.6 (no fraction available)
  */
 
-// =============================================================================
-// FRACTION CONSTANTS - Single source of truth
-// =============================================================================
-
 /**
  * Supported fraction values with their Unicode representations
  * Stored as [decimal, unicode] tuples for iteration

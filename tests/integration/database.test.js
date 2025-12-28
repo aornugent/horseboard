@@ -9,7 +9,7 @@ import {
   createHorsesRepository,
   createFeedsRepository,
   createDietRepository,
-  recalculateFeedRankings,
+  FeedRankingManager,
 } from '../../src/server/lib/engine.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -268,7 +268,8 @@ describe('Database Integration Tests', () => {
       // Hay: used by 1 horse
       dietRepo.upsert({ horse_id: horse1.id, feed_id: hay.id, am_amount: 1, pm_amount: 1 });
 
-      recalculateFeedRankings(db, board.id);
+      const rankingManager = new FeedRankingManager(db);
+      rankingManager.recalculateNow(board.id);
 
       const feeds = feedRepo.getByParent(board.id);
       // Should be ordered by rank DESC

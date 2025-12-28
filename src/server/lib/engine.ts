@@ -380,7 +380,7 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
   };
 }
 
-export { recalculateFeedRankings, FeedRankingManager } from './rankings';
+export { FeedRankingManager } from './rankings';
 
 export class SSEManager {
   private clients: Map<string, Set<Response>>;
