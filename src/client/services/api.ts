@@ -75,10 +75,18 @@ export async function bootstrap(board_id: string): Promise<BootstrapData> {
 }
 
 export async function pairWithCode(code: string): Promise<PairResult> {
-  return request<PairResult>('/api/pair', {
-    method: 'POST',
-    body: JSON.stringify({ code }),
-  });
+  try {
+    const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/pair/${code}`);
+    if (result.success && result.data?.board) {
+      return { success: true, board_id: result.data.board.id };
+    }
+    return { success: false, error: 'Invalid pairing code' };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Connection failed' };
+  }
 }
 
 export async function createBoard(): Promise<Board> {
