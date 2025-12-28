@@ -82,9 +82,13 @@ export async function pairWithCode(code: string): Promise<PairResult> {
 }
 
 export async function createBoard(): Promise<Board> {
-  return request<Board>('/api/boards', {
+  const result = await request<ApiResponse<Board>>('/api/boards', {
     method: 'POST',
   });
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to create board', 500);
+  }
+  return result.data;
 }
 
 export async function createFeed(
