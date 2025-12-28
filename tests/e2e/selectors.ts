@@ -62,6 +62,14 @@ export const selectors = {
   horseSearch: '[data-testid="horse-search"]',
   horseList: '[data-testid="horse-list"]',
   horseListEmpty: '[data-testid="horse-list-empty"]',
+  addHorseBtn: '[data-testid="add-horse-btn"]',
+
+  // Add Horse Modal
+  addHorseModal: '[data-testid="add-horse-modal"]',
+  newHorseName: '[data-testid="new-horse-name"]',
+  newHorseNote: '[data-testid="new-horse-note"]',
+  cancelAddHorse: '[data-testid="cancel-add-horse"]',
+  confirmAddHorse: '[data-testid="confirm-add-horse"]',
 
   // ============================================
   // HorseDetail (Mobile Controller - Horse Detail)
@@ -74,6 +82,21 @@ export const selectors = {
   feedTile: (id: string) => `[data-testid="feed-tile-${id}"]`,
   feedTileAM: (id: string) => `[data-testid="feed-tile-am-${id}"]`,
   feedTilePM: (id: string) => `[data-testid="feed-tile-pm-${id}"]`,
+
+  // Horse Detail Actions
+  editHorseBtn: '[data-testid="edit-horse-btn"]',
+  deleteHorseBtn: '[data-testid="delete-horse-btn"]',
+
+  // Edit Horse Modal
+  editHorseModal: '[data-testid="edit-horse-modal"]',
+  editHorseName: '[data-testid="edit-horse-name"]',
+  cancelEditHorse: '[data-testid="cancel-edit-horse"]',
+  confirmEditHorse: '[data-testid="confirm-edit-horse"]',
+
+  // Delete Horse Modal
+  deleteHorseModal: '[data-testid="delete-horse-modal"]',
+  cancelDeleteHorse: '[data-testid="cancel-delete-horse"]',
+  confirmDeleteHorse: '[data-testid="confirm-delete-horse"]',
 
   // ============================================
   // BoardTab (Mobile Controller - TV Preview)

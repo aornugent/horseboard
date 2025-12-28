@@ -116,6 +116,13 @@ export interface CreateHorseInput {
   note_expiry?: string;
 }
 
+export interface UpdateHorseInput {
+  name?: string;
+  note?: string | null;
+  note_expiry?: string | null;
+  archived?: boolean;
+}
+
 /**
  * Create a horse via POST /api/boards/:boardId/horses
  */
@@ -139,6 +146,31 @@ export async function createHorse(
   const json: ApiResponse<Horse> = await response.json();
   if (!json.success || !json.data) {
     throw new Error(`Failed to create horse: ${json.error}`);
+  }
+
+  return json.data;
+}
+
+/**
+ * Update a horse via PATCH /api/horses/:id
+ */
+export async function updateHorse(
+  request: APIRequestContext,
+  horseId: string,
+  input: UpdateHorseInput
+): Promise<Horse> {
+  const response = await request.patch(`${BASE_URL}/api/horses/${horseId}`, {
+    data: input,
+  });
+
+  if (!response.ok()) {
+    const text = await response.text();
+    throw new Error(`Failed to update horse: ${response.status()} ${text}`);
+  }
+
+  const json: ApiResponse<Horse> = await response.json();
+  if (!json.success || !json.data) {
+    throw new Error(`Failed to update horse: ${json.error}`);
   }
 
   return json.data;
