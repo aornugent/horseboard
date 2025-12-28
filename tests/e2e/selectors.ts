@@ -62,6 +62,14 @@ export const selectors = {
   horseSearch: '[data-testid="horse-search"]',
   horseList: '[data-testid="horse-list"]',
   horseListEmpty: '[data-testid="horse-list-empty"]',
+  addHorseBtn: '[data-testid="add-horse-btn"]',
+
+  // Add Horse Modal
+  addHorseModal: '[data-testid="add-horse-modal"]',
+  newHorseName: '[data-testid="new-horse-name"]',
+  newHorseNote: '[data-testid="new-horse-note"]',
+  cancelAddHorse: '[data-testid="cancel-add-horse"]',
+  confirmAddHorse: '[data-testid="confirm-add-horse"]',
 
   // ============================================
   // HorseDetail (Mobile Controller - Horse Detail)
