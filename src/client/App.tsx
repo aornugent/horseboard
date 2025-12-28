@@ -12,10 +12,6 @@ import { bootstrap, pairWithCode, createBoard, sseClient } from './services';
 import { board, setBoard, setHorses, setFeeds, setDietEntries } from './stores';
 import './styles/theme.css';
 
-// =============================================================================
-// ROUTING STATE
-// =============================================================================
-
 const STORAGE_KEY = 'horseboard_board_id';
 
 const pathname = signal(window.location.pathname);
@@ -34,10 +30,6 @@ function navigate(path: string) {
     pathname.value = path;
   }
 }
-
-// =============================================================================
-// CONTROLLER TABS
-// =============================================================================
 
 type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings';
 
@@ -105,10 +97,6 @@ function Controller() {
   );
 }
 
-// =============================================================================
-// TAB ICONS
-// =============================================================================
-
 interface TabIconProps {
   type: 'horses' | 'feeds' | 'board' | 'settings';
 }
@@ -144,10 +132,6 @@ function TabIcon({ type }: TabIconProps) {
 
   return icons[type];
 }
-
-// =============================================================================
-// LANDING PAGE
-// =============================================================================
 
 function Landing() {
   return (
@@ -189,10 +173,6 @@ function Landing() {
     </div>
   );
 }
-
-// =============================================================================
-// PAIRING VIEW (when no board ID is stored)
-// =============================================================================
 
 const pairCode = signal('');
 const isPairing = signal(false);
@@ -299,10 +279,6 @@ function PairingView() {
   );
 }
 
-// =============================================================================
-// APP INITIALIZATION
-// =============================================================================
-
 async function initializeApp(boardId: string): Promise<boolean> {
   try {
     const data = await bootstrap(boardId);
@@ -320,10 +296,6 @@ async function initializeApp(boardId: string): Promise<boolean> {
     return false;
   }
 }
-
-// =============================================================================
-// MAIN APP COMPONENT
-// =============================================================================
 
 export function App() {
   // Initialize on mount

@@ -4,10 +4,8 @@ import type Database from 'better-sqlite3';
 import {
   HorseSchema,
   CreateHorseSchema,
-  UpdateHorseSchema,
   FeedSchema,
   CreateFeedSchema,
-  UpdateFeedSchema,
   DietEntrySchema,
   UpsertDietEntrySchema,
   BoardSchema,
@@ -382,7 +380,7 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
   };
 }
 
-export { recalculateFeedRankings, FeedRankingManager } from './rankings';
+export { FeedRankingManager } from './rankings';
 
 export class SSEManager {
   private clients: Map<string, Set<Response>>;

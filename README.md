@@ -78,7 +78,7 @@ This app deploys to [Railway](https://railway.app) with zero configuration.
 | Document | Contents |
 |----------|----------|
 | [Technical Specification](./TECHNICAL_SPECIFICATION.md) | API, data formats, business logic |
-| [Implementation Plan](./IMPLEMENTATION_PLAN.md) | Pending tasks |
+| [Database Guide](./DATABASE.md) | Database administration, migrations, backups |
 | [Agent Guidelines](./AGENTS.md) | Instructions for AI agents |
 
 ## License

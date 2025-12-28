@@ -191,36 +191,3 @@ export class FeedRankingManager {
     this.pending.clear();
   }
 }
-
-/**
- * Legacy synchronous recalculation (kept for backwards compatibility)
- * @deprecated Use FeedRankingManager.scheduleRecalculation() instead
- */
-export function recalculateFeedRankings(db: Database.Database, boardId: string): number {
-  const rankings = db
-    .prepare(
-      `
-    SELECT f.id, COUNT(DISTINCT d.horse_id) as usage_count
-    FROM feeds f
-    LEFT JOIN diet_entries d ON f.id = d.feed_id
-      AND (d.am_amount > 0 OR d.pm_amount > 0)
-    WHERE f.board_id = ?
-    GROUP BY f.id
-    ORDER BY usage_count DESC
-  `
-    )
-    .all(boardId) as Array<{ id: string; usage_count: number }>;
-
-  const updateRank = db.prepare('UPDATE feeds SET rank = ? WHERE id = ?');
-
-  // Use transaction for batch updates
-  const updateAll = db.transaction(() => {
-    for (let i = 0; i < rankings.length; i++) {
-      updateRank.run(rankings.length - i, rankings[i].id);
-    }
-  });
-
-  updateAll();
-
-  return rankings.length;
-}
