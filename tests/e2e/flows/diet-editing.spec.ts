@@ -13,9 +13,6 @@ import { upsertDiet } from '../helpers/api';
  *
  * Tests the FeedPad interface for editing diet values on the horse detail view.
  * Each test seeds its own data (1 horse, 2 feeds) and cleans up after.
- *
- * Note: The FeedPad saves changes immediately on interaction (presets/stepper),
- * not on Done click. Both Done and X simply close the drawer.
  */
 test.describe('Diet Editing via FeedPad', () => {
   let testData: TestData;
@@ -82,28 +79,13 @@ test.describe('Diet Editing via FeedPad', () => {
     // FeedPad should close
     await expect(feedPad).not.toBeVisible();
 
-    // Verify tile shows "1" (may include unit like "1 scoop")
+    // Verify tile shows "1"
     const valueAmount = getValueAmount(page, testData.feeds[0].id);
     await expect(valueAmount).toContainText('1');
   });
 
-  test('should set value via stepper', async ({ page, request }) => {
-    // Seed a diet entry with AM = 1 to start from a known value
-    await upsertDiet(request, {
-      horse_id: testData.horses[0].id,
-      feed_id: testData.feeds[0].id,
-      am_amount: 1,
-    });
-
-    // Reload to get the updated data
-    await page.reload();
-    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
-
+  test('should set value via stepper', async ({ page }) => {
     await goToHorseDetail(page);
-
-    // Verify initial value
-    const valueAmount = getValueAmount(page, testData.feeds[0].id);
-    await expect(valueAmount).toContainText('1');
 
     // Open FeedPad for first feed's AM slot
     const feedTileAM = page.locator(selectors.feedTileAM(testData.feeds[0].id));
@@ -112,22 +94,29 @@ test.describe('Diet Editing via FeedPad', () => {
     const feedPad = page.locator(selectors.feedPad);
     await expect(feedPad).toBeVisible();
 
-    // Verify stepper shows current value
-    const stepperValue = page.locator(selectors.stepperValue);
-    await expect(stepperValue).toContainText('1');
+    // Tap "Empty" preset to start at 0
+    const presetEmpty = page.locator(selectors.presetEmpty);
+    await presetEmpty.click();
 
-    // Tap increment (+) once (adds 0.25, so 1 + 0.25 = 1.25 = 1¼)
+    // Tap increment (+) 3 times - stepper should update after each click
     const stepperIncrement = page.locator(selectors.stepperIncrement);
+    const stepperValue = page.locator(selectors.stepperValue);
+
     await stepperIncrement.click();
+    await expect(stepperValue).toHaveText('¼');
+
+    await stepperIncrement.click();
+    await expect(stepperValue).toHaveText('½');
+
+    await stepperIncrement.click();
+    await expect(stepperValue).toHaveText('¾');
 
     // Tap Done
     await page.locator(selectors.feedPadConfirm).click();
 
-    // FeedPad should close
-    await expect(feedPad).not.toBeVisible();
-
-    // Verify tile shows 1¼ (1.25)
-    await expect(valueAmount).toHaveText('1¼');
+    // Verify tile shows ¾
+    const valueAmount = getValueAmount(page, testData.feeds[0].id);
+    await expect(valueAmount).toHaveText('¾');
   });
 
   test('should clear a value', async ({ page, request }) => {
@@ -144,7 +133,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     await goToHorseDetail(page);
 
-    // Verify tile shows "2" before clearing (may include unit)
+    // Verify tile shows "2" before clearing
     const valueAmount = getValueAmount(page, testData.feeds[0].id);
     await expect(valueAmount).toContainText('2');
 
@@ -165,68 +154,71 @@ test.describe('Diet Editing via FeedPad', () => {
     // FeedPad should close
     await expect(feedPad).not.toBeVisible();
 
-    // Verify tile shows dash (em-dash for empty)
+    // Verify tile shows dash (—)
     await expect(valueAmount).toHaveText('—');
   });
 
-  test('should close FeedPad via X button', async ({ page }) => {
-    // Note: FeedPad saves changes immediately on interaction.
-    // Both Done and X simply close the drawer.
-    await goToHorseDetail(page);
-
-    // Open FeedPad for first feed's AM slot
-    const feedTileAM = page.locator(selectors.feedTileAM(testData.feeds[0].id));
-    await feedTileAM.click();
-
-    const feedPad = page.locator(selectors.feedPad);
-    await expect(feedPad).toBeVisible();
-
-    // Tap X (close) button
-    const closeBtn = page.locator(selectors.feedPadClose);
-    await closeBtn.click();
-
-    // FeedPad should close
-    await expect(feedPad).not.toBeVisible();
-
-    // Tile should still show dash (no value was set)
-    const valueAmount = getValueAmount(page, testData.feeds[0].id);
-    await expect(valueAmount).toHaveText('—');
-  });
-
-  test('should persist diet value after reload', async ({ page, request }) => {
-    // Set a value via API (to ensure server-side persistence)
+  test('should close FeedPad without saving when tapping X', async ({ page, request }) => {
+    // Seed a diet entry with AM = 2
     await upsertDiet(request, {
       horse_id: testData.horses[0].id,
       feed_id: testData.feeds[0].id,
       am_amount: 2,
     });
 
-    // Navigate to horse detail
+    // Reload to get the updated data
     await page.reload();
     await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
+
     await goToHorseDetail(page);
 
-    // Verify the value is shown
+    // Verify original value
     const valueAmount = getValueAmount(page, testData.feeds[0].id);
     await expect(valueAmount).toContainText('2');
 
-    // Open FeedPad and change to "1" using preset
+    // Open FeedPad
     const feedTileAM = page.locator(selectors.feedTileAM(testData.feeds[0].id));
     await feedTileAM.click();
 
     const feedPad = page.locator(selectors.feedPad);
     await expect(feedPad).toBeVisible();
 
-    // Change to ½ using preset
-    const presetHalf = page.locator(selectors.presetHalf);
-    await presetHalf.click();
+    // Change value to "1"
+    const presetOne = page.locator(selectors.presetOne);
+    await presetOne.click();
+
+    // Tap X (close) instead of Done
+    const closeBtn = page.locator(selectors.feedPadClose);
+    await closeBtn.click();
+
+    // FeedPad should close
+    await expect(feedPad).not.toBeVisible();
+
+    // Verify original value is retained (change was NOT saved)
+    await expect(valueAmount).toContainText('2');
+  });
+
+  test('should persist diet value after reload', async ({ page }) => {
+    await goToHorseDetail(page);
+
+    // Set a value via FeedPad
+    const feedTileAM = page.locator(selectors.feedTileAM(testData.feeds[0].id));
+    await feedTileAM.click();
+
+    const feedPad = page.locator(selectors.feedPad);
+    await expect(feedPad).toBeVisible();
+
+    // Set value to "2"
+    const presetTwo = page.locator(selectors.presetTwo);
+    await presetTwo.click();
 
     // Tap Done
     await page.locator(selectors.feedPadConfirm).click();
     await expect(feedPad).not.toBeVisible();
 
-    // Verify the change is reflected locally
-    await expect(valueAmount).toHaveText('½');
+    // Verify the value was set
+    const valueAmount = getValueAmount(page, testData.feeds[0].id);
+    await expect(valueAmount).toContainText('2');
 
     // Reload the page
     await page.reload();
@@ -237,11 +229,8 @@ test.describe('Diet Editing via FeedPad', () => {
     // Navigate back to horse detail
     await goToHorseDetail(page);
 
-    // Verify the value persists (server-side data takes precedence)
-    // Note: If client changes don't sync to server, this shows server data
+    // Verify the value persists after reload
     const valueAmountAfterReload = getValueAmount(page, testData.feeds[0].id);
-    // Server has "2" from API seed, client changed to "½" locally
-    // After reload, we get server data, so it shows "2" again
     await expect(valueAmountAfterReload).toContainText('2');
   });
 });

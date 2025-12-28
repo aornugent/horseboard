@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'preact/hooks';
 import { formatQuantity, getQuickPresets, QUANTITY_STEP } from '@shared/fractions';
 import './FeedPad.css';
 
@@ -7,7 +8,7 @@ const QUICK_PRESETS = getQuickPresets();
 interface FeedPadProps {
   isOpen: boolean;
   currentValue: number | null;
-  onValueChange: (value: number | null) => void;
+  onConfirm: (value: number | null) => void;
   onClose: () => void;
   feedName: string;
   unit: string;
@@ -16,29 +17,49 @@ interface FeedPadProps {
 export function FeedPad({
   isOpen,
   currentValue,
-  onValueChange,
+  onConfirm,
   onClose,
   feedName,
   unit,
 }: FeedPadProps) {
+  // Local editing state - only saved when Done is clicked
+  const [editValue, setEditValue] = useState<number | null>(currentValue);
+
+  // Reset edit value when FeedPad opens with new currentValue
+  useEffect(() => {
+    if (isOpen) {
+      setEditValue(currentValue);
+    }
+  }, [isOpen, currentValue]);
+
   const handleDecrement = () => {
-    const newValue = Math.max(0, (currentValue ?? 0) - QUANTITY_STEP);
-    onValueChange(newValue === 0 ? null : newValue);
+    const newValue = Math.max(0, (editValue ?? 0) - QUANTITY_STEP);
+    setEditValue(newValue === 0 ? null : newValue);
   };
 
   const handleIncrement = () => {
-    onValueChange((currentValue ?? 0) + QUANTITY_STEP);
+    setEditValue((editValue ?? 0) + QUANTITY_STEP);
   };
 
   const handlePreset = (value: number | null) => {
-    onValueChange(value);
+    setEditValue(value);
+  };
+
+  const handleConfirm = () => {
+    onConfirm(editValue);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    // Just close without saving - editValue will be reset on next open
+    onClose();
   };
 
   return (
     <div
       class={`feed-pad-overlay ${isOpen ? 'feed-pad-overlay--open' : ''}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleCancel();
       }}
     >
       <div
@@ -51,7 +72,7 @@ export function FeedPad({
           <button
             class="feed-pad-close"
             data-testid="feed-pad-close"
-            onClick={onClose}
+            onClick={handleCancel}
             aria-label="Close"
           >
             ×
@@ -61,7 +82,7 @@ export function FeedPad({
         {/* Current value display */}
         <div class="feed-pad-current" data-testid="feed-pad-current">
           <span class="feed-pad-current-value">
-            {formatQuantity(currentValue, unit) || '—'}
+            {formatQuantity(editValue, unit) || '—'}
           </span>
           <span class="feed-pad-current-unit">{unit}</span>
         </div>
@@ -91,7 +112,7 @@ export function FeedPad({
             −
           </button>
           <div class="feed-pad-stepper-value" data-testid="stepper-value">
-            {formatQuantity(currentValue, unit) || '0'}
+            {formatQuantity(editValue, unit) || '0'}
           </div>
           <button
             class="feed-pad-stepper-btn"
@@ -106,7 +127,7 @@ export function FeedPad({
         <button
           class="feed-pad-confirm"
           data-testid="feed-pad-confirm"
-          onClick={onClose}
+          onClick={handleConfirm}
         >
           Done
         </button>
