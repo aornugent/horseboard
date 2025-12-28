@@ -3,6 +3,7 @@ export {
   bootstrap,
   pairWithCode,
   createBoard,
+  createHorse,
   createFeed,
   updateFeed,
   deleteFeed,
