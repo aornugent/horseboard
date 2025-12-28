@@ -1,13 +1,13 @@
 import type { Signal } from '@preact/signals';
 import { formatQuantity } from '@shared/fractions';
-import type { Horse, Feed, DietEntry } from '@shared/types';
-import { dietByKey } from '../../stores/diet';
+import { TIME_MODE, type Horse, type Feed, type EffectiveTimeMode } from '@shared/resources';
+import { dietByKey } from '../../stores';
 import './SwimLaneGrid.css';
 
 interface SwimLaneGridProps {
   horses: Signal<Horse[]>;
   feeds: Signal<Feed[]>;
-  timeMode: Signal<'AM' | 'PM'>;
+  timeMode: Signal<EffectiveTimeMode>;
   isEditable: boolean;
   onCellClick?: (horseId: string, feedId: string) => void;
 }
@@ -48,7 +48,7 @@ export function SwimLaneGrid({
           </div>
           {horseList.map((horse, idx) => {
             const entry = dietMap.get(`${horse.id}:${feed.id}`);
-            const value = mode === 'AM' ? entry?.amAmount : entry?.pmAmount;
+            const value = mode === TIME_MODE.AM ? entry?.am_amount : entry?.pm_amount;
             const hasValue = value !== null && value !== undefined && value !== 0;
 
             return (

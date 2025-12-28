@@ -8,7 +8,7 @@ import { selectors } from './selectors';
  * - HorsesTab: Horse list with search and navigation
  * - HorseDetail: Diet editing with FeedPad
  * - FeedsTab: Feed management
- * - SettingsTab: Display settings
+ * - SettingsTab: Board settings
  * - BoardTab: TV preview
  */
 
@@ -422,14 +422,14 @@ test.describe('Mobile Controller', () => {
       await expect(selector).toBeVisible();
     });
 
-    test('should show display pair code', async ({ page }) => {
-      const pairCode = page.locator(selectors.displayPairCode);
+    test('should show board pair code', async ({ page }) => {
+      const pairCode = page.locator(selectors.boardPairCode);
       await expect(pairCode).toBeVisible();
     });
 
-    test('should show display ID', async ({ page }) => {
-      const displayId = page.locator(selectors.displayId);
-      await expect(displayId).toBeVisible();
+    test('should show board ID', async ({ page }) => {
+      const boardId = page.locator(selectors.boardId);
+      await expect(boardId).toBeVisible();
     });
   });
 
