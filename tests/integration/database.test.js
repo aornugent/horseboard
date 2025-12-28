@@ -19,13 +19,9 @@ function initializeTestDatabase() {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  const migration1Path = join(__dirname, '../../src/server/db/migrations/001_initial_schema.sql');
-  const migration1 = readFileSync(migration1Path, 'utf-8');
-  db.exec(migration1);
-
-  const migration2Path = join(__dirname, '../../src/server/db/migrations/002_rename_display_to_board.sql');
-  const migration2 = readFileSync(migration2Path, 'utf-8');
-  db.exec(migration2);
+  const schemaPath = join(__dirname, '../../src/server/db/migrations/001_initial_schema.sql');
+  const schema = readFileSync(schemaPath, 'utf-8');
+  db.exec(schema);
 
   return db;
 }
