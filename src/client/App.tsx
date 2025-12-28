@@ -178,6 +178,9 @@ const pairCode = signal('');
 const isPairing = signal(false);
 const pairError = signal<string | null>(null);
 
+const boardSetupState = signal<'loading' | 'ready' | 'error'>('loading');
+const boardSetupError = signal<string | null>(null);
+
 async function handlePair() {
   if (pairCode.value.length !== 6) return;
 
@@ -279,6 +282,63 @@ function PairingView() {
   );
 }
 
+function BoardSetup() {
+  useEffect(() => {
+    async function setupBoard() {
+      boardSetupState.value = 'loading';
+      boardSetupError.value = null;
+
+      try {
+        const result = await createBoard();
+        if (result.id) {
+          localStorage.setItem(STORAGE_KEY, result.id);
+          await initializeApp(result.id);
+          boardSetupState.value = 'ready';
+        } else {
+          boardSetupError.value = 'Failed to create board';
+          boardSetupState.value = 'error';
+        }
+      } catch {
+        boardSetupError.value = 'Connection failed';
+        boardSetupState.value = 'error';
+      }
+    }
+
+    setupBoard();
+  }, []);
+
+  if (boardSetupState.value === 'loading') {
+    return (
+      <div class="board-setup-view" data-testid="board-setup-view">
+        <div class="board-setup-content">
+          <h1 class="board-setup-title">HorseBoard</h1>
+          <p class="board-setup-status">Setting up your board...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (boardSetupState.value === 'error') {
+    return (
+      <div class="board-setup-view" data-testid="board-setup-view">
+        <div class="board-setup-content">
+          <h1 class="board-setup-title">HorseBoard</h1>
+          <p class="board-setup-error">{boardSetupError.value}</p>
+          <button
+            class="board-setup-retry-btn"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Board is ready - the main App component will render Board view
+  return null;
+}
+
 async function initializeApp(boardId: string): Promise<boolean> {
   try {
     const data = await bootstrap(boardId);
@@ -329,12 +389,18 @@ export function App() {
     return <Landing />;
   }
 
-  // Check if we need to pair first (for controller views)
+  // Check if we need to pair first (for controller views only)
   const needsPairing = !board.value && !isInitialized.value;
   const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
-  if ((path === '/controller' || path === '/board') && needsPairing && !storedBoardId) {
+  // Only controller needs pairing view - board auto-creates
+  if (path === '/controller' && needsPairing && !storedBoardId) {
     return <PairingView />;
+  }
+
+  // Board auto-creates if no board exists
+  if (path === '/board' && needsPairing && !storedBoardId) {
+    return <BoardSetup />;
   }
 
   // Show connection error if any
