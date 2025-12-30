@@ -3,7 +3,7 @@ import { signal } from "@preact/signals";
 import { createAuthClient } from "better-auth/client";
 
 export const authClient = createAuthClient({
-    baseURL: "http://localhost:3000" // adjust if needed
+    baseURL: import.meta.env.VITE_API_URL // defaults to same-origin
 });
 
 export const user = signal<typeof authClient.$Infer.Session.user | null>(null);
