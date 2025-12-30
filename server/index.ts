@@ -20,6 +20,8 @@ import {
 import { ExpiryScheduler } from '@server/scheduler';
 import { mountRoutes, RouteContext } from '@server/routes';
 import { runMigrations } from '@server/db/migrate';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from '@server/lib/auth-instance';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -113,6 +115,8 @@ function createServer(): ServerContext {
   const app = express();
   app.use(cors());
   app.use(express.json());
+
+  app.all("/api/auth/*", toNodeHandler(auth));
 
   const sse = new SSEManager();
   const rankingManager = new FeedRankingManager(db, 500);
