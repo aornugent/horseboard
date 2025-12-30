@@ -9,9 +9,11 @@ import {
   SettingsTab,
 } from './views/Controller';
 import { bootstrap, pairWithCode, createBoard, sseClient } from './services';
-import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership } from './stores';
+import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership, user } from './stores';
 import { initAuth } from './services/auth';
 import { ClaimBoardPrompt } from './components/ClaimBoardPrompt';
+import { LoginView } from './views/LoginView';
+import { SignupView } from './views/SignupView';
 import './styles/theme.css';
 
 const STORAGE_KEY = 'horseboard_board_id';
@@ -401,6 +403,13 @@ export function App() {
     }
   }, []);
 
+  // Redirect authenticated users from auth pages
+  useEffect(() => {
+    if (user.value && (pathname.value === '/login' || pathname.value === '/signup')) {
+      navigate('/controller');
+    }
+  }, [user.value, pathname.value]);
+
   const path = pathname.value;
 
   // Show landing page at root
@@ -457,6 +466,12 @@ export function App() {
 
     case '/controller':
       return <Controller />;
+
+    case '/login':
+      return <LoginView />;
+
+    case '/signup':
+      return <SignupView />;
 
     default:
       // 404 - redirect to landing

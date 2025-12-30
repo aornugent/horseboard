@@ -156,7 +156,7 @@ New users can claim boards on signup. Returning users see their owned boards. Un
 
 ---
 
-## Phase 5: Client Auth UI
+## Phase 5: Client Auth UI [COMPLETED]
 
 **Objective:** Complete auth UI on client
 
@@ -259,8 +259,8 @@ Production-ready auth system. All edge cases handled gracefully.
 | 1 | Better Auth setup | Users can sign up/in | Done |
 | 2 | Permission middleware | Auth resolution works | Done |
 | 3 | Protect routes | API enforces permissions | Done |
-| 4 | Board claiming | Users own boards |
-| 5 | Client auth UI | Full auth experience |
+| 4 | Board claiming | Users own boards | Done |
+| 5 | Client auth UI | Full auth experience | Done |
 | 6 | Token management | Multi-device access |
 | 7 | Polish | Production-ready |
 

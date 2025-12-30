@@ -6,6 +6,9 @@ import {
   timezone,
   updateTimeMode,
   setZoomLevel,
+  user,
+  authClient,
+  ownership,
 } from '../../stores';
 import { updateTimeMode as apiUpdateTimeMode, updateBoard as apiUpdateBoard } from '../../services';
 import {
@@ -78,7 +81,19 @@ async function saveTimezone(tz: string) {
   }
 }
 
+async function handleSignOut() {
+  await authClient.signOut();
+  window.location.reload();
+}
+
+function handleNavigate(path: string) {
+  window.history.pushState({}, '', path);
+  window.dispatchEvent(new Event('popstate'));
+}
+
 export function SettingsTab() {
+  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+
   if (!board.value) {
     return (
       <div class="settings-tab" data-testid="settings-tab">
@@ -90,6 +105,49 @@ export function SettingsTab() {
   return (
     <div class="settings-tab" data-testid="settings-tab">
       <h2 class="settings-title">Settings</h2>
+
+      {/* Account Section */}
+      <section class="settings-section">
+        <h3 class="settings-section-title">Account</h3>
+        {user.value ? (
+          <div class="settings-account-info">
+            <div class="settings-account-details">
+              <div class="settings-account-name" data-testid="account-name">{user.value.name}</div>
+              <div class="settings-account-email">{user.value.email}</div>
+              <div class="settings-account-role">
+                {ownership.value.is_owner ? 'Owner' : `Permission: ${ownership.value.permission}`}
+              </div>
+            </div>
+            <button
+              class="settings-btn settings-btn-danger"
+              onClick={handleSignOut}
+              data-testid="sign-out-btn"
+            >
+              Sign Out
+            </button>
+          </div>
+        ) : (
+          <div class="settings-account-actions">
+            <p class="settings-section-description">
+              Sign in to manage this board.
+            </p>
+            <div class="settings-button-group">
+              <button
+                class="settings-btn"
+                onClick={() => handleNavigate('/login')}
+              >
+                Sign In
+              </button>
+              <button
+                class="settings-btn"
+                onClick={() => handleNavigate('/signup')}
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Time Mode Section */}
       <section class="settings-section">
@@ -103,7 +161,8 @@ export function SettingsTab() {
               key={mode.value}
               class={`settings-btn ${configuredMode.value === mode.value ? 'active' : ''}`}
               data-testid={`time-mode-${mode.value.toLowerCase()}`}
-              onClick={() => saveTimeMode(mode.value)}
+              onClick={() => canEdit && saveTimeMode(mode.value)}
+              disabled={!canEdit}
             >
               <span class="settings-btn-label">{mode.label}</span>
               <span class="settings-btn-description">{mode.description}</span>
@@ -124,7 +183,8 @@ export function SettingsTab() {
               key={level.value}
               class={`settings-btn ${zoomLevel.value === level.value ? 'active' : ''}`}
               data-testid={`zoom-level-${level.value}`}
-              onClick={() => saveZoomLevel(level.value)}
+              onClick={() => canEdit && saveZoomLevel(level.value)}
+              disabled={!canEdit}
             >
               <span class="settings-btn-label">{level.label}</span>
               <span class="settings-btn-description">{level.description}</span>
@@ -145,6 +205,7 @@ export function SettingsTab() {
             data-testid="timezone-selector"
             value={timezone.value}
             onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
+            disabled={!canEdit}
           >
             {TIMEZONES.map(tz => (
               <option key={tz.value} value={tz.value}>

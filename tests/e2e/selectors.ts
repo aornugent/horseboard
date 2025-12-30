@@ -159,6 +159,18 @@ export const selectors = {
   connectBtn: '[data-testid="connect-btn"]',
   quantityModal: '[data-testid="quantity-modal"]',
   quantityInput: '[data-testid="quantity-input"]',
+
+  // ============================================
+  // Auth
+  // ============================================
+  loginView: '[data-testid="login-view"]',
+  signupView: '[data-testid="signup-view"]',
+  emailInput: '[data-testid="email-input"]',
+  passwordInput: '[data-testid="password-input"]',
+  nameInput: '[data-testid="name-input"]',
+  submitBtn: '[data-testid="submit-btn"]',
+  accountName: '[data-testid="account-name"]',
+  signOutBtn: '[data-testid="sign-out-btn"]',
 };
 
 // =============================================================================
