@@ -66,7 +66,7 @@ function createBroadcastHelper(ctx: ServerContext) {
     const feeds = ctx.repos.feeds.getByParent(boardId);
     const diet_entries = ctx.repos.diet.getByBoardId(boardId);
 
-    ctx.sse.broadcast(boardId, 'full', { board, horses, feeds, diet_entries });
+    ctx.sse.broadcast(boardId, { board, horses, feeds, diet_entries });
   };
 }
 

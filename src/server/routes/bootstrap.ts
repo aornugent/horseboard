@@ -84,7 +84,6 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
     const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
 
     const initialData = JSON.stringify({
-      type: 'full',
       data: { board, horses, feeds, diet_entries },
       timestamp: new Date().toISOString(),
     });

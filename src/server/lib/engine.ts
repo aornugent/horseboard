@@ -84,7 +84,7 @@ export function generatePairCode(
   if (attempt >= config.maxAttempts) {
     throw new Error(
       `Failed to generate unique pair code after ${config.maxAttempts} attempts. ` +
-        `ID space may be exhausted or database may be experiencing issues.`
+      `ID space may be exhausted or database may be experiencing issues.`
     );
   }
 
@@ -400,11 +400,11 @@ export class SSEManager {
     });
   }
 
-  broadcast(boardId: string, type: string, data: unknown = null): void {
+  broadcast(boardId: string, data: unknown = null): void {
     const clients = this.clients.get(boardId);
     if (!clients) return;
 
-    const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
+    const message = JSON.stringify({ data, timestamp: new Date().toISOString() });
 
     for (const client of clients) {
       client.write(`data: ${message}\n\n`);
