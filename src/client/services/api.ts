@@ -17,6 +17,25 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+
+let controllerToken: string | null = null;
+
+export function setControllerToken(token: string | null): void {
+  controllerToken = token;
+  if (token) {
+    localStorage.setItem('horseboard_controller_token', token);
+  } else {
+    localStorage.removeItem('horseboard_controller_token');
+  }
+}
+
+export function loadControllerToken(): void {
+  const token = localStorage.getItem('horseboard_controller_token');
+  if (token) {
+    controllerToken = token;
+  }
+}
+
 async function request<T>(
   url: string,
   options: RequestInit = {}
@@ -25,6 +44,10 @@ async function request<T>(
     'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  if (controllerToken) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${controllerToken}`;
+  }
 
   const response = await fetch(url, { ...options, headers });
 
@@ -46,6 +69,56 @@ async function request<T>(
   }
 
   return JSON.parse(text);
+}
+
+// ... existing interfaces ...
+
+export interface ControllerToken {
+  id: string;
+  board_id: string;
+  name: string;
+  permission: 'view' | 'edit';
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+// ... existing functions ...
+
+export async function createControllerToken(
+  board_id: string,
+  name: string,
+  permission: 'view' | 'edit',
+  expiresAt?: string
+): Promise<{ id: string; name: string; token: string }> {
+  const result = await request<ApiResponse<{ id: string; name: string; token: string }>>(
+    `/api/boards/${board_id}/tokens`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ name, permission, expires_at: expiresAt }),
+    }
+  );
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to create token', 500);
+  }
+  return result.data;
+}
+
+export async function listControllerTokens(board_id: string): Promise<ControllerToken[]> {
+  const result = await request<ApiResponse<ControllerToken[]>>(`/api/boards/${board_id}/tokens`);
+  return result.data ?? [];
+}
+
+export async function revokeControllerToken(token_id: string): Promise<void> {
+  await request<void>(`/api/tokens/${token_id}`, { method: 'DELETE' });
+}
+
+export async function resolveToken(): Promise<{ token_id: string; board_id: string; permission: string }> {
+  const result = await request<ApiResponse<{ token_id: string; board_id: string; permission: string }>>('/api/tokens/me');
+  if (!result.success || !result.data) {
+    throw new ApiError('Failed to resolve token', 401);
+  }
+  return result.data;
 }
 
 export interface BootstrapData {

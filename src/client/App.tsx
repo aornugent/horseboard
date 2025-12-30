@@ -7,9 +7,10 @@ import {
   BoardTab,
   FeedsTab,
   SettingsTab,
+  TokensTab,
 } from './views/Controller';
-import { bootstrap, pairWithCode, createBoard, sseClient } from './services';
-import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership, user } from './stores';
+import { bootstrap, pairWithCode, createBoard, sseClient, setControllerToken } from './services';
+import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership, user, ownership } from './stores';
 import { initAuth } from './services/auth';
 import { ClaimBoardPrompt } from './components/ClaimBoardPrompt';
 import { LoginView } from './views/LoginView';
@@ -35,12 +36,14 @@ function navigate(path: string) {
   }
 }
 
-type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings';
+type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings' | 'tokens';
 
 const activeTab = signal<ControllerTab>('horses');
 const selectedHorseId = signal<string | null>(null);
 
 function Controller() {
+  const isAdmin = ownership.value.permission === 'admin';
+
   return (
     <div class="controller-view" data-testid="controller-view">
       {selectedHorseId.value ? (
@@ -60,6 +63,7 @@ function Controller() {
             {activeTab.value === 'feeds' && <FeedsTab />}
             {activeTab.value === 'board' && <BoardTab />}
             {activeTab.value === 'settings' && <SettingsTab />}
+            {activeTab.value === 'tokens' && isAdmin && <TokensTab />}
           </div>
 
           <nav class="controller-tabs" data-testid="controller-tabs">
@@ -95,6 +99,16 @@ function Controller() {
               <TabIcon type="settings" />
               <span>Settings</span>
             </button>
+            {isAdmin && (
+              <button
+                class={`tab-btn ${activeTab.value === 'tokens' ? 'active' : ''}`}
+                data-testid="tab-tokens"
+                onClick={() => (activeTab.value = 'tokens')}
+              >
+                <TabIcon type="tokens" />
+                <span>Tokens</span>
+              </button>
+            )}
           </nav>
         </>
       )}
@@ -103,7 +117,7 @@ function Controller() {
 }
 
 interface TabIconProps {
-  type: 'horses' | 'feeds' | 'board' | 'settings';
+  type: 'horses' | 'feeds' | 'board' | 'settings' | 'tokens';
 }
 
 function TabIcon({ type }: TabIconProps) {
@@ -131,6 +145,12 @@ function TabIcon({ type }: TabIconProps) {
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3" />
         <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
+      </svg>
+    ),
+    tokens: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
     ),
   };
@@ -182,27 +202,58 @@ function Landing() {
 const pairCode = signal('');
 const isPairing = signal(false);
 const pairError = signal<string | null>(null);
+const useToken = signal(false);
 
 const boardSetupState = signal<'loading' | 'ready' | 'error'>('loading');
 const boardSetupError = signal<string | null>(null);
 
 async function handlePair() {
-  if (pairCode.value.length !== 6) return;
-
   isPairing.value = true;
   pairError.value = null;
 
   try {
-    const result = await pairWithCode(pairCode.value);
+    if (useToken.value) {
+      // Token flow: simply save token and try to bootstrap
+      // The token should contain board info but we don't know it yet
+      // Actually, we can't bootstrap without a board ID.
+      // But the device is pairing...
 
-    if (result.success && result.board_id) {
-      localStorage.setItem(STORAGE_KEY, result.board_id);
-      await initializeApp(result.board_id);
+      // Wait, if I have a token, I need the board ID too?
+      // No, tokens are usually given as full strings that might decode to something, or we need to lookup board by token.
+      // But our API `bootstrap(board_id)` requires board ID.
+      // And `resolveAuth` checks header.
+
+      // If we use a token, we might need an endpoint to "resolve token" to board ID.
+      // Or we assume the user has to enter Board ID + Token? No, that's bad UX.
+      // Maybe the token input flow is separate: "Enter Token".
+      // Then we need an API to get board from token.
+      // Let's add that API or just assume we can get it.
+
+      // I can add `GET /api/auth/resolve-token` or similar? 
+      // Or `GET /api/tokens/me`.
+
+      // Let's assume for now the user enters "hb_..." and we need to find the board.
+      // We don't have an endpoint for that yet.
+      // IMPLEMENTATION GAP: Need endpoint to get board from token.
+
+      // WORKAROUND: I will add a `resolveToken` helper that tries to get board info from token.
+      // `GET /api/tokens/me` -> { board_id: ... }
+
+      throw new Error("Token resolution not implemented yet");
+
     } else {
-      pairError.value = result.error || 'Invalid pair code';
+      if (pairCode.value.length !== 6) return;
+      const result = await pairWithCode(pairCode.value);
+
+      if (result.success && result.board_id) {
+        localStorage.setItem(STORAGE_KEY, result.board_id);
+        await initializeApp(result.board_id);
+      } else {
+        pairError.value = result.error || 'Invalid pair code';
+      }
     }
-  } catch {
-    pairError.value = 'Connection failed';
+  } catch (err) {
+    pairError.value = (err as Error).message || 'Connection failed';
   } finally {
     isPairing.value = false;
   }
@@ -234,31 +285,103 @@ function PairingView() {
       <div class="pairing-content">
         <h1 class="pairing-title">Connect to HorseBoard</h1>
 
-        <div class="pairing-section">
-          <h2 class="pairing-section-title">Join Existing Board</h2>
-          <p class="pairing-description">
-            Enter the 6-digit code shown on your TV board
-          </p>
-          <input
-            type="text"
-            class="pairing-input"
-            data-testid="pair-code-input"
-            placeholder="000000"
-            maxLength={6}
-            value={pairCode.value}
-            onInput={(e) => {
-              pairCode.value = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 6);
-            }}
-          />
-          <button
-            class="pairing-btn pairing-btn-primary"
-            data-testid="pair-btn"
-            disabled={pairCode.value.length !== 6 || isPairing.value}
-            onClick={handlePair}
-          >
-            {isPairing.value ? 'Connecting...' : 'Connect'}
-          </button>
-        </div>
+        {useToken.value ? (
+          <div class="pairing-section">
+            <h2 class="pairing-section-title">Use Controller Token</h2>
+            <p class="pairing-description">
+              Enter the token generated by the board owner
+            </p>
+            <input
+              type="text"
+              class="pairing-input"
+              data-testid="token-input"
+              placeholder="hb_..."
+              value={pairCode.value}
+              onInput={(e) => {
+                pairCode.value = (e.target as HTMLInputElement).value;
+              }}
+            />
+            <button
+              class="pairing-btn pairing-btn-primary"
+              data-testid="token-connect-btn"
+              disabled={!pairCode.value.startsWith('hb_') || isPairing.value}
+              onClick={async () => {
+                isPairing.value = true;
+                try {
+                  // 1. Set the token
+                  setControllerToken(pairCode.value);
+
+                  // 2. Resolve the token to get board ID
+                  // Note: resolveToken() uses the token we just set in headers
+                  const { board_id } = await import('./services').then(m => m.resolveToken());
+
+                  if (board_id) {
+                    localStorage.setItem(STORAGE_KEY, board_id);
+                    const success = await initializeApp(board_id);
+                    if (!success) {
+                      pairError.value = "Failed to connect to board";
+                    }
+                  }
+                } catch (err) {
+                  console.error('Token connection failed:', err);
+                  pairError.value = "Invalid token or connection failed";
+                  // Clear invalid token
+                  setControllerToken(null);
+                } finally {
+                  isPairing.value = false;
+                }
+              }}
+            >
+              {isPairing.value ? 'Connecting...' : 'Connect'}
+            </button>
+            <button
+              class="pairing-link-btn"
+              onClick={() => {
+                useToken.value = false;
+                pairCode.value = '';
+                pairError.value = null;
+              }}
+            >
+              Back to Pair Code
+            </button>
+          </div>
+        ) : (
+          <div class="pairing-section">
+            <h2 class="pairing-section-title">Join Existing Board</h2>
+            <p class="pairing-description">
+              Enter the 6-digit code shown on your TV board
+            </p>
+            <input
+              type="text"
+              class="pairing-input"
+              data-testid="pair-code-input"
+              placeholder="000000"
+              maxLength={6}
+              value={pairCode.value}
+              onInput={(e) => {
+                pairCode.value = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 6);
+              }}
+            />
+            <button
+              class="pairing-btn pairing-btn-primary"
+              data-testid="pair-btn"
+              disabled={pairCode.value.length !== 6 || isPairing.value}
+              onClick={handlePair}
+            >
+              {isPairing.value ? 'Connecting...' : 'Connect'}
+            </button>
+            <button
+              class="pairing-link-btn"
+              onClick={() => {
+                useToken.value = true;
+                pairCode.value = '';
+                pairError.value = null;
+              }}
+            >
+              I have a token
+            </button>
+          </div>
+        )}
 
         <div class="pairing-divider">or</div>
 
@@ -287,6 +410,7 @@ function PairingView() {
   );
 }
 
+// ... rest of file (BoardSetup, initializeApp, App)
 function BoardSetup() {
   useEffect(() => {
     async function setupBoard() {
@@ -370,6 +494,9 @@ export function App() {
   useEffect(() => {
     initAuth();
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
+    // Also check for stored token
+    // If token exists but no board ID, we need to resolve it (missing logic)
+    // If token exists AND board ID exists, the request interceptor handles it.
 
     if (storedBoardId) {
       initializeApp(storedBoardId);

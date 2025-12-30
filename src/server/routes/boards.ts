@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { UpdateBoardSchema, SetTimeModeSchema } from '@shared/resources';
+import { UpdateBoardSchema, SetTimeModeSchema, CreateControllerTokenSchema } from '@shared/resources';
+import crypto from 'crypto';
 import { validate } from './middleware';
 import { requirePermission } from '../lib/auth';
 import type { RouteContext } from './types';
@@ -132,6 +133,38 @@ export function createBoardsRouter(ctx: RouteContext): Router {
 
     broadcast(req.params.id);
     res.json({ success: true, data: updated });
+  });
+
+  // POST /api/boards/:id/tokens - create new controller token
+  router.post('/:id/tokens', requirePermission('admin', req => req.params.id), validate(CreateControllerTokenSchema), (req: Request, res: Response) => {
+    // Generate secure random token with prefix
+    const randomBytes = crypto.randomBytes(32).toString('hex');
+    const tokenValue = `hb_${randomBytes}`; // e.g., hb_a1b2...
+
+    // Hash it for storage
+    const tokenHash = crypto.createHash('sha256').update(tokenValue).digest('hex');
+
+    try {
+      const created = repos.controllerTokens.create(req.body, req.params.id, tokenHash);
+
+      // Return with the raw token value (only time it's shown)
+      res.status(201).json({
+        success: true,
+        data: {
+          ...created,
+          token: tokenValue // Inject raw token into response
+        }
+      });
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // GET /api/boards/:id/tokens - list tokens for board
+  router.get('/:id/tokens', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
+    const tokens = repos.controllerTokens.getByBoard(req.params.id);
+    res.json({ success: true, data: tokens });
   });
 
   return router;

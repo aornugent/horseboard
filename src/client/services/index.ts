@@ -12,6 +12,11 @@ export {
   deleteFeed,
   updateTimeMode,
   updateBoard,
+  createControllerToken,
+  listControllerTokens,
+  revokeControllerToken,
+  setControllerToken,
+  resolveToken,
   ApiError,
 } from './api';
-export type { BootstrapData, PairResult } from './api';
+export type { BootstrapData, PairResult, ControllerToken } from './api';
