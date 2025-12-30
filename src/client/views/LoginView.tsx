@@ -27,7 +27,7 @@ export function LoginView() {
                 window.location.href = '/controller'; // Redirect to controller
             }
         } catch (err) {
-            error.value = 'An unexpected error occurred';
+            error.value = (err as any)?.message || 'An unexpected error occurred';
             console.error(err);
         } finally {
             isLoading.value = false;

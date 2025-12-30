@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
@@ -8,6 +9,7 @@ import { fileURLToPath } from 'url';
 import {
   createBoardsRepository,
   createHorsesRepository,
+
   createFeedsRepository,
   createDietRepository,
   createControllerTokensRepository,
@@ -120,7 +122,27 @@ function createServer(): ServerContext {
   app.use(cors());
   app.use(express.json());
 
+  app.use(express.json());
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per window
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use("/api/auth/*", authLimiter);
   app.all("/api/auth/*", toNodeHandler(auth));
+
+  // Rate limit token creation specifically (stricter)
+  const tokenCreationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 20, // 20 tokens per hour
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/boards/:board_id/tokens", tokenCreationLimiter);
 
   const sse = new SSEManager();
   const rankingManager = new FeedRankingManager(db, 500);

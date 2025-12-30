@@ -1,4 +1,7 @@
 import type { Board, Horse, Feed, DietEntry, Unit, TimeMode } from '@shared/resources';
+import { signal } from '@preact/signals';
+
+export const onAuthError = signal<{ status: number; message: string } | null>(null);
 
 export class ApiError extends Error {
   constructor(
@@ -52,6 +55,10 @@ async function request<T>(
   const response = await fetch(url, { ...options, headers });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      onAuthError.value = { status: response.status, message: 'Authentication failed' };
+    }
+
     const text = await response.text();
     let message = 'Request failed';
     try {
@@ -62,6 +69,8 @@ async function request<T>(
     }
     throw new ApiError(message, response.status);
   }
+
+
 
   const text = await response.text();
   if (!text) {

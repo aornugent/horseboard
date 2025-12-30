@@ -18,6 +18,7 @@ export function TokensTab() {
     const [tokenName, setTokenName] = useState('');
     const [tokenPermission, setTokenPermission] = useState<'view' | 'edit'>('view');
     const [creating, setCreating] = useState(false);
+    const [revokingId, setRevokingId] = useState<string | null>(null);
 
     // New token display state
     const [newToken, setNewToken] = useState<string | null>(null);
@@ -71,11 +72,14 @@ export function TokensTab() {
         }
 
         try {
+            setRevokingId(id);
             await revokeControllerToken(id);
             await loadTokens();
         } catch (err) {
             console.error('Failed to revoke token:', err);
             alert('Failed to revoke token');
+        } finally {
+            setRevokingId(null);
         }
     }
 
@@ -140,9 +144,10 @@ export function TokensTab() {
                             <div class="token-actions">
                                 <button
                                     class="revoke-btn"
+                                    disabled={revokingId === token.id}
                                     onClick={() => handleRevoke(token.id)}
                                 >
-                                    Revoke
+                                    {revokingId === token.id ? 'Revoking...' : 'Revoke'}
                                 </button>
                             </div>
                         </div>

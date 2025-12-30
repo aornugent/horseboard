@@ -188,7 +188,7 @@ Full auth UI experience. Users can signup, login, logout. UI reflects permission
 
 ---
 
-## Phase 6: Controller Token Management
+## Phase 6: Controller Token Management [COMPLETED]
 
 **Objective:** Owners can create and manage controller tokens
 
@@ -221,7 +221,7 @@ Complete token management UI. Staff can use tokens to access boards. Multi-devic
 
 ---
 
-## Phase 7: Polish & Edge Cases
+## Phase 7: Polish & Edge Cases [COMPLETED]
 
 **Objective:** Production-ready auth system
 
@@ -261,7 +261,7 @@ Production-ready auth system. All edge cases handled gracefully.
 | 3 | Protect routes | API enforces permissions | Done |
 | 4 | Board claiming | Users own boards | Done |
 | 5 | Client auth UI | Full auth experience | Done |
-| 6 | Token management | Multi-device access |
-| 7 | Polish | Production-ready |
+| 6 | Token management | Multi-device access | Done |
+| 7 | Polish | Production-ready | Done |
 
 Each phase produces a working application. All seven phases can be completed independently with incremental, testable progress.
