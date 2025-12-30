@@ -10,12 +10,14 @@ import {
   createHorsesRepository,
   createFeedsRepository,
   createDietRepository,
+  createControllerTokensRepository,
   SSEManager,
   FeedRankingManager,
   type HorsesRepository,
   type FeedsRepository,
   type DietRepository,
   type BoardsRepository,
+  type ControllerTokensRepository,
 } from '@server/lib/engine';
 import { ExpiryScheduler } from '@server/scheduler';
 import { mountRoutes, RouteContext } from '@server/routes';
@@ -55,6 +57,7 @@ interface ServerContext {
     horses: HorsesRepository;
     feeds: FeedsRepository;
     diet: DietRepository;
+    controllerTokens: ControllerTokensRepository;
   };
   timers: NodeJS.Timeout[];
 }
@@ -78,6 +81,7 @@ function createRepositories(db: Database.Database): ServerContext['repos'] {
     horses: createHorsesRepository(db),
     feeds: createFeedsRepository(db),
     diet: createDietRepository(db),
+    controllerTokens: createControllerTokensRepository(db),
   };
 }
 

@@ -27,7 +27,7 @@ This plan evolves HorseBoard from a single-user prototype into a multi-tenant Sa
 
 ---
 
-## Phase 1: Database Schema & Better Auth Setup
+## Phase 1: Database Schema & Better Auth Setup [COMPLETED]
 
 **Objective:** Better Auth integrated, tables created, basic auth working
 
@@ -59,7 +59,7 @@ Users can sign up and sign in. Sessions are stored. No routes protected yet.
 
 ---
 
-## Phase 2: Permission Resolution & Middleware
+## Phase 2: Permission Resolution & Middleware [COMPLETED]
 
 **Objective:** Auth middleware resolves permissions correctly
 
@@ -254,10 +254,10 @@ Production-ready auth system. All edge cases handled gracefully.
 
 ## Summary
 
-| Phase | Objective | Key Deliverable |
-|-------|-----------|-----------------|
-| 1 | Better Auth setup | Users can sign up/in |
-| 2 | Permission middleware | Auth resolution works |
+| Phase | Objective | Key Deliverable | Status |
+|-------|-----------|-----------------|--------|
+| 1 | Better Auth setup | Users can sign up/in | Done |
+| 2 | Permission middleware | Auth resolution works | Done |
 | 3 | Protect routes | API enforces permissions |
 | 4 | Board claiming | Users own boards |
 | 5 | Client auth UI | Full auth experience |

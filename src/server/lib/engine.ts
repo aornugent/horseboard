@@ -14,6 +14,9 @@ import {
   type Feed,
   type DietEntry,
   type Board,
+  ControllerTokenSchema,
+  CreateControllerTokenSchema,
+  type ControllerToken,
 } from '@shared/resources';
 
 type DbRow = Record<string, unknown>;
@@ -50,6 +53,15 @@ export interface BoardsRepository {
   getByPairCode(pairCode: string): Board | null;
   create(data: unknown): Board;
   update(data: unknown, id: string): Board | null;
+  delete(id: string): boolean;
+}
+
+export interface ControllerTokensRepository {
+  getById(id: string): ControllerToken | null;
+  getByHash(hash: string): ControllerToken | null;
+  getByBoard(boardId: string): ControllerToken[];
+  create(data: unknown, boardId: string, tokenHash: string): ControllerToken;
+  updateLastUsed(id: string): void;
   delete(id: string): boolean;
 }
 
@@ -315,6 +327,75 @@ export function createDietRepository(db: Database.Database): DietRepository {
   };
 }
 
+export function createControllerTokensRepository(
+  db: Database.Database
+): ControllerTokensRepository {
+  const columns = getSchemaColumns(ControllerTokenSchema);
+  const selectCols = columns.join(', ');
+
+  const stmts = {
+    getById: db.prepare(`SELECT ${selectCols} FROM controller_tokens WHERE id = ?`),
+    getByHash: db.prepare(`SELECT ${selectCols} FROM controller_tokens WHERE token_hash = ?`),
+    getByBoard: db.prepare(
+      `SELECT ${selectCols} FROM controller_tokens WHERE board_id = ? ORDER BY created_at DESC`
+    ),
+    delete: db.prepare('DELETE FROM controller_tokens WHERE id = ?'),
+    create: db.prepare(
+      `INSERT INTO controller_tokens (id, board_id, token_hash, name, permission, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ),
+    updateLastUsed: db.prepare(
+      `UPDATE controller_tokens SET last_used_at = datetime('now') WHERE id = ?`
+    ),
+  };
+
+  function toControllerToken(row: DbRow | undefined): ControllerToken | null {
+    if (!row) return null;
+    return row as ControllerToken;
+  }
+
+  return {
+    getById(id: string): ControllerToken | null {
+      return toControllerToken(stmts.getById.get(id) as DbRow | undefined);
+    },
+
+    getByHash(hash: string): ControllerToken | null {
+      return toControllerToken(stmts.getByHash.get(hash) as DbRow | undefined);
+    },
+
+    getByBoard(boardId: string): ControllerToken[] {
+      return (stmts.getByBoard.all(boardId) as DbRow[])
+        .map(toControllerToken)
+        .filter((t): t is ControllerToken => t !== null);
+    },
+
+    create(data: unknown, boardId: string, tokenHash: string): ControllerToken {
+      const parsed = CreateControllerTokenSchema.parse(data);
+      const id = generateId('ct');
+
+      stmts.create.run(
+        id,
+        boardId,
+        tokenHash,
+        parsed.name,
+        parsed.permission,
+        parsed.expires_at || null
+      );
+
+      return this.getById(id) as ControllerToken;
+    },
+
+    updateLastUsed(id: string): void {
+      stmts.updateLastUsed.run(id);
+    },
+
+    delete(id: string): boolean {
+      const result = stmts.delete.run(id);
+      return result.changes > 0;
+    },
+  };
+}
+
 export function createBoardsRepository(db: Database.Database): BoardsRepository {
   const columns = getSchemaColumns(BoardSchema);
   const selectCols = columns.join(', ');
@@ -333,6 +414,7 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
 
   const CreateBoardSchema = UpdateBoardSchema.extend({
     timezone: UpdateBoardSchema.shape.timezone.default('Australia/Sydney'),
+    account_id: z.string().optional().nullable(),
   });
 
   return {
