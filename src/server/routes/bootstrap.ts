@@ -27,15 +27,22 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
     const diet_entries = repos.diet.getByBoardId(req.params.boardId) ?? [];
 
     const permission = req.authContext?.permission || 'view';
+    const user_id = req.authContext?.user_id;
+
+    const ownership = {
+      is_claimed: !!board.account_id,
+      is_owner: !!user_id && board.account_id === user_id,
+      permission
+    };
 
     res.json({
       success: true,
-      data: { board, horses, feeds, diet_entries, permission },
+      data: { board, horses, feeds, diet_entries, ownership },
     });
   });
 
   // GET /api/bootstrap/pair/:code - pair by code
-  router.get('/pair/:code', (req: Request, res: Response) => {
+  router.get('/pair/:code', async (req: Request, res: Response) => {
     const board = repos.boards.getByPairCode(req.params.code);
 
     if (!board) {
@@ -43,13 +50,22 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
       return;
     }
 
+    const authCtx = await resolveAuth(req, repos);
+    authCtx.permission = resolvePermissionForBoard(authCtx, board);
+
     const horses = repos.horses.getByParent(board.id) ?? [];
     const feeds = repos.feeds.getByParent(board.id) ?? [];
     const diet_entries = repos.diet.getByBoardId(board.id) ?? [];
 
+    const ownership = {
+      is_claimed: !!board.account_id,
+      is_owner: !!authCtx.user_id && board.account_id === authCtx.user_id,
+      permission: authCtx.permission
+    };
+
     res.json({
       success: true,
-      data: { board, horses, feeds, diet_entries, permission: 'view' },
+      data: { board, horses, feeds, diet_entries, ownership },
     });
   });
 

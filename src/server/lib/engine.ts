@@ -54,6 +54,7 @@ export interface BoardsRepository {
   create(data: unknown): Board;
   update(data: unknown, id: string): Board | null;
   delete(id: string): boolean;
+  getByAccount(accountId: string): Board[];
 }
 
 export interface ControllerTokensRepository {
@@ -410,6 +411,7 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
     getByPairCode: db.prepare(`SELECT ${selectCols} FROM boards WHERE pair_code = ?`),
     delete: db.prepare('DELETE FROM boards WHERE id = ?'),
     update: db.prepare(`UPDATE boards SET ${updateSetClause} WHERE id = ?`),
+    getByAccount: db.prepare(`SELECT ${selectCols} FROM boards WHERE account_id = ?`),
   };
 
   const CreateBoardSchema = UpdateBoardSchema.extend({
@@ -458,6 +460,12 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
     delete(id: string): boolean {
       const result = stmts.delete.run(id);
       return result.changes > 0;
+    },
+
+    getByAccount(accountId: string): Board[] {
+      return (stmts.getByAccount.all(accountId) as DbRow[])
+        .map(toBoard)
+        .filter((b): b is Board => b !== null);
     },
   };
 }

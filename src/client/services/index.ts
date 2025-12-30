@@ -3,6 +3,7 @@ export {
   bootstrap,
   pairWithCode,
   createBoard,
+  claimBoard,
   createHorse,
   updateHorse,
   deleteHorse,

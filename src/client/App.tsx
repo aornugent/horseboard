@@ -9,7 +9,9 @@ import {
   SettingsTab,
 } from './views/Controller';
 import { bootstrap, pairWithCode, createBoard, sseClient } from './services';
-import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode } from './stores';
+import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership } from './stores';
+import { initAuth } from './services/auth';
+import { ClaimBoardPrompt } from './components/ClaimBoardPrompt';
 import './styles/theme.css';
 
 const STORAGE_KEY = 'horseboard_board_id';
@@ -47,6 +49,7 @@ function Controller() {
       ) : (
         <>
           <div class="controller-content">
+            <ClaimBoardPrompt />
             {activeTab.value === 'horses' && (
               <HorsesTab
                 onHorseSelect={(id) => (selectedHorseId.value = id)}
@@ -346,6 +349,9 @@ async function initializeApp(boardId: string): Promise<boolean> {
     setHorses(data.horses);
     setFeeds(data.feeds);
     setDietEntries(data.diet_entries);
+    if (data.ownership) {
+      setOwnership(data.ownership);
+    }
 
     await sseClient.connect(boardId);
     isInitialized.value = true;
@@ -360,6 +366,7 @@ async function initializeApp(boardId: string): Promise<boolean> {
 export function App() {
   // Initialize on mount
   useEffect(() => {
+    initAuth();
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
     if (storedBoardId) {

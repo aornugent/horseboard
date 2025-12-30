@@ -53,12 +53,27 @@ export interface BootstrapData {
   horses: Horse[];
   feeds: Feed[];
   diet_entries: DietEntry[];
+  ownership: {
+    is_claimed: boolean;
+    is_owner: boolean;
+    permission: 'none' | 'view' | 'edit' | 'admin';
+  };
 }
 
 export interface PairResult {
   success: boolean;
   board_id?: string;
   error?: string;
+}
+
+export async function claimBoard(board_id: string): Promise<Board> {
+  const result = await request<ApiResponse<Board>>(`/api/boards/${board_id}/claim`, {
+    method: 'POST',
+  });
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to claim board', 500);
+  }
+  return result.data;
 }
 
 export interface CreateBoardResult {

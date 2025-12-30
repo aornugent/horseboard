@@ -5,6 +5,7 @@ import { createBoardsRouter } from './boards';
 import { createHorsesRouter } from './horses';
 import { createFeedsRouter } from './feeds';
 import { createDietRouter } from './diet';
+import { createUsersRouter } from './users';
 import { createBootstrapRouter, createSSEHandler, createHealthRouter } from './bootstrap';
 
 export type { RouteContext } from './types';
@@ -15,6 +16,9 @@ export type { RouteContext } from './types';
 export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager): void {
   // Boards routes
   app.use('/api/boards', createBoardsRouter(ctx));
+
+  // Users routes
+  app.use('/api/user', createUsersRouter(ctx));
 
   // Horses routes (board-scoped and standalone)
   const horsesRouters = createHorsesRouter(ctx);

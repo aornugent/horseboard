@@ -124,7 +124,7 @@ All API routes enforce permissions. **Breaking change:** writes require at least
 
 ---
 
-## Phase 4: Board Claiming Flow
+## Phase 4: Board Claiming Flow [COMPLETED]
 
 **Objective:** Users can claim unclaimed boards
 

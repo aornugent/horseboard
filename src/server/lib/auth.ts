@@ -51,6 +51,16 @@ export function canAdmin(ctx: AuthContext): boolean {
 }
 
 export async function resolveAuth(req: Request, repos: Repos): Promise<AuthContext> {
+    // TEST OVERRIDE: Allow injecting user_id via header in test environment
+    if (process.env.NODE_ENV === 'test' && req.headers['x-test-user-id']) {
+        return {
+            permission: 'view',
+            user_id: req.headers['x-test-user-id'] as string,
+            token_id: null,
+            board_id: null,
+        };
+    }
+
     const authHeader = req.headers.authorization;
 
     // 1. Check for controller token
