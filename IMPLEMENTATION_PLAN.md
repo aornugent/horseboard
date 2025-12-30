@@ -92,7 +92,7 @@ Permission resolution works for all access methods. Tokens can be created and va
 
 ---
 
-## Phase 3: Protect Existing Routes
+## Phase 3: Protect Existing Routes [COMPLETED]
 
 **Objective:** All existing endpoints have appropriate permission checks
 
@@ -258,7 +258,7 @@ Production-ready auth system. All edge cases handled gracefully.
 |-------|-----------|-----------------|--------|
 | 1 | Better Auth setup | Users can sign up/in | Done |
 | 2 | Permission middleware | Auth resolution works | Done |
-| 3 | Protect routes | API enforces permissions |
+| 3 | Protect routes | API enforces permissions | Done |
 | 4 | Board claiming | Users own boards |
 | 5 | Client auth UI | Full auth experience |
 | 6 | Token management | Multi-device access |

@@ -148,6 +148,11 @@ function createServer(): ServerContext {
     expiryScheduler,
   };
 
+  app.use((req, _res, next) => {
+    (req as any).routeContext = routeContext;
+    next();
+  });
+
   mountRoutes(app, routeContext, sse);
 
   // Serve static files from the client build directory

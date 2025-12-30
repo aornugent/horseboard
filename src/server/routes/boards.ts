@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { UpdateBoardSchema, SetTimeModeSchema } from '@shared/resources';
 import { validate } from './middleware';
+import { requirePermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -20,13 +21,13 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   const { repos, broadcast, expiryScheduler } = ctx;
 
   // GET /api/boards - list all boards
-  router.get('/', (_req: Request, res: Response) => {
+  router.get('/', requirePermission('view'), (_req: Request, res: Response) => {
     const items = repos.boards.getAll();
     res.json({ success: true, data: items });
   });
 
   // GET /api/boards/:id - get board by id
-  router.get('/:id', (req: Request, res: Response) => {
+  router.get('/:id', requirePermission('view', req => req.params.id), (req: Request, res: Response) => {
     const item = repos.boards.getById(req.params.id);
     if (!item) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -36,7 +37,8 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   });
 
   // POST /api/boards - create new board
-  router.post('/', (req: Request, res: Response) => {
+  // We require 'view' permission (public/authenticated) to create a board
+  router.post('/', requirePermission('view'), (req: Request, res: Response) => {
     try {
       const item = repos.boards.create(req.body);
       res.status(201).json({ success: true, data: item });
@@ -47,7 +49,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   });
 
   // PATCH /api/boards/:id - update board
-  router.patch('/:id', validate(UpdateBoardSchema), (req: Request, res: Response) => {
+  router.patch('/:id', requirePermission('edit', req => req.params.id), validate(UpdateBoardSchema), (req: Request, res: Response) => {
     const existing = repos.boards.getById(req.params.id);
     if (!existing) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -60,7 +62,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   });
 
   // DELETE /api/boards/:id - delete board
-  router.delete('/:id', (req: Request, res: Response) => {
+  router.delete('/:id', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
     const deleted = repos.boards.delete(req.params.id);
     if (!deleted) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -70,7 +72,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   });
 
   // PUT /api/boards/:id/time-mode - update time mode with override
-  router.put('/:id/time-mode', validate(SetTimeModeSchema), (req: Request, res: Response) => {
+  router.put('/:id/time-mode', requirePermission('edit', req => req.params.id), validate(SetTimeModeSchema), (req: Request, res: Response) => {
     const { time_mode, override_until } = req.body;
 
     const existing = repos.boards.getById(req.params.id);
