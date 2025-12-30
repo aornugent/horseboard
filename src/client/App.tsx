@@ -9,7 +9,7 @@ import {
   SettingsTab,
 } from './views/Controller';
 import { bootstrap, pairWithCode, createBoard, sseClient } from './services';
-import { board, setBoard, setHorses, setFeeds, setDietEntries } from './stores';
+import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode } from './stores';
 import './styles/theme.css';
 
 const STORAGE_KEY = 'horseboard_board_id';
@@ -374,6 +374,18 @@ export function App() {
       sseClient.disconnect();
     };
   }, []);
+
+  // Sync theme to body
+  useEffect(() => {
+    // Controller always uses AM (light) theme
+    if (pathname.value.startsWith('/controller')) {
+      document.body.setAttribute('data-theme', 'am');
+      return;
+    }
+
+    const mode = board.value?.time_mode === 'AUTO' ? effectiveTimeMode.value : (board.value?.time_mode || 'AM');
+    document.body.setAttribute('data-theme', mode.toLowerCase());
+  }, [board.value, effectiveTimeMode.value, pathname.value]);
 
   // Handle redirect for root path
   useEffect(() => {
