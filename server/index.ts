@@ -126,7 +126,7 @@ function createServer(): ServerContext {
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per window
+    max: process.env.NODE_ENV === 'test' ? 10000 : 100, // Limit each IP to 100 (10k in test) requests per window
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -137,7 +137,7 @@ function createServer(): ServerContext {
   // Rate limit token creation specifically (stricter)
   const tokenCreationLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 20, // 20 tokens per hour
+    max: process.env.NODE_ENV === 'test' ? 1000 : 20, // 20 tokens per hour (1k in test)
     standardHeaders: true,
     legacyHeaders: false,
   });

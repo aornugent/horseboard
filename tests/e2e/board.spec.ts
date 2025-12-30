@@ -9,10 +9,22 @@ import { selectors } from './selectors';
  */
 
 test.describe('TV Board View', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to the board view - this auto-creates a board if needed
+  test.beforeEach(async ({ page, request }) => {
+    // Create a board via API to simulate an existing provisioned board
+    const response = await request.post('/api/boards', {
+      data: { name: 'TV Board' }
+    });
+    const result = await response.json();
+    const boardId = result.data.id;
+
+    // Set localStorage BEFORE loading the page
+    await page.addInitScript((id) => {
+      localStorage.setItem('horseboard_board_id', id);
+    }, boardId);
+
+    // Navigate to the board view
     await page.goto('/board');
-    // Wait for board view to be ready (setup completes automatically)
+    // Wait for board view to be ready
     await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
   });
 
@@ -46,8 +58,8 @@ test.describe('TV Board View', () => {
     const boardView = page.locator(selectors.boardView);
     await expect(boardView).toBeVisible();
 
-    // Should have data-theme attribute
-    const theme = await boardView.getAttribute('data-theme');
+    // Should have data-theme attribute on body
+    const theme = await page.locator('body').getAttribute('data-theme');
     expect(['am', 'pm']).toContain(theme);
   });
 });

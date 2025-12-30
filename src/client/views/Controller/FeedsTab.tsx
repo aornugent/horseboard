@@ -122,6 +122,7 @@ export function FeedsTab() {
       <Modal
         isOpen={isAddingFeed.value}
         title="Add New Feed"
+        data-testid="add-feed-modal"
         onClose={() => {
           isAddingFeed.value = false;
           newFeedName.value = '';
@@ -184,6 +185,7 @@ export function FeedsTab() {
       <Modal
         isOpen={!!editingFeed.value}
         title="Edit Feed"
+        data-testid="edit-feed-modal"
         onClose={() => { editingFeed.value = null; }}
       >
         {editingFeed.value && (
@@ -250,6 +252,7 @@ export function FeedsTab() {
       <Modal
         isOpen={!!deletingFeed.value}
         title="Delete Feed?"
+        data-testid="delete-feed-modal"
         onClose={() => { deletingFeed.value = null; }}
       >
         {deletingFeed.value && (

@@ -12,7 +12,7 @@ import {
 import { bootstrap, pairWithCode, createBoard, sseClient, setControllerToken } from './services';
 import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership, user, ownership } from './stores';
 import { initAuth } from './services/auth';
-import { ClaimBoardPrompt } from './components/ClaimBoardPrompt';
+
 import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
 import { ProvisioningView } from './views/ProvisioningView';
@@ -55,7 +55,7 @@ function Controller() {
       ) : (
         <>
           <div class="controller-content">
-            <ClaimBoardPrompt />
+
             {activeTab.value === 'horses' && (
               <HorsesTab
                 onHorseSelect={(id) => (selectedHorseId.value = id)}
@@ -212,45 +212,14 @@ async function handlePair() {
   pairError.value = null;
 
   try {
-    if (useToken.value) {
-      // Token flow: simply save token and try to bootstrap
-      // The token should contain board info but we don't know it yet
-      // Actually, we can't bootstrap without a board ID.
-      // But the device is pairing...
+    if (pairCode.value.length !== 6) return;
+    const result = await pairWithCode(pairCode.value);
 
-      // Wait, if I have a token, I need the board ID too?
-      // No, tokens are usually given as full strings that might decode to something, or we need to lookup board by token.
-      // But our API `bootstrap(board_id)` requires board ID.
-      // And `resolveAuth` checks header.
-
-      // If we use a token, we might need an endpoint to "resolve token" to board ID.
-      // Or we assume the user has to enter Board ID + Token? No, that's bad UX.
-      // Maybe the token input flow is separate: "Enter Token".
-      // Then we need an API to get board from token.
-      // Let's add that API or just assume we can get it.
-
-      // I can add `GET /api/auth/resolve-token` or similar? 
-      // Or `GET /api/tokens/me`.
-
-      // Let's assume for now the user enters "hb_..." and we need to find the board.
-      // We don't have an endpoint for that yet.
-      // IMPLEMENTATION GAP: Need endpoint to get board from token.
-
-      // WORKAROUND: I will add a `resolveToken` helper that tries to get board info from token.
-      // `GET /api/tokens/me` -> { board_id: ... }
-
-      throw new Error("Token resolution not implemented yet");
-
+    if (result.success && result.board_id) {
+      localStorage.setItem(STORAGE_KEY, result.board_id);
+      await initializeApp(result.board_id);
     } else {
-      if (pairCode.value.length !== 6) return;
-      const result = await pairWithCode(pairCode.value);
-
-      if (result.success && result.board_id) {
-        localStorage.setItem(STORAGE_KEY, result.board_id);
-        await initializeApp(result.board_id);
-      } else {
-        pairError.value = result.error || 'Invalid pair code';
-      }
+      pairError.value = result.error || 'Invalid pair code';
     }
   } catch (err) {
     pairError.value = (err as Error).message || 'Connection failed';

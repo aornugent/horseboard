@@ -51,39 +51,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     }
   });
 
-  // POST /api/boards/:id/claim - claim an unclaimed board
-  // @deprecated - Replaced by TV Provisioning Flow (Phase 8)
-  router.post('/:id/claim', requirePermission('view', req => req.params.id), (req: Request, res: Response) => {
-    const { user_id } = req.authContext!; // Validated by requirePermission ('view' allows anon, so we check user_id)
 
-    if (!user_id) {
-      res.status(401).json({ success: false, error: 'Authentication required' });
-      return;
-    }
-
-    const board = repos.boards.getById(req.params.id);
-    if (!board) {
-      res.status(404).json({ success: false, error: 'Board not found' });
-      return;
-    }
-
-    if (board.account_id) {
-      res.status(409).json({ success: false, error: 'Board already has an owner' });
-      return;
-    }
-
-    repos.boards.update({ account_id: user_id }, board.id);
-
-    // Return updated board info with success
-    res.json({
-      success: true,
-      data: {
-        id: board.id,
-        account_id: user_id,
-        pair_code: board.pair_code
-      }
-    });
-  });
 
   // PATCH /api/boards/:id - update board
   router.patch('/:id', requirePermission('edit', req => req.params.id), validate(UpdateBoardSchema), (req: Request, res: Response) => {

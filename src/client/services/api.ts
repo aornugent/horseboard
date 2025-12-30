@@ -148,15 +148,7 @@ export interface PairResult {
   error?: string;
 }
 
-export async function claimBoard(board_id: string): Promise<Board> {
-  const result = await request<ApiResponse<Board>>(`/api/boards/${board_id}/claim`, {
-    method: 'POST',
-  });
-  if (!result.success || !result.data) {
-    throw new ApiError(result.error || 'Failed to claim board', 500);
-  }
-  return result.data;
-}
+
 
 export interface CreateBoardResult {
   id: string;
