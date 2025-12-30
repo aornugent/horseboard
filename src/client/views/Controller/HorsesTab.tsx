@@ -1,5 +1,6 @@
 import { signal } from '@preact/signals';
 import { HorseCard } from '../../components/HorseCard';
+import { Modal } from '../../components/Modal';
 import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board } from '../../stores';
 import { createHorse as apiCreateHorse } from '../../services';
 import './HorsesTab.css';
@@ -72,60 +73,64 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
         )}
       </div>
 
-      {isAddingHorse.value && (
-        <div class="modal-overlay" data-testid="add-horse-modal">
-          <div class="modal-content">
-            <h3 class="modal-title">Add New Horse</h3>
-            <div class="modal-field">
-              <label class="modal-label">Name</label>
-              <input
-                type="text"
-                class="modal-input"
-                data-testid="new-horse-name"
-                placeholder="Horse name..."
-                value={newHorseName.value}
-                onInput={(e) => {
-                  newHorseName.value = (e.target as HTMLInputElement).value;
-                }}
-              />
-            </div>
-            <div class="modal-field">
-              <label class="modal-label">Note (optional)</label>
-              <input
-                type="text"
-                class="modal-input"
-                data-testid="new-horse-note"
-                placeholder="Any notes about this horse..."
-                value={newHorseNote.value}
-                onInput={(e) => {
-                  newHorseNote.value = (e.target as HTMLInputElement).value;
-                }}
-              />
-            </div>
-            <div class="modal-actions">
-              <button
-                class="modal-btn modal-btn-cancel"
-                data-testid="cancel-add-horse"
-                onClick={() => {
-                  isAddingHorse.value = false;
-                  newHorseName.value = '';
-                  newHorseNote.value = '';
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                class="modal-btn modal-btn-confirm"
-                data-testid="confirm-add-horse"
-                disabled={!newHorseName.value.trim()}
-                onClick={() => handleCreateHorse(newHorseName.value.trim(), newHorseNote.value.trim())}
-              >
-                Add Horse
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={isAddingHorse.value}
+        title="Add New Horse"
+        onClose={() => {
+          isAddingHorse.value = false;
+          newHorseName.value = '';
+          newHorseNote.value = '';
+        }}
+        data-testid="add-horse-modal"
+      >
+        <div class="modal-field">
+          <label class="modal-label">Name</label>
+          <input
+            type="text"
+            class="modal-input"
+            data-testid="new-horse-name"
+            placeholder="Horse name..."
+            value={newHorseName.value}
+            onInput={(e) => {
+              newHorseName.value = (e.target as HTMLInputElement).value;
+            }}
+          />
         </div>
-      )}
+        <div class="modal-field">
+          <label class="modal-label">Note (optional)</label>
+          <input
+            type="text"
+            class="modal-input"
+            data-testid="new-horse-note"
+            placeholder="Any notes about this horse..."
+            value={newHorseNote.value}
+            onInput={(e) => {
+              newHorseNote.value = (e.target as HTMLInputElement).value;
+            }}
+          />
+        </div>
+        <div class="modal-actions">
+          <button
+            class="modal-btn modal-btn-cancel"
+            data-testid="cancel-add-horse"
+            onClick={() => {
+              isAddingHorse.value = false;
+              newHorseName.value = '';
+              newHorseNote.value = '';
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            class="modal-btn modal-btn-confirm"
+            data-testid="confirm-add-horse"
+            disabled={!newHorseName.value.trim()}
+            onClick={() => handleCreateHorse(newHorseName.value.trim(), newHorseNote.value.trim())}
+          >
+            Add Horse
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

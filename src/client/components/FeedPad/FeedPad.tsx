@@ -82,7 +82,7 @@ export function FeedPad({
         {/* Current value display */}
         <div class="feed-pad-current" data-testid="feed-pad-current">
           <span class="feed-pad-current-value">
-            {formatQuantity(editValue, unit) || '—'}
+            {formatQuantity(editValue, unit)}
           </span>
           <span class="feed-pad-current-unit">{unit}</span>
         </div>
@@ -112,7 +112,7 @@ export function FeedPad({
             −
           </button>
           <div class="feed-pad-stepper-value" data-testid="stepper-value">
-            {formatQuantity(editValue, unit) || '0'}
+            {formatQuantity(editValue, unit)}
           </div>
           <button
             class="feed-pad-stepper-btn"

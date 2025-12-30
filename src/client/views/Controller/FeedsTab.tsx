@@ -1,5 +1,6 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
+import { Modal } from '../../components/Modal';
 import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
@@ -115,68 +116,76 @@ export function FeedsTab() {
       </div>
 
       {/* Add Feed Modal */}
-      {isAddingFeed.value && (
-        <div class="modal-overlay" data-testid="add-feed-modal">
-          <div class="modal-content">
-            <h3 class="modal-title">Add New Feed</h3>
-            <div class="modal-field">
-              <label class="modal-label">Name</label>
-              <input
-                type="text"
-                class="modal-input"
-                data-testid="new-feed-name"
-                placeholder="Feed name..."
-                value={newFeedName.value}
-                onInput={(e) => {
-                  newFeedName.value = (e.target as HTMLInputElement).value;
-                }}
-              />
-            </div>
-            <div class="modal-field">
-              <label class="modal-label">Unit</label>
-              <div class="unit-selector" data-testid="new-feed-unit">
-                {UNIT_OPTIONS.map(u => (
-                  <button
-                    key={u.value}
-                    class={`unit-btn ${newFeedUnit.value === u.value ? 'active' : ''}`}
-                    data-testid={`unit-btn-${u.value}`}
-                    onClick={() => { newFeedUnit.value = u.value; }}
-                  >
-                    {u.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div class="modal-actions">
+      {/* Add Feed Modal */}
+      <Modal
+        isOpen={isAddingFeed.value}
+        title="Add New Feed"
+        onClose={() => {
+          isAddingFeed.value = false;
+          newFeedName.value = '';
+          newFeedUnit.value = DEFAULT_UNIT;
+        }}
+      >
+        <div class="modal-field">
+          <label class="modal-label">Name</label>
+          <input
+            type="text"
+            class="modal-input"
+            data-testid="new-feed-name"
+            placeholder="Feed name..."
+            value={newFeedName.value}
+            onInput={(e) => {
+              newFeedName.value = (e.target as HTMLInputElement).value;
+            }}
+          />
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Unit</label>
+          <div class="unit-selector" data-testid="new-feed-unit">
+            {UNIT_OPTIONS.map(u => (
               <button
-                class="modal-btn modal-btn-cancel"
-                data-testid="cancel-add-feed"
-                onClick={() => {
-                  isAddingFeed.value = false;
-                  newFeedName.value = '';
-                  newFeedUnit.value = DEFAULT_UNIT;
-                }}
+                key={u.value}
+                class={`unit-btn ${newFeedUnit.value === u.value ? 'active' : ''}`}
+                data-testid={`unit-btn-${u.value}`}
+                onClick={() => { newFeedUnit.value = u.value; }}
               >
-                Cancel
+                {u.label}
               </button>
-              <button
-                class="modal-btn modal-btn-confirm"
-                data-testid="confirm-add-feed"
-                disabled={!newFeedName.value.trim()}
-                onClick={() => handleCreateFeed(newFeedName.value.trim(), newFeedUnit.value)}
-              >
-                Add Feed
-              </button>
-            </div>
+            ))}
           </div>
         </div>
-      )}
+        <div class="modal-actions">
+          <button
+            class="modal-btn modal-btn-cancel"
+            data-testid="cancel-add-feed"
+            onClick={() => {
+              isAddingFeed.value = false;
+              newFeedName.value = '';
+              newFeedUnit.value = DEFAULT_UNIT;
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            class="modal-btn modal-btn-confirm"
+            data-testid="confirm-add-feed"
+            disabled={!newFeedName.value.trim()}
+            onClick={() => handleCreateFeed(newFeedName.value.trim(), newFeedUnit.value)}
+          >
+            Add Feed
+          </button>
+        </div>
+      </Modal>
 
       {/* Edit Feed Modal */}
-      {editingFeed.value && (
-        <div class="modal-overlay" data-testid="edit-feed-modal">
-          <div class="modal-content">
-            <h3 class="modal-title">Edit Feed</h3>
+      {/* Edit Feed Modal */}
+      <Modal
+        isOpen={!!editingFeed.value}
+        title="Edit Feed"
+        onClose={() => { editingFeed.value = null; }}
+      >
+        {editingFeed.value && (
+          <>
             <div class="modal-field">
               <label class="modal-label">Name</label>
               <input
@@ -230,15 +239,19 @@ export function FeedsTab() {
                 Save Changes
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Delete Confirmation Modal */}
-      {deletingFeed.value && (
-        <div class="modal-overlay" data-testid="delete-feed-modal">
-          <div class="modal-content">
-            <h3 class="modal-title">Delete Feed?</h3>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingFeed.value}
+        title="Delete Feed?"
+        onClose={() => { deletingFeed.value = null; }}
+      >
+        {deletingFeed.value && (
+          <>
             <p class="modal-description">
               Are you sure you want to delete <strong>{deletingFeed.value.name}</strong>?
               This will also remove it from all horse diets.
@@ -259,9 +272,9 @@ export function FeedsTab() {
                 Delete
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
