@@ -17,6 +17,10 @@ export {
   revokeControllerToken,
   setControllerToken,
   resolveToken,
+  pollProvisioning,
+  linkDevice,
+  listDevices,
+  revokeDeviceToken,
   ApiError,
 } from './api';
 export type { BootstrapData, PairResult, ControllerToken } from './api';

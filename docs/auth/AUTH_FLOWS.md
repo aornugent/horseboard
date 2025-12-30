@@ -1,47 +1,45 @@
 # Authentication Flows
 
-## New User Signup (via Board Claim)
+## TV Device Provisioning (New)
 
-**Trigger:** User pairs with unclaimed board, UI shows "Claim this board"
+**Trigger:** TV loads without token, displays Provisioning Code (e.g. "8X2-9P"). User adds display in Controller settings.
 
 ```
-Client                Express             Better Auth          SQLite
-  │                      │                      │                 │
-  │ POST /api/auth/sign-up/email               │                 │
-  │ {email, password, name}                    │                 │
-  │─────────────────────────────────────────────>                 │
-  │                      │                      │                 │
-  │                      │                      │ INSERT users    │
-  │                      │                      │ INSERT accounts │
-  │                      │                      │ INSERT sessions │
-  │                      │                      │────────────────>│
-  │                      │                      │                 │
-  │                      │  Set-Cookie: session_token             │
-  │<─────────────────────────────────────────────                 │
-  │                      │                      │                 │
-  │ POST /api/boards/:id/claim                 │                 │
-  │ Cookie: session_token                      │                 │
-  │─────────────────────>│                      │                 │
-  │                      │                      │                 │
-  │                      │ getSession()         │                 │
-  │                      │─────────────────────>│                 │
-  │                      │                      │                 │
-  │                      │ UPDATE boards SET account_id = ?       │
-  │                      │────────────────────────────────────────>
-  │                      │                      │                 │
-  │ 200 OK {board}       │                      │                 │
-  │<─────────────────────│                      │                 │
+TV (Display)           Controller (Phone)        Server                SQLite
+  │                          │                      │                     │
+  │ Generates Code           │                      │                     │
+  │ "8X2-9P" (local)         │                      │                     │
+  │ Polling for Token...     │                      │                     │
+  │─────────────────────────>│                      │                     │
+  │                          │ POST /api/devices/link                     │
+  │                          │ { code: "8X2-9P", name: "Living Room" }    │
+  │                          │─────────────────────>│                     │
+  │                          │                      │                     │
+  │                          │                      │ Verify Code (if valid)
+  │                          │                      │ Create Token (display)
+  │                          │                      │ INSERT controller_tokens
+  │                          │                      │────────────────────>│
+  │                          │                      │                     │
+  │                          │ 200 OK (Success)     │                     │
+  │                          │<─────────────────────│                     │
+  │                          │                      │                     │
+  │ <Pool Response with Token]                      │                     │
+  │<────────────────────────────────────────────────│                     │
+  │                          │                      │                     │
+  │ Save Token to storage    │                      │                     │
+  │ Reload / Fetch Content   │                      │                     │
 ```
 
 **Steps:**
-1. User enters email, password, name in signup form
-2. Client calls `authClient.signUp.email({ email, password, name })`
-3. Better Auth creates user, account (credential), and session
-4. Better Auth sets session cookie in response
-5. Client calls `POST /api/boards/:board_id/claim`
-6. Server verifies session, checks board is unclaimed
-7. Server sets `boards.account_id = session.user.id`
-8. Client updates local state to show admin permissions
+1. TV generates a temporary linking code (or fetches one) and displays it.
+2. User logs into Controller (Phone), goes to Settings > Displays > Add Display.
+3. User enters the code from the TV and gives it a name (e.g., "Living Room").
+4. Controller sends code and name to `POST /api/devices/link`.
+5. Server validates the code (mechanism depends on implementation, e.g., temporary DB entry or signed stateless code).
+6. Server creates a new `controller_token` with `type: 'display'`.
+7. Server responds to Controller with success.
+8. Server responds to TV's long-poll/socket with the new `token`.
+9. TV saves `token` in persistent storage (localStorage) and reloads to behave as a registered display.
 
 ## Returning User Login
 

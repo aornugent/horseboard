@@ -21,4 +21,10 @@ export interface RouteContext {
   broadcast: (boardId: string) => void;
   rankingManager: FeedRankingManager;
   expiryScheduler: ExpiryScheduler;
+  provisioningStore: Map<string, {
+    code: string;
+    board_id?: string;
+    timestamp: number;
+    token?: string;
+  }>;
 }

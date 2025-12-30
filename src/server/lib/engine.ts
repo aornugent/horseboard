@@ -342,8 +342,8 @@ export function createControllerTokensRepository(
     ),
     delete: db.prepare('DELETE FROM controller_tokens WHERE id = ?'),
     create: db.prepare(
-      `INSERT INTO controller_tokens (id, board_id, token_hash, name, permission, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO controller_tokens (id, board_id, token_hash, name, permission, expires_at, type)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     ),
     updateLastUsed: db.prepare(
       `UPDATE controller_tokens SET last_used_at = datetime('now') WHERE id = ?`
@@ -380,7 +380,8 @@ export function createControllerTokensRepository(
         tokenHash,
         parsed.name,
         parsed.permission,
-        parsed.expires_at || null
+        parsed.expires_at || null,
+        parsed.type
       );
 
       return this.getById(id) as ControllerToken;

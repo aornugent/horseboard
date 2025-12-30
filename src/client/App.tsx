@@ -15,6 +15,7 @@ import { initAuth } from './services/auth';
 import { ClaimBoardPrompt } from './components/ClaimBoardPrompt';
 import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
+import { ProvisioningView } from './views/ProvisioningView';
 import './styles/theme.css';
 
 const STORAGE_KEY = 'horseboard_board_id';
@@ -204,8 +205,7 @@ const isPairing = signal(false);
 const pairError = signal<string | null>(null);
 const useToken = signal(false);
 
-const boardSetupState = signal<'loading' | 'ready' | 'error'>('loading');
-const boardSetupError = signal<string | null>(null);
+
 
 async function handlePair() {
   isPairing.value = true;
@@ -411,62 +411,7 @@ function PairingView() {
 }
 
 // ... rest of file (BoardSetup, initializeApp, App)
-function BoardSetup() {
-  useEffect(() => {
-    async function setupBoard() {
-      boardSetupState.value = 'loading';
-      boardSetupError.value = null;
 
-      try {
-        const result = await createBoard();
-        if (result.id) {
-          localStorage.setItem(STORAGE_KEY, result.id);
-          await initializeApp(result.id);
-          boardSetupState.value = 'ready';
-        } else {
-          boardSetupError.value = 'Failed to create board';
-          boardSetupState.value = 'error';
-        }
-      } catch {
-        boardSetupError.value = 'Connection failed';
-        boardSetupState.value = 'error';
-      }
-    }
-
-    setupBoard();
-  }, []);
-
-  if (boardSetupState.value === 'loading') {
-    return (
-      <div class="board-setup-view" data-testid="board-setup-view">
-        <div class="board-setup-content">
-          <h1 class="board-setup-title">HorseBoard</h1>
-          <p class="board-setup-status">Setting up your board...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (boardSetupState.value === 'error') {
-    return (
-      <div class="board-setup-view" data-testid="board-setup-view">
-        <div class="board-setup-content">
-          <h1 class="board-setup-title">HorseBoard</h1>
-          <p class="board-setup-error">{boardSetupError.value}</p>
-          <button
-            class="board-setup-retry-btn"
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Board is ready - the main App component will render Board view
-  return null;
-}
 
 async function initializeApp(boardId: string): Promise<boolean> {
   try {
@@ -553,9 +498,12 @@ export function App() {
     return <PairingView />;
   }
 
-  // Board auto-creates if no board exists
+  // Board shows provisioning view if no board exists
   if (path === '/board' && needsPairing && !storedBoardId) {
-    return <BoardSetup />;
+    return <ProvisioningView onProvisioned={(id) => {
+      localStorage.setItem(STORAGE_KEY, id);
+      initializeApp(id);
+    }} />;
   }
 
   // Show connection error if any

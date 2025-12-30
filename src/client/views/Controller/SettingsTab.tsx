@@ -17,6 +17,10 @@ import {
   TIME_MODE_CONFIG,
   type TimeMode,
 } from '@shared/resources';
+import { LinkDisplayModal } from '../../components/LinkDisplayModal';
+import { listDevices, revokeDeviceToken } from '../../services';
+import { useSignal } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
 import './SettingsTab.css';
 
 // Common timezones for horse farms
@@ -93,6 +97,21 @@ function handleNavigate(path: string) {
 
 export function SettingsTab() {
   const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const showLinkModal = useSignal(false);
+  const linkedDevices = useSignal<any[]>([]);
+
+  useEffect(() => {
+    if (canEdit && ownership.value.is_owner) {
+      listDevices().then(d => linkedDevices.value = d).catch(console.error);
+    }
+  }, [canEdit, ownership.value.is_owner]);
+
+  async function handleUnlink(tokenId: string) {
+    if (confirm('Are you sure you want to unlink this display?')) {
+      await revokeDeviceToken(tokenId);
+      linkedDevices.value = await listDevices();
+    }
+  }
 
   if (!board.value) {
     return (
@@ -192,6 +211,52 @@ export function SettingsTab() {
           ))}
         </div>
       </section>
+
+      {/* Displays Section (Owner Only) */}
+      {ownership.value.is_owner && (
+        <section class="settings-section">
+          <h3 class="settings-section-title">Connected Displays</h3>
+          <p class="settings-section-description">
+            Manage TV displays linked to your board
+          </p>
+
+          <div class="settings-devices-list">
+            {linkedDevices.value.length === 0 ? (
+              <div class="settings-empty-state">No displays connected</div>
+            ) : (
+              linkedDevices.value.map(device => (
+                <div class="settings-device-item" key={device.id}>
+                  <div class="settings-device-info">
+                    <span class="settings-device-name">{device.name}</span>
+                    <span class="settings-device-meta">Added: {new Date(device.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <button
+                    class="settings-btn settings-btn-danger settings-btn-small"
+                    onClick={() => handleUnlink(device.id)}
+                  >
+                    Unlink
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <button
+            class="settings-btn settings-btn-primary settings-btn-block"
+            onClick={() => showLinkModal.value = true}
+            data-testid="add-display-btn"
+          >
+            Link New Display
+          </button>
+        </section>
+      )}
+
+      {showLinkModal.value && (
+        <LinkDisplayModal
+          onClose={() => showLinkModal.value = false}
+          onSuccess={() => listDevices().then(d => linkedDevices.value = d)}
+        />
+      )}
 
       {/* Timezone Section */}
       <section class="settings-section">

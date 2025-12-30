@@ -310,3 +310,32 @@ export async function upsertDiet(
   }
   return result.data;
 }
+
+export async function pollProvisioning(code: string): Promise<{ pending?: boolean; token?: string }> {
+  try {
+    const result = await request<ApiResponse<{ pending?: boolean; token?: string }>>(`/api/devices/poll?code=${code}`);
+    return result.data || { pending: true };
+  } catch (err) {
+    console.error('Polling failed', err);
+    return { pending: true };
+  }
+}
+
+export async function linkDevice(code: string, board_id: string): Promise<void> {
+  const result = await request<ApiResponse<void>>('/api/devices/link', {
+    method: 'POST',
+    body: JSON.stringify({ code, board_id }),
+  });
+  if (!result.success) {
+    throw new ApiError(result.error || 'Failed to link device', 500);
+  }
+}
+
+export async function listDevices(): Promise<Array<{ id: string; name: string; board_pair_code: string; last_used_at: string | null }>> {
+  const result = await request<ApiResponse<any[]>>('/api/devices');
+  return result.data || [];
+}
+
+export async function revokeDeviceToken(token_id: string): Promise<void> {
+  await request<void>(`/api/devices/${token_id}`, { method: 'DELETE' });
+}

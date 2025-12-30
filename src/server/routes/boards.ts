@@ -41,7 +41,9 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   // We require 'view' permission (public/authenticated) to create a board
   router.post('/', requirePermission('view'), (req: Request, res: Response) => {
     try {
-      const item = repos.boards.create(req.body);
+      const { user_id } = req.authContext!;
+      const payload = { ...req.body, account_id: user_id || null };
+      const item = repos.boards.create(payload);
       res.status(201).json({ success: true, data: item });
     } catch (error) {
       const err = error as Error;
@@ -50,6 +52,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
   });
 
   // POST /api/boards/:id/claim - claim an unclaimed board
+  // @deprecated - Replaced by TV Provisioning Flow (Phase 8)
   router.post('/:id/claim', requirePermission('view', req => req.params.id), (req: Request, res: Response) => {
     const { user_id } = req.authContext!; // Validated by requirePermission ('view' allows anon, so we check user_id)
 

@@ -8,6 +8,7 @@ import { createDietRouter } from './diet';
 import { createUsersRouter } from './users';
 import { createBootstrapRouter, createSSEHandler, createHealthRouter } from './bootstrap';
 import { createTokensRouter } from './tokens';
+import { createDevicesRouter } from './devices';
 
 export type { RouteContext } from './types';
 
@@ -45,4 +46,7 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
 
   // Tokens routes
   app.use('/api/tokens', createTokensRouter(ctx));
+
+  // Devices routes
+  app.use('/api/devices', createDevicesRouter(ctx));
 }

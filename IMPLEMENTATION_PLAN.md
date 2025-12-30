@@ -252,6 +252,52 @@ Production-ready auth system. All edge cases handled gracefully.
 
 ---
 
+## Phase 8: TV Persistence & Provisioning Flow [COMPLETED]
+
+**Objective:** Implementation of Device Provisioning Model (TVs as dumb displays linked to a board).
+
+### Tasks
+
+1. **Database:**
+   - Create migration `003_add_token_type.sql`.
+   - Add `type` column to `controller_tokens` table (values: 'controller', 'display').
+   - Handle SQLite check constraint updates (recreate table strategy).
+
+2. **API Updates:**
+   - Deprecate/Remove `CLAIM` endpoints context.
+   - Implement `POST /api/devices/link` (Exchange Provisioning Code for Token).
+   - Implement `GET /api/devices` (List active displays).
+   - Implement `DELETE /api/devices/:id` (Revoke display access).
+
+3. **TV Client (Display):**
+   - Implement "Unprovisioned" state UI (shows Provisioning Code).
+   - Implement polling mechanism to check for token assignment.
+   - Persist Device Token in `localStorage`.
+   - Remove "Auto-Create Board" logic.
+
+4. **Controller Client (Mobile/Web):**
+   - Add "Displays" section in Settings.
+   - Implement "Add Display" modal (Input Provisioning Code).
+   - Visualize linked displays.
+
+### References
+
+- [DATA_MODEL.md](docs/auth/DATA_MODEL.md) — New token type schema.
+- [AUTH_FLOWS.md](docs/auth/AUTH_FLOWS.md) — Device provisioning sequence.
+- [API_SPEC.md](docs/auth/API_SPEC.md) — Device link endpoints.
+
+### Tests
+
+- Integration: Linking valid code creates 'display' token.
+- E2E: TV shows code -> Controller inputs code -> TV receives token -> TV loads board.
+- Integration: Revoking display token forces TV back to "Unprovisioned".
+
+### Outcome
+
+TVs are persistent devices managed by the Controller. "Claiming" flow is retired.
+
+---
+
 ## Summary
 
 | Phase | Objective | Key Deliverable | Status |
@@ -263,5 +309,6 @@ Production-ready auth system. All edge cases handled gracefully.
 | 5 | Client auth UI | Full auth experience | Done |
 | 6 | Token management | Multi-device access | Done |
 | 7 | Polish | Production-ready | Done |
+| 8 | TV Persistence | Device Provisioning Model | Done |
 
-Each phase produces a working application. All seven phases can be completed independently with incremental, testable progress.
+Each phase produces a working application. All phases can be completed independently with incremental, testable progress.

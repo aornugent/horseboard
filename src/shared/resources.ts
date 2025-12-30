@@ -140,6 +140,7 @@ export const ControllerTokenSchema = z.object({
   // For shared resources, it's often better to match DB row.
   token_hash: z.string(),
   name: z.string().min(1).max(50),
+  type: z.enum(['controller', 'display']).default('controller'),
   permission: z.enum(['view', 'edit']),
   last_used_at: z.string().nullable(),
   expires_at: z.string().nullable(),
@@ -152,4 +153,5 @@ export const CreateControllerTokenSchema = z.object({
   name: z.string().min(1).max(50),
   permission: z.enum(['view', 'edit']).default('edit'),
   expires_at: z.string().optional().nullable(),
+  type: z.enum(['controller', 'display']).default('controller'),
 });

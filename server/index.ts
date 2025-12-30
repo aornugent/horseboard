@@ -168,6 +168,7 @@ function createServer(): ServerContext {
     broadcast,
     rankingManager,
     expiryScheduler,
+    provisioningStore: new Map(),
   };
 
   app.use((req, _res, next) => {
