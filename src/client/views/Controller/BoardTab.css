@@ -68,3 +68,38 @@
     width: 142.86%; /* 100% / 0.7 */
   }
 }
+
+.board-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  background: var(--color-bg-secondary);
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.board-control-btn {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.board-control-btn:active {
+  background: var(--color-bg-active);
+}
+
+.board-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.board-page-indicator {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}

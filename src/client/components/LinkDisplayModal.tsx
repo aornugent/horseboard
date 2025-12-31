@@ -3,8 +3,8 @@ import { linkDevice } from '../services';
 import { board } from '../stores';
 
 interface Props {
-    onClose: () => void;
-    onSuccess: () => void;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
 const code = signal('');
@@ -12,65 +12,67 @@ const error = signal<string | null>(null);
 const isLoading = signal(false);
 
 export function LinkDisplayModal({ onClose, onSuccess }: Props) {
-    async function handleSubmit(e: Event) {
-        e.preventDefault();
-        if (!board.value) return;
+  async function handleSubmit(e: Event) {
+    e.preventDefault();
+    if (!board.value) return;
 
-        isLoading.value = true;
-        error.value = null;
+    isLoading.value = true;
+    error.value = null;
 
-        try {
-            await linkDevice(code.value.toUpperCase(), board.value.id);
-            code.value = '';
-            onSuccess();
-            onClose();
-        } catch (err) {
-            error.value = (err as Error).message;
-        } finally {
-            isLoading.value = false;
-        }
+    try {
+      await linkDevice(code.value.toUpperCase(), board.value.id);
+      code.value = '';
+      onSuccess();
+      onClose();
+    } catch (err) {
+      error.value = (err as Error).message;
+    } finally {
+      isLoading.value = false;
     }
+  }
 
-    return (
-        <div class="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-            <div class="modal-content">
-                <h2>Link Display</h2>
-                <p>Enter the code shown on the TV display.</p>
+  return (
+    <div class="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div class="modal-content">
+        <h2>Link Display</h2>
+        <p>Enter the code shown on the TV display.</p>
 
-                <form onSubmit={handleSubmit}>
-                    <div class="form-group">
-                        <input
-                            type="text"
-                            placeholder="ABCDEF"
-                            maxLength={6}
-                            value={code.value}
-                            onInput={(e) => {
-                                code.value = (e.target as HTMLInputElement).value;
-                                error.value = null;
-                            }}
-                            disabled={isLoading.value}
-                            autoFocus
-                        />
-                    </div>
+        <form onSubmit={handleSubmit}>
+          <div class="form-group">
+            <input
+              type="text"
+              placeholder="ABCDEF"
+              maxLength={6}
+              value={code.value}
+              onInput={(e) => {
+                code.value = (e.target as HTMLInputElement).value;
+                error.value = null;
+              }}
+              disabled={isLoading.value}
+              autoFocus
+              data-testid="provisioning-input"
+            />
+          </div>
 
-                    {error.value && <div class="error-message">{error.value}</div>}
+          {error.value && <div class="error-message">{error.value}</div>}
 
-                    <div class="modal-actions">
-                        <button type="button" onClick={onClose} disabled={isLoading.value}>
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            class="primary-btn"
-                            disabled={isLoading.value || code.value.length < 6}
-                        >
-                            {isLoading.value ? 'Linking...' : 'Link Display'}
-                        </button>
-                    </div>
-                </form>
-            </div>
+          <div class="modal-actions">
+            <button type="button" onClick={onClose} disabled={isLoading.value}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="primary-btn"
+              disabled={isLoading.value || code.value.length < 6}
+              data-testid="provisioning-submit"
+            >
+              {isLoading.value ? 'Linking...' : 'Link Display'}
+            </button>
+          </div>
+        </form>
+      </div>
 
-            <style>{`
+      <style>{`
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -134,6 +136,6 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
           cursor: not-allowed;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

@@ -9,6 +9,7 @@ import { createUsersRouter } from './users';
 import { createBootstrapRouter, createSSEHandler, createHealthRouter } from './bootstrap';
 import { createTokensRouter } from './tokens';
 import { createDevicesRouter } from './devices';
+import { createInvitesRouter } from './invites';
 
 export type { RouteContext } from './types';
 
@@ -49,4 +50,7 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
 
   // Devices routes
   app.use('/api/devices', createDevicesRouter(ctx));
+
+  // Invites routes
+  app.use('/api/invites', createInvitesRouter(ctx));
 }

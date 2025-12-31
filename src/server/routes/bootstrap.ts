@@ -3,18 +3,10 @@ import type { RouteContext } from './types';
 import type { SSEManager } from '../lib/engine';
 import { requirePermission, resolveAuth, resolvePermissionForBoard, canView } from '../lib/auth';
 
-/**
- * Create bootstrap router for initial state hydration
- *
- * Endpoints:
- * - GET /api/bootstrap/:boardId - full state for UI hydration
- * - GET /api/bootstrap/pair/:code - pair by code, returns full state
- */
 export function createBootstrapRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos } = ctx;
 
-  // GET /api/bootstrap/:boardId - full state for UI hydration
   router.get('/:boardId', requirePermission('view'), (req: Request, res: Response) => {
     const board = repos.boards.getById(req.params.boardId);
     if (!board) {
@@ -41,7 +33,6 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
     });
   });
 
-  // GET /api/bootstrap/pair/:code - pair by code
   router.get('/pair/:code', async (req: Request, res: Response) => {
     const board = repos.boards.getByPairCode(req.params.code);
 
@@ -49,6 +40,17 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
       res.status(404).json({ success: false, error: 'Invalid pairing code' });
       return;
     }
+
+    const crypto = await import('crypto');
+    const randomBytes = crypto.randomBytes(32).toString('hex');
+    const tokenValue = `hb_${randomBytes}`;
+    const tokenHash = crypto.createHash('sha256').update(tokenValue).digest('hex');
+
+    repos.controllerTokens.create({
+      name: 'Remote Control Session',
+      permission: 'view',
+      type: 'controller'
+    }, board.id, tokenHash);
 
     const authCtx = await resolveAuth(req, repos);
     authCtx.permission = resolvePermissionForBoard(authCtx, board);
@@ -65,19 +67,20 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
 
     res.json({
       success: true,
-      data: { board, horses, feeds, diet_entries, ownership },
+      data: {
+        board,
+        horses,
+        feeds,
+        diet_entries,
+        ownership,
+        token: tokenValue
+      },
     });
   });
 
   return router;
 }
 
-/**
- * Create SSE router for real-time updates
- *
- * Endpoints:
- * - GET /api/boards/:boardId/events - SSE endpoint
- */
 export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
   const { repos } = ctx;
 
@@ -91,7 +94,6 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
     // Verify permission
     const authCtx = await resolveAuth(req, repos);
     authCtx.permission = resolvePermissionForBoard(authCtx, board);
-    // Note: We don't have access to modify req.authContext here easily unless we want to, but we just check logic.
 
     if (!canView(authCtx)) {
       res.status(403).json({ success: false, error: 'Insufficient permissions' });
@@ -104,10 +106,8 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    // Add client to SSE manager
     sse.addClient(req.params.boardId, res);
 
-    // Send initial full state
     const horses = repos.horses.getByParent(req.params.boardId) ?? [];
     const feeds = repos.feeds.getByParent(req.params.boardId) ?? [];
     const diet_entries = repos.diet.getByBoardId(req.params.boardId) ?? [];
@@ -121,12 +121,6 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
   };
 }
 
-/**
- * Create health router for monitoring
- *
- * Endpoints:
- * - GET /api/health - health check with stats
- */
 export function createHealthRouter(ctx: RouteContext): Router {
   const router = Router();
   const { rankingManager, expiryScheduler } = ctx;

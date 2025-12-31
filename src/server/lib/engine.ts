@@ -66,6 +66,13 @@ export interface ControllerTokensRepository {
   delete(id: string): boolean;
 }
 
+export interface InviteCodesRepository {
+  create(boardId: string, expiresInMinutes: number): { code: string; expires_at: string };
+  get(code: string): { board_id: string; expires_at: string } | null;
+  delete(code: string): void;
+  cleanup(): void;
+}
+
 interface PairCodeConfig {
   maxAttempts: number;
   codeLength: number;
@@ -467,6 +474,40 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
       return (stmts.getByAccount.all(accountId) as DbRow[])
         .map(toBoard)
         .filter((b): b is Board => b !== null);
+    },
+  };
+}
+
+export function createInviteCodesRepository(db: Database.Database): InviteCodesRepository {
+  const stmts = {
+    create: db.prepare(
+      `INSERT INTO invite_codes (code, board_id, expires_at) VALUES (?, ?, ?)`
+    ),
+    get: db.prepare(`SELECT board_id, expires_at FROM invite_codes WHERE code = ?`),
+    delete: db.prepare(`DELETE FROM invite_codes WHERE code = ?`),
+    cleanup: db.prepare(`DELETE FROM invite_codes WHERE expires_at < datetime('now')`),
+  };
+
+  return {
+    create(boardId: string, expiresInMinutes: number) {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString();
+
+      stmts.create.run(code, boardId, expiresAt);
+      return { code, expires_at: expiresAt };
+    },
+
+    get(code: string) {
+      const row = stmts.get.get(code) as { board_id: string; expires_at: string } | undefined;
+      return row || null;
+    },
+
+    delete(code: string) {
+      stmts.delete.run(code);
+    },
+
+    cleanup() {
+      stmts.cleanup.run();
     },
   };
 }

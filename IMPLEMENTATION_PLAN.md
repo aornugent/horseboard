@@ -298,6 +298,70 @@ TVs are persistent devices managed by the Controller. "Claiming" flow is retired
 
 ---
 
+## Phase 9: Sequential User Paths & Critical Assertions
+
+**Objective:** Implement and verify all key user paths as defined in [USER_PATHS.md](docs/USER_PATHS.md).
+
+**Methodology:** **STRICT TDD**. For each story, you MUST write the E2E test **FIRST**. The test should assert the "Critical Assertions" defined in USER_PATHS.md. Use the test failure to drive the implementation. The current state must be reconciled to enable the desired behavior.
+
+**CONSTRAINT** Only work on one task at a time - do not move on to the next task until the current task is complete.
+
+### Tasks
+
+#### Story 9.1: The Owner
+1. **TEST:** Create/Update `tests/e2e/stories.spec.ts`. Add test for "Story A". Assert:
+    - User with 0 boards is redirected to `/controller`.
+    - Board is auto-created.
+    - Permissions are `admin`.
+2. **CODE:** Implement specific auto-creation logic and routing changes.
+3. **VERIFY:** Test passes.
+
+#### Story 9.2: The "Dumb" TV
+1. **TEST:** Add test for "Story B". Assert:
+    - Unprovisioned TV shows code.
+    - TV polls for token.
+    - After linking, TV reloads and shows board.
+2. **CODE:** Implement polling, "Link Display" UI, and token exchange.
+3. **VERIFY:** Test passes.
+
+#### Story 9.3: Remote Control Mode
+1. **TEST:** Add test for "Story C". Assert:
+    - User entering `pair_code` gets View access.
+    - "Add" buttons are hidden.
+    - Pagination controls are visible.
+2. **CODE:** Update `PairingView` to handle pair codes vs controller tokens vs invite codes.
+3. **VERIFY:** Test passes.
+
+#### Story 9.4: Generating Invites
+1. **TEST:** Add test for "Story D". Assert:
+    - Admin can generate invite code.
+    - Validate code format/expiry (mocked if needed).
+2. **CODE:** Implement "Generate Invite" endpoint and UI.
+3. **VERIFY:** Test passes.
+
+#### Story 9.5: Redeeming Invites
+1. **TEST:** Add test for "Story E". Assert:
+    - View-only user enters invite code.
+    - Token is swapped for Edit token.
+    - Reload occurs and "Add" buttons appear.
+2. **CODE:** Implement invite redemption and token swap logic.
+3. **VERIFY:** Test passes.
+
+### References
+
+- [docs/USER_PATHS.md](docs/USER_PATHS.md) - **Source of Truth** for detailed steps and assertions.
+
+### Tests
+
+- **File:** `tests/e2e/stories.spec.ts`
+- **Strategy:** Isolate each story into its own test case. Run `npx playwright test tests/e2e/stories.spec.ts` frequently.
+
+### Outcome
+
+Reliable, automatically verified user paths that match the product requirements.
+
+---
+
 ## Summary
 
 | Phase | Objective | Key Deliverable | Status |
@@ -310,5 +374,6 @@ TVs are persistent devices managed by the Controller. "Claiming" flow is retired
 | 6 | Token management | Multi-device access | Done |
 | 7 | Polish | Production-ready | Done |
 | 8 | TV Persistence | Device Provisioning Model | Done |
+| 9 | User Paths | Implement & Verify Stories A-E | Pending |
 
 Each phase produces a working application. All phases can be completed independently with incremental, testable progress.

@@ -10,7 +10,7 @@ import {
   authClient,
   ownership,
 } from '../../stores';
-import { updateTimeMode as apiUpdateTimeMode, updateBoard as apiUpdateBoard } from '../../services';
+import { updateTimeMode as apiUpdateTimeMode, updateBoard as apiUpdateBoard, redeemInvite } from '../../services';
 import {
   TIME_MODES,
   TIME_MODE,
@@ -36,7 +36,6 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC' },
 ];
 
-// Generate time mode options from shared constants
 const TIME_MODE_OPTIONS = TIME_MODES.map(mode => ({
   value: mode,
   ...TIME_MODE_CONFIG[mode],
@@ -52,7 +51,7 @@ async function saveTimeMode(mode: TimeMode) {
   if (!board.value) return;
 
   const override_until = mode !== TIME_MODE.AUTO
-    ? new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour override
+    ? new Date(Date.now() + 60 * 60 * 1000).toISOString()
     : null;
 
   try {
@@ -90,9 +89,136 @@ async function handleSignOut() {
   window.location.reload();
 }
 
+import { generateInviteCode } from '../../services';
+
 function handleNavigate(path: string) {
   window.history.pushState({}, '', path);
   window.dispatchEvent(new Event('popstate'));
+}
+
+function SectionStaffAccess() {
+  const inviteCode = useSignal<{ code: string; expires_at: string } | null>(null);
+  const loading = useSignal(false);
+  const error = useSignal<string | null>(null);
+
+  async function handleGenerate() {
+    if (!board.value) return;
+    loading.value = true;
+    error.value = null;
+    try {
+      inviteCode.value = await generateInviteCode(board.value.id);
+    } catch (err) {
+      error.value = (err as Error).message;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  return (
+    <section class="settings-section">
+      <h3 class="settings-section-title">Staff Access</h3>
+      <p class="settings-section-description">
+        Generate a temporary code to give staff 'Edit' access
+      </p>
+
+      {inviteCode.value ? (
+        <div class="settings-invite-result" data-testid="invite-code-display">
+          <div class="settings-invite-code">{inviteCode.value.code}</div>
+          <p class="settings-invite-expiry">
+            Expires: {new Date(inviteCode.value.expires_at).toLocaleTimeString()}
+          </p>
+          <button
+            class="settings-btn"
+            onClick={() => inviteCode.value = null}
+          >
+            Done
+          </button>
+        </div>
+      ) : (
+        <>
+          <button
+            class="settings-btn settings-btn-primary settings-btn-block"
+            onClick={handleGenerate}
+            disabled={loading.value}
+            data-testid="generate-invite-btn"
+          >
+            {loading.value ? 'Generating...' : 'Generate Invite Code'}
+          </button>
+          {error.value && <p class="settings-error">{error.value}</p>}
+        </>
+      )}
+    </section>
+  );
+}
+
+function SectionRedeemInvite() {
+  const showInput = useSignal(false);
+  const code = useSignal('');
+  const loading = useSignal(false);
+  const error = useSignal<string | null>(null);
+
+  async function handleRedeem() {
+    if (!code.value) return;
+    loading.value = true;
+    error.value = null;
+    try {
+      await redeemInvite(code.value);
+      window.location.reload();
+    } catch (err) {
+      error.value = (err as Error).message;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  if (!showInput.value) {
+    return (
+      <section class="settings-section">
+        <h3 class="settings-section-title">Upgrade Access</h3>
+        <p class="settings-section-description">
+          Have an invite code? Enter it here to enable controls.
+        </p>
+        <button
+          class="settings-btn settings-btn-primary settings-btn-block"
+          onClick={() => showInput.value = true}
+          data-testid="enter-invite-btn"
+        >
+          Enter Invite Code
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section class="settings-section">
+      <h3 class="settings-section-title">Enter Invite Code</h3>
+      <div class="settings-input-group">
+        <input
+          type="text"
+          class="settings-input settings-input-code"
+          value={code.value}
+          onInput={(e) => code.value = (e.target as HTMLInputElement).value}
+          placeholder="000000"
+          data-testid="invite-input"
+        />
+        <button
+          class="settings-btn settings-btn-primary"
+          onClick={handleRedeem}
+          disabled={loading.value || !code.value}
+          data-testid="invite-submit"
+        >
+          {loading.value ? 'Verifying...' : 'Submit'}
+        </button>
+      </div>
+      {error.value && <p class="settings-error">{error.value}</p>}
+      <button
+        class="settings-btn settings-btn-text"
+        onClick={() => showInput.value = false}
+      >
+        Cancel
+      </button>
+    </section>
+  );
 }
 
 export function SettingsTab() {
@@ -125,7 +251,6 @@ export function SettingsTab() {
     <div class="settings-tab" data-testid="settings-tab">
       <h2 class="settings-title">Settings</h2>
 
-      {/* Account Section */}
       <section class="settings-section">
         <h3 class="settings-section-title">Account</h3>
         {user.value ? (
@@ -168,7 +293,8 @@ export function SettingsTab() {
         )}
       </section>
 
-      {/* Time Mode Section */}
+      {!canEdit && <SectionRedeemInvite />}
+
       <section class="settings-section">
         <h3 class="settings-section-title">Time Mode</h3>
         <p class="settings-section-description">
@@ -190,7 +316,6 @@ export function SettingsTab() {
         </div>
       </section>
 
-      {/* Zoom Level Section */}
       <section class="settings-section">
         <h3 class="settings-section-title">Display Zoom</h3>
         <p class="settings-section-description">
@@ -212,43 +337,46 @@ export function SettingsTab() {
         </div>
       </section>
 
-      {/* Displays Section (Owner Only) */}
       {ownership.value.is_owner && (
-        <section class="settings-section">
-          <h3 class="settings-section-title">Connected Displays</h3>
-          <p class="settings-section-description">
-            Manage TV displays linked to your board
-          </p>
+        <>
+          <section class="settings-section">
+            <h3 class="settings-section-title">Connected Displays</h3>
+            <p class="settings-section-description">
+              Manage TV displays linked to your board
+            </p>
 
-          <div class="settings-devices-list">
-            {linkedDevices.value.length === 0 ? (
-              <div class="settings-empty-state">No displays connected</div>
-            ) : (
-              linkedDevices.value.map(device => (
-                <div class="settings-device-item" key={device.id}>
-                  <div class="settings-device-info">
-                    <span class="settings-device-name">{device.name}</span>
-                    <span class="settings-device-meta">Added: {new Date(device.created_at).toLocaleDateString()}</span>
+            <div class="settings-devices-list">
+              {linkedDevices.value.length === 0 ? (
+                <div class="settings-empty-state">No displays connected</div>
+              ) : (
+                linkedDevices.value.map(device => (
+                  <div class="settings-device-item" key={device.id}>
+                    <div class="settings-device-info">
+                      <span class="settings-device-name">{device.name}</span>
+                      <span class="settings-device-meta">Added: {new Date(device.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <button
+                      class="settings-btn settings-btn-danger settings-btn-small"
+                      onClick={() => handleUnlink(device.id)}
+                    >
+                      Unlink
+                    </button>
                   </div>
-                  <button
-                    class="settings-btn settings-btn-danger settings-btn-small"
-                    onClick={() => handleUnlink(device.id)}
-                  >
-                    Unlink
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
 
-          <button
-            class="settings-btn settings-btn-primary settings-btn-block"
-            onClick={() => showLinkModal.value = true}
-            data-testid="add-display-btn"
-          >
-            Link New Display
-          </button>
-        </section>
+            <button
+              class="settings-btn settings-btn-primary settings-btn-block"
+              onClick={() => showLinkModal.value = true}
+              data-testid="add-display-btn"
+            >
+              Link New Display
+            </button>
+          </section>
+
+          <SectionStaffAccess />
+        </>
       )}
 
       {showLinkModal.value && (
@@ -281,7 +409,6 @@ export function SettingsTab() {
         </div>
       </section>
 
-      {/* Board Info */}
       <section class="settings-section settings-info">
         <h3 class="settings-section-title">Board Info</h3>
         <div class="settings-info-grid">
@@ -299,6 +426,6 @@ export function SettingsTab() {
           </div>
         </div>
       </section>
-    </div>
+    </div >
   );
 }

@@ -80,7 +80,7 @@ async function request<T>(
   return JSON.parse(text);
 }
 
-// ... existing interfaces ...
+
 
 export interface ControllerToken {
   id: string;
@@ -92,7 +92,7 @@ export interface ControllerToken {
   created_at: string;
 }
 
-// ... existing functions ...
+
 
 export async function createControllerToken(
   board_id: string,
@@ -130,6 +130,16 @@ export async function resolveToken(): Promise<{ token_id: string; board_id: stri
   return result.data;
 }
 
+export async function generateInviteCode(board_id: string): Promise<{ code: string; expires_at: string }> {
+  const result = await request<ApiResponse<{ code: string; expires_at: string }>>(`/api/boards/${board_id}/invites`, {
+    method: 'POST',
+  });
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to generate invite code', 500);
+  }
+  return result.data;
+}
+
 export interface BootstrapData {
   board: Board;
   horses: Horse[];
@@ -140,11 +150,13 @@ export interface BootstrapData {
     is_owner: boolean;
     permission: 'none' | 'view' | 'edit' | 'admin';
   };
+  token?: string;
 }
 
 export interface PairResult {
   success: boolean;
   board_id?: string;
+  token?: string;
   error?: string;
 }
 
@@ -167,7 +179,7 @@ export async function pairWithCode(code: string): Promise<PairResult> {
   try {
     const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/pair/${code}`);
     if (result.success && result.data?.board) {
-      return { success: true, board_id: result.data.board.id };
+      return { success: true, board_id: result.data.board.id, token: result.data.token };
     }
     return { success: false, error: 'Invalid pairing code' };
   } catch (error) {
@@ -330,4 +342,22 @@ export async function listDevices(): Promise<Array<{ id: string; name: string; b
 
 export async function revokeDeviceToken(token_id: string): Promise<void> {
   await request<void>(`/api/devices/${token_id}`, { method: 'DELETE' });
+}
+export async function listUserBoards(): Promise<Board[]> {
+  const result = await request<ApiResponse<Board[]>>('/api/user/boards');
+  return result.data ?? [];
+}
+
+export async function redeemInvite(code: string): Promise<{ token: string }> {
+  const result = await request<ApiResponse<{ token: string }>>('/api/invites/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to redeem invite', 500);
+  }
+
+  const { token } = result.data;
+  setControllerToken(token);
+  return { token };
 }

@@ -25,6 +25,21 @@ export function SignupView() {
                 error.value = authError.message || 'Failed to sign up';
             } else if (data) {
                 // Successful signup
+                // Successful signup
+                try {
+                    const { listUserBoards, createBoard } = await import('../services');
+                    const boards = await listUserBoards();
+                    let boardId;
+                    if (boards.length === 0) {
+                        const newBoard = await createBoard();
+                        boardId = newBoard.id;
+                    } else {
+                        boardId = boards[0].id;
+                    }
+                    localStorage.setItem('horseboard_board_id', boardId);
+                } catch (e) {
+                    console.error('Auto-setup failed:', e);
+                }
                 window.location.href = '/controller'; // Redirect to controller
             }
         } catch (err) {

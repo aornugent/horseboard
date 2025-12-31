@@ -16,7 +16,6 @@ interface SelectedFeed {
   field: 'am_amount' | 'pm_amount';
 }
 
-// Local UI state for modals
 const isEditing = signal(false);
 const editName = signal('');
 const isDeleting = signal(false);
@@ -27,7 +26,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const horse = getHorse(horseId);
 
-  // Get feeds that have diet entries for this horse
   const activeFeeds = computed(() => {
     const entries = dietByHorse.value.get(horseId) ?? [];
     const activeFeedIds = new Set(
@@ -36,7 +34,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         .map((e) => e.feed_id)
     );
 
-    // Return all feeds, with active ones first
     return feeds.value.sort((a, b) => {
       const aActive = activeFeedIds.has(a.id);
       const bActive = activeFeedIds.has(b.id);
@@ -63,20 +60,17 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const handleConfirm = async (value: number | null) => {
     if (!selectedFeed) return;
 
-    // Update local store immediately for optimistic UI
     updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
 
-    // Get current entry to preserve the other field's value
     const currentEntry = getDietEntry(horseId, selectedFeed.feed_id);
     const am_amount = selectedFeed.field === 'am_amount' ? value : currentEntry?.am_amount;
     const pm_amount = selectedFeed.field === 'pm_amount' ? value : currentEntry?.pm_amount;
 
-    // Persist to server
     try {
       await upsertDiet(horseId, selectedFeed.feed_id, am_amount, pm_amount);
     } catch (error) {
       console.error('Failed to save diet entry:', error);
-      // TODO: Could add error handling/retry logic here
+      alert('Failed to save changes. Please check your connection and try again.');
     }
   };
 
@@ -206,7 +200,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         </div>
       )}
 
-      {/* Active feeds as large tappable tiles */}
       <div class="feed-tiles" data-testid="feed-tiles">
         {activeFeeds.value.map((feed) => {
           const entry = getDietEntry(horseId, feed.id);
@@ -224,7 +217,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 <span class="feed-tile-unit">{feed.unit}</span>
               </div>
               <div class="feed-tile-values">
-                {/* AM value */}
                 <button
                   class="value-button"
                   data-testid={`feed-tile-am-${feed.id}`}
@@ -237,7 +229,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                   </span>
                 </button>
 
-                {/* PM value */}
                 <button
                   class="value-button"
                   data-testid={`feed-tile-pm-${feed.id}`}
@@ -255,7 +246,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         })}
       </div>
 
-      {/* FeedPad drawer for editing */}
       <FeedPad
         isOpen={!!selectedFeed}
         currentValue={getCurrentValue()}
@@ -265,7 +255,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         unit={feedInfo.unit}
       />
 
-      {/* Edit Horse Modal */}
       {isEditing.value && (
         <div class="modal-overlay" data-testid="edit-horse-modal">
           <div class="modal-content">
@@ -303,7 +292,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {isDeleting.value && (
         <div class="modal-overlay" data-testid="delete-horse-modal">
           <div class="modal-content">

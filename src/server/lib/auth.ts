@@ -9,15 +9,16 @@ import type {
     HorsesRepository,
     FeedsRepository,
     DietRepository,
+    InviteCodesRepository,
 } from './engine';
 
 export type Permission = 'none' | 'view' | 'edit' | 'admin';
 
 export interface AuthContext {
     permission: Permission;
-    user_id: string | null;      // Set if authenticated via Better Auth
-    token_id: string | null;     // Set if authenticated via controller token
-    board_id: string | null;     // The board being accessed (if known/resolved)
+    user_id: string | null;
+    token_id: string | null;
+    board_id: string | null;
 }
 
 export interface Repos {
@@ -26,14 +27,13 @@ export interface Repos {
     horses: HorsesRepository;
     feeds: FeedsRepository;
     diet: DietRepository;
+    inviteCodes: InviteCodesRepository;
 }
 
 declare global {
     namespace Express {
         interface Request {
             authContext?: AuthContext;
-            // We expect routeContext to be attached if strict typing is needed,
-            // but usually we access it via req.routeContext
         }
     }
 }
@@ -63,7 +63,6 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
 
     const authHeader = req.headers.authorization;
 
-    // 1. Check for controller token
     if (authHeader?.startsWith('Bearer hb_')) {
         const token = authHeader.slice(7);
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -99,14 +98,13 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
                 user_id: session.user.id,
                 token_id: null,
                 board_id: null,
-                permission: 'view', // Placeholder, needs resolving against a board
+                permission: 'view',
             };
         }
     } catch (e) {
         // Session check failed, ignore
     }
 
-    // 3. No authentication - view only (public access)
     return {
         permission: 'view',
         user_id: null,
@@ -115,30 +113,23 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
     };
 }
 
-// Logic to refine permission once we know the board
 export function resolvePermissionForBoard(
     authCtx: AuthContext,
     board: Board | null
 ): Permission {
-    if (!board) return 'none'; // Or 'view' if we allow creating new boards?
-    // If board doesn't exist, we can't have permission on it.
+    if (!board) return 'none';
 
-    // Controller token - permission is fixed to the board
     if (authCtx.token_id) {
         return authCtx.board_id === board.id ? authCtx.permission : 'none';
     }
 
-    // Authenticated user - check ownership
     if (authCtx.user_id) {
         if (board.account_id === authCtx.user_id) {
             return 'admin';
         }
-        // In strict multi-tenant, if not owner, maybe 'none'?
-        // But we allowed 'view' for others (e.g. public view).
         return 'view';
     }
 
-    // Unauthenticated - view only
     return 'view';
 }
 
@@ -163,15 +154,12 @@ export function requirePermission(
         if (boardIdResolver) {
             boardId = await boardIdResolver(req, repos);
         } else {
-            // Default lookups
             boardId = req.params.boardId || req.params.board_id || req.body?.board_id;
         }
 
         if (boardId) {
             const board = repos.boards.getById(boardId);
-            // Refine permission based on board
             authCtx.permission = resolvePermissionForBoard(authCtx, board);
-            // Update board_id in context if found
             if (board) authCtx.board_id = board.id;
         }
 

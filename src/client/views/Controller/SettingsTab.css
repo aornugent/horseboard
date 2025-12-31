@@ -278,3 +278,75 @@
   border-radius: 12px;
   font-size: 0.9rem;
 }
+
+.settings-invite-result {
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.settings-invite-code {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+}
+
+.settings-invite-expiry {
+  color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.settings-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.settings-input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  min-height: 48px;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.settings-input-code {
+    font-family: monospace;
+    font-size: 1.5rem;
+    text-align: center;
+    letter-spacing: 0.2em;
+}
+
+.settings-btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.settings-btn-text {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  text-align: center;
+  margin-top: 0.5rem;
+}

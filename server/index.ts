@@ -13,6 +13,7 @@ import {
   createFeedsRepository,
   createDietRepository,
   createControllerTokensRepository,
+  createInviteCodesRepository,
   SSEManager,
   FeedRankingManager,
   type HorsesRepository,
@@ -20,6 +21,7 @@ import {
   type DietRepository,
   type BoardsRepository,
   type ControllerTokensRepository,
+  type InviteCodesRepository,
 } from '@server/lib/engine';
 import { ExpiryScheduler } from '@server/scheduler';
 import { mountRoutes, RouteContext } from '@server/routes';
@@ -60,6 +62,7 @@ interface ServerContext {
     feeds: FeedsRepository;
     diet: DietRepository;
     controllerTokens: ControllerTokensRepository;
+    inviteCodes: InviteCodesRepository;
   };
   timers: NodeJS.Timeout[];
 }
@@ -84,6 +87,7 @@ function createRepositories(db: Database.Database): ServerContext['repos'] {
     feeds: createFeedsRepository(db),
     diet: createDietRepository(db),
     controllerTokens: createControllerTokensRepository(db),
+    inviteCodes: createInviteCodesRepository(db),
   };
 }
 
@@ -125,8 +129,8 @@ function createServer(): ServerContext {
   app.use(express.json());
 
   const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.NODE_ENV === 'test' ? 10000 : 100, // Limit each IP to 100 (10k in test) requests per window
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === 'test' ? 10000 : 100,
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -134,10 +138,9 @@ function createServer(): ServerContext {
   app.use("/api/auth/*", authLimiter);
   app.all("/api/auth/*", toNodeHandler(auth));
 
-  // Rate limit token creation specifically (stricter)
   const tokenCreationLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: process.env.NODE_ENV === 'test' ? 1000 : 20, // 20 tokens per hour (1k in test)
+    windowMs: 60 * 60 * 1000,
+    max: process.env.NODE_ENV === 'test' ? 1000 : 20,
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -178,11 +181,9 @@ function createServer(): ServerContext {
 
   mountRoutes(app, routeContext, sse);
 
-  // Serve static files from the client build directory
   const clientDistPath = join(__dirname, '../dist/client');
   app.use(express.static(clientDistPath));
 
-  // Fallback to index.html for client-side routing (SPA)
   app.get('*', (_req, res) => {
     res.sendFile(join(clientDistPath, 'index.html'));
   });

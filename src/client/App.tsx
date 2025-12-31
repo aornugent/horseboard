@@ -9,7 +9,7 @@ import {
   SettingsTab,
   TokensTab,
 } from './views/Controller';
-import { bootstrap, pairWithCode, createBoard, sseClient, setControllerToken } from './services';
+import { bootstrap, pairWithCode, createBoard, sseClient, setControllerToken, loadControllerToken } from './services';
 import { board, setBoard, setHorses, setFeeds, setDietEntries, effectiveTimeMode, setOwnership, user, ownership } from './stores';
 import { initAuth } from './services/auth';
 
@@ -24,12 +24,10 @@ const pathname = signal(window.location.pathname);
 const isInitialized = signal(false);
 const connectionError = signal<string | null>(null);
 
-// Listen for browser navigation
 window.addEventListener('popstate', () => {
   pathname.value = window.location.pathname;
 });
 
-// Navigate helper
 function navigate(path: string) {
   if (pathname.value !== path) {
     window.history.pushState({}, '', path);
@@ -216,6 +214,9 @@ async function handlePair() {
     const result = await pairWithCode(pairCode.value);
 
     if (result.success && result.board_id) {
+      if (result.token) {
+        setControllerToken(result.token);
+      }
       localStorage.setItem(STORAGE_KEY, result.board_id);
       await initializeApp(result.board_id);
     } else {
@@ -277,11 +278,8 @@ function PairingView() {
               onClick={async () => {
                 isPairing.value = true;
                 try {
-                  // 1. Set the token
                   setControllerToken(pairCode.value);
 
-                  // 2. Resolve the token to get board ID
-                  // Note: resolveToken() uses the token we just set in headers
                   const { board_id } = await import('./services').then(m => m.resolveToken());
 
                   if (board_id) {
@@ -404,9 +402,9 @@ async function initializeApp(boardId: string): Promise<boolean> {
 }
 
 export function App() {
-  // Initialize on mount
   useEffect(() => {
     initAuth();
+    loadControllerToken();
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
     // Also check for stored token
     // If token exists but no board ID, we need to resolve it (missing logic)
@@ -437,14 +435,12 @@ export function App() {
     document.body.setAttribute('data-theme', mode.toLowerCase());
   }, [board.value, effectiveTimeMode.value, pathname.value]);
 
-  // Handle redirect for root path
   useEffect(() => {
     if (pathname.value === '/') {
       // Show landing page
     }
   }, []);
 
-  // Redirect authenticated users from auth pages
   useEffect(() => {
     if (user.value && (pathname.value === '/login' || pathname.value === '/signup')) {
       navigate('/controller');
@@ -453,21 +449,17 @@ export function App() {
 
   const path = pathname.value;
 
-  // Show landing page at root
   if (path === '/') {
     return <Landing />;
   }
 
-  // Check if we need to pair first (for controller views only)
   const needsPairing = !board.value && !isInitialized.value;
   const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
-  // Only controller needs pairing view - board auto-creates
   if (path === '/controller' && needsPairing && !storedBoardId) {
     return <PairingView />;
   }
 
-  // Board shows provisioning view if no board exists
   if (path === '/board' && needsPairing && !storedBoardId) {
     return <ProvisioningView onProvisioned={(id) => {
       localStorage.setItem(STORAGE_KEY, id);
@@ -475,7 +467,6 @@ export function App() {
     }} />;
   }
 
-  // Show connection error if any
   if (connectionError.value && storedBoardId) {
     return (
       <div class="error-view" data-testid="error-view">
@@ -503,7 +494,6 @@ export function App() {
     );
   }
 
-  // Route to appropriate view
   switch (path) {
     case '/board':
       return <Board />;
@@ -518,7 +508,6 @@ export function App() {
       return <SignupView />;
 
     default:
-      // 404 - redirect to landing
       return <Landing />;
   }
 }

@@ -1,4 +1,4 @@
-import { signal } from '@preact/signals';
+import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { pollProvisioning, setControllerToken, resolveToken } from '../services';
 
@@ -11,9 +11,9 @@ function generateCode() {
     return code;
 }
 
-const provisioningCode = signal(generateCode());
-
 export function ProvisioningView({ onProvisioned }: { onProvisioned: (boardId: string) => void }) {
+    const provisioningCode = useSignal(generateCode());
+
     useEffect(() => {
         let mounted = true;
         let timeoutId: any;
@@ -24,14 +24,12 @@ export function ProvisioningView({ onProvisioned }: { onProvisioned: (boardId: s
             const result = await pollProvisioning(provisioningCode.value);
 
             if (result.token) {
-                // Success!
                 setControllerToken(result.token);
-                // Resolve token to get board ID
                 try {
                     const { board_id } = await resolveToken();
                     if (board_id && mounted) {
                         onProvisioned(board_id);
-                        return; // Stop polling
+                        return;
                     }
                 } catch (e) {
                     console.error("Failed to resolve token", e);
@@ -57,7 +55,7 @@ export function ProvisioningView({ onProvisioned }: { onProvisioned: (boardId: s
                 <h1>Connect Display</h1>
                 <p>Enter this code in your Controller Settings</p>
 
-                <div class="provisioning-code">
+                <div class="provisioning-code" data-testid="provisioning-code">
                     {provisioningCode.value.split('').map(char => (
                         <span class="code-char">{char}</span>
                     ))}

@@ -20,7 +20,12 @@ export {
   pollProvisioning,
   linkDevice,
   listDevices,
+  listUserBoards,
+
   revokeDeviceToken,
+  generateInviteCode,
+  redeemInvite,
+  loadControllerToken,
   ApiError,
 } from './api';
 export type { BootstrapData, PairResult, ControllerToken } from './api';
