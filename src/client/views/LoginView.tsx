@@ -1,5 +1,6 @@
 import { signal } from '@preact/signals';
 import { authClient } from '../stores';
+import { navigate } from '../router';
 import './Auth.css';
 
 const email = signal('');
@@ -24,7 +25,6 @@ export function LoginView() {
                 error.value = authError.message || 'Invalid email or password';
             } else if (data) {
                 // Successful login
-                // Successful login
                 try {
                     const { listUserBoards, createBoard } = await import('../services');
                     const boards = await listUserBoards();
@@ -39,7 +39,7 @@ export function LoginView() {
                 } catch (e) {
                     console.error('Auto-setup failed:', e);
                 }
-                window.location.href = '/controller'; // Redirect to controller
+                window.location.href = '/controller';
             }
         } catch (err) {
             error.value = (err as any)?.message || 'An unexpected error occurred';
@@ -108,8 +108,7 @@ export function LoginView() {
                     Don't have an account?
                     <a href="/signup" class="auth-link" onClick={(e) => {
                         e.preventDefault();
-                        window.history.pushState({}, '', '/signup');
-                        window.dispatchEvent(new Event('popstate'));
+                        navigate('/signup');
                     }}>Sign Up</a>
                 </div>
             </div>

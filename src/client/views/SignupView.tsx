@@ -1,5 +1,6 @@
 import { signal } from '@preact/signals';
 import { authClient } from '../stores';
+import { navigate } from '../router';
 import './Auth.css';
 
 const name = signal('');
@@ -25,7 +26,6 @@ export function SignupView() {
                 error.value = authError.message || 'Failed to sign up';
             } else if (data) {
                 // Successful signup
-                // Successful signup
                 try {
                     const { listUserBoards, createBoard } = await import('../services');
                     const boards = await listUserBoards();
@@ -40,7 +40,7 @@ export function SignupView() {
                 } catch (e) {
                     console.error('Auto-setup failed:', e);
                 }
-                window.location.href = '/controller'; // Redirect to controller
+                window.location.href = '/controller';
             }
         } catch (err) {
             error.value = 'An unexpected error occurred';
@@ -125,13 +125,7 @@ export function SignupView() {
                     Already have an account?
                     <a href="/login" class="auth-link" onClick={(e) => {
                         e.preventDefault();
-                        window.history.pushState({}, '', '/login');
-                        // Trigger navigation update if needed, but App.tsx listens to popstate only currently.
-                        // We need a proper navigate function exposure or just use window.location.pathname trigger if App polls it or signals.
-                        // App.tsx uses `pathname` signal. We should probably export `navigate` or just handle it here.
-                        // For now, I'll rely on global `navigate` if I could export it, but I can't easily.
-                        // I'll manually update history and dispatch a popstate event to trigger App.tsx listener.
-                        window.dispatchEvent(new Event('popstate'));
+                        navigate('/login');
                     }}>Log In</a>
                 </div>
             </div>
