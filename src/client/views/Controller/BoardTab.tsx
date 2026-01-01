@@ -55,7 +55,7 @@ export function BoardTab() {
           disabled={(currentPage.value || 0) <= 0}
           data-testid="prev-page-btn"
         >
-          Allocations
+          ◀ Previous
         </button>
         <span class="board-page-indicator">Page {(currentPage.value || 0) + 1}</span>
         <button
@@ -63,7 +63,7 @@ export function BoardTab() {
           onClick={() => changePage(1)}
           data-testid="next-page-btn"
         >
-          Next Page
+          Next ▶
         </button>
       </div>
 
