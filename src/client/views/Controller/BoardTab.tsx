@@ -98,7 +98,7 @@ export function BoardTab() {
 
           {showControls.value && (
             <div class="board-controls-drawer" data-testid="display-controls-drawer">
-              <div class="board-control-group">
+              <div class="board-control-group" data-testid="time-mode-selector">
                 <label class="board-control-label">Time Mode</label>
                 <div class="board-control-buttons">
                   {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
@@ -115,27 +115,27 @@ export function BoardTab() {
                 </div>
               </div>
 
-              <div class="board-control-group">
+              <div class="board-control-group" data-testid="zoom-selector">
                 <label class="board-control-label">Zoom</label>
                 <div class="board-control-buttons">
                   <button
                     class={`board-control-option ${zoomLevel.value === 1 ? 'active' : ''}`}
                     onClick={() => changeZoom(1)}
-                    data-testid="zoom-small"
+                    data-testid="zoom-level-1"
                   >
                     S
                   </button>
                   <button
                     class={`board-control-option ${zoomLevel.value === 2 ? 'active' : ''}`}
                     onClick={() => changeZoom(2)}
-                    data-testid="zoom-medium"
+                    data-testid="zoom-level-2"
                   >
                     M
                   </button>
                   <button
                     class={`board-control-option ${zoomLevel.value === 3 ? 'active' : ''}`}
                     onClick={() => changeZoom(3)}
-                    data-testid="zoom-large"
+                    data-testid="zoom-level-3"
                   >
                     L
                   </button>

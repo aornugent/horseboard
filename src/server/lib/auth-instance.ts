@@ -1,7 +1,15 @@
 import { betterAuth } from "better-auth";
 import Database from "better-sqlite3";
+import { existsSync, mkdirSync } from "fs";
+import { dirname } from "path";
 
-const db = new Database(process.env.DB_PATH || "./data/horseboard.db");
+const dbPath = process.env.DB_PATH || "./data/horseboard.db";
+const dataDir = dirname(dbPath);
+if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
 
 export const auth = betterAuth({
     database: db,
