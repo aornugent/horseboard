@@ -24,9 +24,12 @@ test.describe('Story 9.1: The Owner', () => {
 
         await page.locator('[data-testid="tab-settings"]').click();
         await expect(page.locator(selectors.settingsTab)).toBeVisible();
-        // Assuming we display role or can verify actions.
-        // For now, let's verify Tokens tab exists (only for admin)
-        await expect(page.locator('[data-testid="tab-tokens"]')).toBeVisible();
+
+        // Verify admin sees Displays section (only visible to admin)
+        await expect(page.getByText('Displays', { exact: false })).toBeVisible();
+
+        // Verify admin sees Staff Access section
+        await expect(page.getByText('Staff Access', { exact: false })).toBeVisible();
 
         // Verify Board Name (optional, if UI shows it)
         // Verify Account ID link (backend check or inferred from UI behavior)
@@ -140,7 +143,17 @@ test.describe('Story 9.3: Remote Control Mode', () => {
         await expect(visitorPage.locator('[data-testid="prev-page-btn"]')).toBeVisible();
         await expect(visitorPage.locator('[data-testid="next-page-btn"]')).toBeVisible();
 
-        await expect(visitorPage.locator('[data-testid="tab-tokens"]')).not.toBeVisible();
+        // Verify view-only user does NOT see admin sections in Settings
+        await visitorPage.locator('[data-testid="tab-settings"]').click();
+
+        // Should NOT see Displays section (admin only)
+        await expect(visitorPage.getByText('Displays', { exact: false })).not.toBeVisible();
+
+        // Should NOT see Staff Access section (admin only)
+        await expect(visitorPage.getByText('Staff Access', { exact: false })).not.toBeVisible();
+
+        // Should see Upgrade Access section (for view-only users)
+        await expect(visitorPage.getByText('Upgrade Access', { exact: false })).toBeVisible();
 
         await ownerContext.close();
         await visitorContext.close();
