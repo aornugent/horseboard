@@ -146,7 +146,6 @@ export interface BootstrapData {
   feeds: Feed[];
   diet_entries: DietEntry[];
   ownership: {
-    is_claimed: boolean;
     is_owner: boolean;
     permission: 'none' | 'view' | 'edit' | 'admin';
   };
