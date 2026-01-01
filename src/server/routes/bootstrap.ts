@@ -22,7 +22,6 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
     const user_id = req.authContext?.user_id;
 
     const ownership = {
-      is_claimed: !!board.account_id,
       is_owner: !!user_id && board.account_id === user_id,
       permission
     };
@@ -60,7 +59,6 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
     const diet_entries = repos.diet.getByBoardId(board.id) ?? [];
 
     const ownership = {
-      is_claimed: !!board.account_id,
       is_owner: !!authCtx.user_id && board.account_id === authCtx.user_id,
       permission: authCtx.permission
     };

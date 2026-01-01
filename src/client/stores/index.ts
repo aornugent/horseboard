@@ -27,11 +27,9 @@ export const effectiveTimeMode = boardStore.effective_time_mode;
 
 import { signal } from '@preact/signals';
 export const ownership = signal<{
-  is_claimed: boolean;
   is_owner: boolean;
   permission: 'none' | 'view' | 'edit' | 'admin';
 }>({
-  is_claimed: true, // Default to true (safe) until loaded
   is_owner: false,
   permission: 'view',
 });

@@ -622,13 +622,13 @@ Run cleanup pass to remove:
 
 | Target | Action | Status |
 |--------|--------|--------|
-| Migrations | Collapse to single file | [ ] |
-| TokensTab | Delete after consolidation | [ ] |
-| `is_claimed` | Remove from ownership | [ ] |
-| PairingView | Keep as fallback OR redirect | [ ] |
-| Dev scripts | Delete test-auth.ts, test-db-direct.ts | [ ] |
-| API_SPEC.md | Remove deprecated claim section | [ ] |
-| Dead imports | Run tsc --noEmit, fix warnings | [ ] |
+| Migrations | Collapse to single file | [x] |
+| TokensTab | Delete after consolidation | [x] |
+| `is_claimed` | Remove from ownership | [x] |
+| PairingView | Keep as fallback | [x] |
+| Dev scripts | Delete test-auth.ts, test-db-direct.ts | [x] |
+| docs/auth/ | Removed (consolidated into USER_PATHS) | [x] |
+| E2E parallel | Fixed with workers: 1 | [x] |
 
 ---
 

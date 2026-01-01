@@ -3,12 +3,9 @@
 
 | Topic | Source of Truth |
 | :--- | :--- |
-| **Auth & Permissions** | `docs/auth/PERMISSION_MODEL.md` |
-| **Database Schema** | `docs/auth/DATA_MODEL.md` (and `src/server/db/migrations/*.sql`) |
-| **API Endpoints** | `docs/auth/API_SPEC.md` |
-| **User Flows** | `docs/auth/AUTH_FLOWS.md` |
+| **User Flows & Auth** | `docs/USER_PATHS.md` |
+| **Database Schema** | `src/server/db/migrations/001_schema.sql` |
 | **Core Logic** | `TECHNICAL_SPECIFICATION.md` |
-| **Current Task** | `IMPLEMENTATION_PLAN.md` |
 
 ## 2. Hard Constraints
 Violating these rules breaks the architecture.
