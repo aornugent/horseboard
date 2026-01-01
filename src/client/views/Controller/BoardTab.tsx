@@ -1,13 +1,70 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid';
-import { horses, feeds, effectiveTimeMode } from '../../stores';
+import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, ownership } from '../../stores';
 import './BoardTab.css';
 
+import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode } from '../../services';
+import { board, setCurrentPage, currentPage, setZoomLevel } from '../../stores';
+import { TIME_MODE, TIME_MODE_CONFIG, type TimeMode } from '../../../shared/resources';
+import { useSignal } from '@preact/signals';
+
+async function changePage(delta: number) {
+  if (!board.value) return;
+  const newPage = Math.max(0, (currentPage.value || 0) + delta);
+  try {
+    await apiUpdateBoard(board.value.id, { current_page: newPage });
+    setCurrentPage(newPage);
+  } catch (err) {
+    console.error('Failed to update page:', err);
+  }
+}
+
+async function changeTimeMode(mode: TimeMode) {
+  if (!board.value) return;
+  try {
+    await apiUpdateTimeMode(board.value.id, mode, null);
+  } catch (err) {
+    console.error('Failed to update time mode:', err);
+  }
+}
+
+async function changeZoom(level: 1 | 2 | 3) {
+  if (!board.value) return;
+  try {
+    await apiUpdateBoard(board.value.id, { zoom_level: level });
+    setZoomLevel(level);
+  } catch (err) {
+    console.error('Failed to update zoom:', err);
+  }
+}
+
 export function BoardTab() {
+  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const showControls = useSignal(false);
+
   return (
     <div class="board-tab" data-testid="board-tab">
       <div class="board-tab-header">
         <h2 class="board-tab-title">Board Preview</h2>
         <span class="board-tab-badge">{effectiveTimeMode.value}</span>
+      </div>
+
+      <div class="board-controls">
+        <button
+          class="board-control-btn"
+          onClick={() => changePage(-1)}
+          disabled={(currentPage.value || 0) <= 0}
+          data-testid="prev-page-btn"
+        >
+          ◀ Previous
+        </button>
+        <span class="board-page-indicator">Page {(currentPage.value || 0) + 1}</span>
+        <button
+          class="board-control-btn"
+          onClick={() => changePage(1)}
+          data-testid="next-page-btn"
+        >
+          Next ▶
+        </button>
       </div>
 
       <div class="board-label">
@@ -27,6 +84,67 @@ export function BoardTab() {
           />
         </div>
       </div>
+
+      {canEdit && (
+        <div class="board-display-controls">
+          <button
+            class="board-controls-toggle"
+            onClick={() => showControls.value = !showControls.value}
+            data-testid="toggle-display-controls"
+          >
+            Display Controls
+            <span class="board-controls-toggle-icon">{showControls.value ? '▼' : '▶'}</span>
+          </button>
+
+          {showControls.value && (
+            <div class="board-controls-drawer" data-testid="display-controls-drawer">
+              <div class="board-control-group">
+                <label class="board-control-label">Time Mode</label>
+                <div class="board-control-buttons">
+                  {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
+                    <button
+                      key={mode}
+                      class={`board-control-option ${configuredMode.value === mode ? 'active' : ''}`}
+                      onClick={() => changeTimeMode(mode)}
+                      data-testid={`time-mode-${mode.toLowerCase()}`}
+                      title={TIME_MODE_CONFIG[mode].description}
+                    >
+                      {TIME_MODE_CONFIG[mode].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div class="board-control-group">
+                <label class="board-control-label">Zoom</label>
+                <div class="board-control-buttons">
+                  <button
+                    class={`board-control-option ${zoomLevel.value === 1 ? 'active' : ''}`}
+                    onClick={() => changeZoom(1)}
+                    data-testid="zoom-small"
+                  >
+                    S
+                  </button>
+                  <button
+                    class={`board-control-option ${zoomLevel.value === 2 ? 'active' : ''}`}
+                    onClick={() => changeZoom(2)}
+                    data-testid="zoom-medium"
+                  >
+                    M
+                  </button>
+                  <button
+                    class={`board-control-option ${zoomLevel.value === 3 ? 'active' : ''}`}
+                    onClick={() => changeZoom(3)}
+                    data-testid="zoom-large"
+                  >
+                    L
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

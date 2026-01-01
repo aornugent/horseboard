@@ -11,26 +11,7 @@ import {
 /**
  * SSE Event Schemas for runtime validation
  */
-const SSEStateEventSchema = z.object({
-  type: z.literal('state'),
-  data: z.object({
-    board: BoardSchema,
-  }),
-  timestamp: z.string().optional(),
-});
-
-const SSEDataEventSchema = z.object({
-  type: z.literal('data'),
-  data: z.object({
-    horses: z.array(HorseSchema),
-    feeds: z.array(FeedSchema),
-    diet_entries: z.array(DietEntrySchema),
-  }),
-  timestamp: z.string().optional(),
-});
-
-const SSEFullEventSchema = z.object({
-  type: z.literal('full'),
+const SSEEventSchema = z.object({
   data: z.object({
     board: BoardSchema,
     horses: z.array(HorseSchema),
@@ -39,34 +20,6 @@ const SSEFullEventSchema = z.object({
   }),
   timestamp: z.string().optional(),
 });
-
-// Granular update events for individual resources
-const SSEHorsesEventSchema = z.object({
-  type: z.literal('horses'),
-  data: z.array(HorseSchema).optional(),
-  timestamp: z.string().optional(),
-});
-
-const SSEFeedsEventSchema = z.object({
-  type: z.literal('feeds'),
-  data: z.array(FeedSchema).optional(),
-  timestamp: z.string().optional(),
-});
-
-const SSEDietEventSchema = z.object({
-  type: z.literal('diet'),
-  data: z.array(DietEntrySchema).optional(),
-  timestamp: z.string().optional(),
-});
-
-const SSEEventSchema = z.discriminatedUnion('type', [
-  SSEStateEventSchema,
-  SSEDataEventSchema,
-  SSEFullEventSchema,
-  SSEHorsesEventSchema,
-  SSEFeedsEventSchema,
-  SSEDietEventSchema,
-]);
 
 type SSEEvent = z.infer<typeof SSEEventSchema>;
 
@@ -152,93 +105,11 @@ class SSEClient {
   private handleEvent(event: SSEEvent): void {
     // Use batch to minimize re-renders when updating multiple stores
     batch(() => {
-      switch (event.type) {
-        case 'state':
-          // Board state update only
-          setBoard(event.data.board, 'sse');
-          break;
-
-        case 'data':
-          // Full data update (horses, feeds, diet)
-          setHorses(event.data.horses, 'sse');
-          setFeeds(event.data.feeds, 'sse');
-          setDietEntries(event.data.diet_entries, 'sse');
-          break;
-
-        case 'full':
-          // Complete state + data update
-          setBoard(event.data.board, 'sse');
-          setHorses(event.data.horses, 'sse');
-          setFeeds(event.data.feeds, 'sse');
-          setDietEntries(event.data.diet_entries, 'sse');
-          break;
-
-        case 'horses':
-          // Granular horses update - refetch if no data provided
-          if (event.data) {
-            setHorses(event.data, 'sse');
-          } else {
-            this.refetchResource('horses');
-          }
-          break;
-
-        case 'feeds':
-          // Granular feeds update - refetch if no data provided
-          if (event.data) {
-            setFeeds(event.data, 'sse');
-          } else {
-            this.refetchResource('feeds');
-          }
-          break;
-
-        case 'diet':
-          // Granular diet update - refetch if no data provided
-          if (event.data) {
-            setDietEntries(event.data, 'sse');
-          } else {
-            this.refetchResource('diet');
-          }
-          break;
-      }
+      setBoard(event.data.board, 'sse');
+      setHorses(event.data.horses, 'sse');
+      setFeeds(event.data.feeds, 'sse');
+      setDietEntries(event.data.diet_entries, 'sse');
     });
-  }
-
-  /**
-   * Refetch a specific resource when SSE event doesn't include data
-   */
-  private async refetchResource(resource: 'horses' | 'feeds' | 'diet'): Promise<void> {
-    if (!this.boardId) return;
-
-    try {
-      let url: string;
-      if (resource === 'diet') {
-        url = `/api/diet?boardId=${this.boardId}`;
-      } else {
-        url = `/api/boards/${this.boardId}/${resource}`;
-      }
-
-      const response = await fetch(url);
-      if (!response.ok) return;
-
-      const { data } = await response.json();
-
-      // Use 'sse' source since this was triggered by SSE
-      batch(() => {
-        switch (resource) {
-          case 'horses':
-            setHorses(data, 'sse');
-            break;
-          case 'feeds':
-            setFeeds(data, 'sse');
-            break;
-          case 'diet':
-            setDietEntries(data, 'sse');
-            break;
-        }
-      });
-    } catch (err) {
-      console.error(`Failed to refetch ${resource}:`, err);
-    }
   }
 
   /**

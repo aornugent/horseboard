@@ -3,6 +3,7 @@ export {
   bootstrap,
   pairWithCode,
   createBoard,
+
   createHorse,
   updateHorse,
   deleteHorse,
@@ -11,6 +12,20 @@ export {
   deleteFeed,
   updateTimeMode,
   updateBoard,
+  createControllerToken,
+  listControllerTokens,
+  revokeControllerToken,
+  setControllerToken,
+  resolveToken,
+  pollProvisioning,
+  linkDevice,
+  listDevices,
+  listUserBoards,
+
+  revokeDeviceToken,
+  generateInviteCode,
+  redeemInvite,
+  loadControllerToken,
   ApiError,
 } from './api';
-export type { BootstrapData, PairResult } from './api';
+export type { BootstrapData, PairResult, ControllerToken } from './api';

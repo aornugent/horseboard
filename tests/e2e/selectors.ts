@@ -144,6 +144,9 @@ export const selectors = {
   timezoneSelector: '[data-testid="timezone-selector"]',
   boardPairCode: '[data-testid="board-pair-code"]',
   boardId: '[data-testid="board-id"]',
+  enterInviteBtn: '[data-testid="enter-invite-btn"]',
+  inviteInput: '[data-testid="invite-input"]',
+  inviteSubmit: '[data-testid="invite-submit"]',
 
   // ============================================
   // Board View (TV)
@@ -159,6 +162,20 @@ export const selectors = {
   connectBtn: '[data-testid="connect-btn"]',
   quantityModal: '[data-testid="quantity-modal"]',
   quantityInput: '[data-testid="quantity-input"]',
+  pairingView: '[data-testid="pairing-view"]',
+
+
+  // ============================================
+  // Auth
+  // ============================================
+  loginView: '[data-testid="login-view"]',
+  signupView: '[data-testid="signup-view"]',
+  emailInput: '[data-testid="email-input"]',
+  passwordInput: '[data-testid="password-input"]',
+  nameInput: '[data-testid="name-input"]',
+  submitBtn: '[data-testid="submit-btn"]',
+  accountName: '[data-testid="account-name"]',
+  signOutBtn: '[data-testid="sign-out-btn"]',
 };
 
 // =============================================================================

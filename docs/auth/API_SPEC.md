@@ -37,9 +37,11 @@ Get current user profile.
 
 **Requires:** Authenticated session
 
-### Board Claim
+### Board Claim (Deprecated)
 
 #### POST /api/boards/:id/claim
+
+**Status:** Deprecated. Use Device Provisioning flow.
 
 Claim an unclaimed board.
 
@@ -67,6 +69,69 @@ Claim an unclaimed board.
 }
 ```
 Status: 409 Conflict
+
+Status: 409 Conflict
+
+### Device Management (New)
+
+#### POST /api/devices/link
+
+Exchange a provisioning code for a device token. Links a TV to the user's board.
+
+**Requires:** Authenticated session (Owner)
+
+**Request:**
+```json
+{
+  "code": "8X2-9P",
+  "name": "Living Room TV"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "device_token": "hb_..."
+  }
+}
+```
+
+#### GET /api/devices
+
+List active displays for the current board.
+
+**Requires:** Authenticated session (Owner)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "ct_123",
+      "name": "Living Room TV",
+      "type": "display",
+      "last_used_at": "2024-01-20T08:30:00.000Z",
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### DELETE /api/devices/:id
+
+Revoke a display device.
+
+**Requires:** Authenticated session (Owner)
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
 
 ### Controller Token Endpoints
 

@@ -68,3 +68,129 @@
     width: 142.86%; /* 100% / 0.7 */
   }
 }
+
+.board-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  background: var(--color-bg-secondary);
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.board-control-btn {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.board-control-btn:active {
+  background: var(--color-bg-active);
+}
+
+.board-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.board-page-indicator {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+/* Display Controls */
+.board-display-controls {
+  margin-top: 1rem;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.board-controls-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.board-controls-toggle:active {
+  background: var(--color-bg-active);
+}
+
+.board-controls-toggle-icon {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s;
+}
+
+.board-controls-drawer {
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.board-control-group {
+  margin-bottom: 1.5rem;
+}
+
+.board-control-group:last-child {
+  margin-bottom: 0;
+}
+
+.board-control-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.board-control-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.board-control-option {
+  flex: 1;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.board-control-option:active {
+  background: var(--color-bg-active);
+}
+
+.board-control-option.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+@media (min-width: 768px) {
+  .board-control-option {
+    min-height: 44px;
+  }
+}
