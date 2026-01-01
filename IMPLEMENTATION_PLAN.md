@@ -27,7 +27,7 @@ This plan evolves HorseBoard from a single-user prototype into a multi-tenant Sa
 
 ---
 
-## Phase 1: Database Schema & Better Auth Setup
+## Phase 1: Database Schema & Better Auth Setup [COMPLETED]
 
 **Objective:** Better Auth integrated, tables created, basic auth working
 
@@ -59,7 +59,7 @@ Users can sign up and sign in. Sessions are stored. No routes protected yet.
 
 ---
 
-## Phase 2: Permission Resolution & Middleware
+## Phase 2: Permission Resolution & Middleware [COMPLETED]
 
 **Objective:** Auth middleware resolves permissions correctly
 
@@ -92,7 +92,7 @@ Permission resolution works for all access methods. Tokens can be created and va
 
 ---
 
-## Phase 3: Protect Existing Routes
+## Phase 3: Protect Existing Routes [COMPLETED]
 
 **Objective:** All existing endpoints have appropriate permission checks
 
@@ -124,7 +124,7 @@ All API routes enforce permissions. **Breaking change:** writes require at least
 
 ---
 
-## Phase 4: Board Claiming Flow
+## Phase 4: Board Claiming Flow [COMPLETED]
 
 **Objective:** Users can claim unclaimed boards
 
@@ -156,7 +156,7 @@ New users can claim boards on signup. Returning users see their owned boards. Un
 
 ---
 
-## Phase 5: Client Auth UI
+## Phase 5: Client Auth UI [COMPLETED]
 
 **Objective:** Complete auth UI on client
 
@@ -188,7 +188,7 @@ Full auth UI experience. Users can signup, login, logout. UI reflects permission
 
 ---
 
-## Phase 6: Controller Token Management
+## Phase 6: Controller Token Management [COMPLETED]
 
 **Objective:** Owners can create and manage controller tokens
 
@@ -221,7 +221,7 @@ Complete token management UI. Staff can use tokens to access boards. Multi-devic
 
 ---
 
-## Phase 7: Polish & Edge Cases
+## Phase 7: Polish & Edge Cases [COMPLETED]
 
 **Objective:** Production-ready auth system
 
@@ -252,16 +252,128 @@ Production-ready auth system. All edge cases handled gracefully.
 
 ---
 
+## Phase 8: TV Persistence & Provisioning Flow [COMPLETED]
+
+**Objective:** Implementation of Device Provisioning Model (TVs as dumb displays linked to a board).
+
+### Tasks
+
+1. **Database:**
+   - Create migration `003_add_token_type.sql`.
+   - Add `type` column to `controller_tokens` table (values: 'controller', 'display').
+   - Handle SQLite check constraint updates (recreate table strategy).
+
+2. **API Updates:**
+   - Deprecate/Remove `CLAIM` endpoints context.
+   - Implement `POST /api/devices/link` (Exchange Provisioning Code for Token).
+   - Implement `GET /api/devices` (List active displays).
+   - Implement `DELETE /api/devices/:id` (Revoke display access).
+
+3. **TV Client (Display):**
+   - Implement "Unprovisioned" state UI (shows Provisioning Code).
+   - Implement polling mechanism to check for token assignment.
+   - Persist Device Token in `localStorage`.
+   - Remove "Auto-Create Board" logic.
+
+4. **Controller Client (Mobile/Web):**
+   - Add "Displays" section in Settings.
+   - Implement "Add Display" modal (Input Provisioning Code).
+   - Visualize linked displays.
+
+### References
+
+- [DATA_MODEL.md](docs/auth/DATA_MODEL.md) — New token type schema.
+- [AUTH_FLOWS.md](docs/auth/AUTH_FLOWS.md) — Device provisioning sequence.
+- [API_SPEC.md](docs/auth/API_SPEC.md) — Device link endpoints.
+
+### Tests
+
+- Integration: Linking valid code creates 'display' token.
+- E2E: TV shows code -> Controller inputs code -> TV receives token -> TV loads board.
+- Integration: Revoking display token forces TV back to "Unprovisioned".
+
+### Outcome
+
+TVs are persistent devices managed by the Controller. "Claiming" flow is retired.
+
+---
+
+## Phase 9: Sequential User Paths & Critical Assertions
+
+**Objective:** Implement and verify all key user paths as defined in [USER_PATHS.md](docs/USER_PATHS.md).
+
+**Methodology:** **STRICT TDD**. For each story, you MUST write the E2E test **FIRST**. The test should assert the "Critical Assertions" defined in USER_PATHS.md. Use the test failure to drive the implementation. The current state must be reconciled to enable the desired behavior.
+
+**CONSTRAINT** Only work on one task at a time - do not move on to the next task until the current task is complete.
+
+### Tasks
+
+#### Story 9.1: The Owner
+1. **TEST:** Create/Update `tests/e2e/stories.spec.ts`. Add test for "Story A". Assert:
+    - User with 0 boards is redirected to `/controller`.
+    - Board is auto-created.
+    - Permissions are `admin`.
+2. **CODE:** Implement specific auto-creation logic and routing changes.
+3. **VERIFY:** Test passes.
+
+#### Story 9.2: The "Dumb" TV
+1. **TEST:** Add test for "Story B". Assert:
+    - Unprovisioned TV shows code.
+    - TV polls for token.
+    - After linking, TV reloads and shows board.
+2. **CODE:** Implement polling, "Link Display" UI, and token exchange.
+3. **VERIFY:** Test passes.
+
+#### Story 9.3: Remote Control Mode
+1. **TEST:** Add test for "Story C". Assert:
+    - User entering `pair_code` gets View access.
+    - "Add" buttons are hidden.
+    - Pagination controls are visible.
+2. **CODE:** Update `PairingView` to handle pair codes vs controller tokens vs invite codes.
+3. **VERIFY:** Test passes.
+
+#### Story 9.4: Generating Invites
+1. **TEST:** Add test for "Story D". Assert:
+    - Admin can generate invite code.
+    - Validate code format/expiry (mocked if needed).
+2. **CODE:** Implement "Generate Invite" endpoint and UI.
+3. **VERIFY:** Test passes.
+
+#### Story 9.5: Redeeming Invites
+1. **TEST:** Add test for "Story E". Assert:
+    - View-only user enters invite code.
+    - Token is swapped for Edit token.
+    - Reload occurs and "Add" buttons appear.
+2. **CODE:** Implement invite redemption and token swap logic.
+3. **VERIFY:** Test passes.
+
+### References
+
+- [docs/USER_PATHS.md](docs/USER_PATHS.md) - **Source of Truth** for detailed steps and assertions.
+
+### Tests
+
+- **File:** `tests/e2e/stories.spec.ts`
+- **Strategy:** Isolate each story into its own test case. Run `npx playwright test tests/e2e/stories.spec.ts` frequently.
+
+### Outcome
+
+Reliable, automatically verified user paths that match the product requirements.
+
+---
+
 ## Summary
 
-| Phase | Objective | Key Deliverable |
-|-------|-----------|-----------------|
-| 1 | Better Auth setup | Users can sign up/in |
-| 2 | Permission middleware | Auth resolution works |
-| 3 | Protect routes | API enforces permissions |
-| 4 | Board claiming | Users own boards |
-| 5 | Client auth UI | Full auth experience |
-| 6 | Token management | Multi-device access |
-| 7 | Polish | Production-ready |
+| Phase | Objective | Key Deliverable | Status |
+|-------|-----------|-----------------|--------|
+| 1 | Better Auth setup | Users can sign up/in | Done |
+| 2 | Permission middleware | Auth resolution works | Done |
+| 3 | Protect routes | API enforces permissions | Done |
+| 4 | Board claiming | Users own boards | Done |
+| 5 | Client auth UI | Full auth experience | Done |
+| 6 | Token management | Multi-device access | Done |
+| 7 | Polish | Production-ready | Done |
+| 8 | TV Persistence | Device Provisioning Model | Done |
+| 9 | User Paths | Implement & Verify Stories A-E | Pending |
 
-Each phase produces a working application. All seven phases can be completed independently with incremental, testable progress.
+Each phase produces a working application. All phases can be completed independently with incremental, testable progress.

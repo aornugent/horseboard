@@ -14,3 +14,7 @@ playwright-report/
 
 # Build output
 dist/
+
+mise.toml
+
+.devcontainer/
