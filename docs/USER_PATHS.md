@@ -484,23 +484,166 @@ Move Time Mode and Zoom controls from Settings to Board tab:
 
 ---
 
+### Phase 6: Cleanup (Greenfield)
+
+**Goal:** Remove legacy code, collapse migrations, eliminate cruft
+
+Since this is a greenfield deployment with no production data, we can be aggressive about cleanup.
+
+#### 6.1 Database Migration Collapse
+
+Collapse 4 migrations into a single `001_schema.sql`:
+
+**Current migrations to merge:**
+- `001_initial_schema.sql` - boards, feeds, horses, diet_entries
+- `002_authentication.sql` - users, sessions, accounts, verifications, controller_tokens, adds account_id to boards
+- `003_add_token_type.sql` - adds `type` column to controller_tokens
+- `005_invite_codes.sql` - invite_codes table
+
+**Target:** Single `001_schema.sql` with final schema state
+
+**Tasks:**
+1. Create new `001_schema.sql` with complete schema
+2. Delete old migration files
+3. Update `migrate.ts` if needed (should auto-detect single file)
+
+**Files to Delete:**
+- `src/server/db/migrations/001_initial_schema.sql`
+- `src/server/db/migrations/002_authentication.sql`
+- `src/server/db/migrations/003_add_token_type.sql`
+- `src/server/db/migrations/005_invite_codes.sql`
+
+**Files to Create:**
+- `src/server/db/migrations/001_schema.sql` (consolidated)
+
+---
+
+#### 6.2 Remove TokensTab
+
+After Phase 2 consolidates tokens into Settings:
+
+**Files to Delete:**
+- `src/client/views/Controller/TokensTab.tsx`
+- `src/client/views/Controller/TokensTab.css`
+
+**Files to Update:**
+- `src/client/views/Controller/index.ts` - remove TokensTab export
+
+---
+
+#### 6.3 Simplify `is_claimed` → `is_owner`
+
+The `is_claimed` concept is legacy from ClaimBoard. Since boards are now auto-created for owners, we only need `is_owner`.
+
+**Current (legacy):**
+```typescript
+ownership: {
+  is_claimed: boolean;  // ← REMOVE
+  is_owner: boolean;
+  permission: 'none' | 'view' | 'edit' | 'admin';
+}
+```
+
+**Target:**
+```typescript
+ownership: {
+  is_owner: boolean;
+  permission: 'none' | 'view' | 'edit' | 'admin';
+}
+```
+
+**Files to Update:**
+- `src/client/stores/index.ts` - remove `is_claimed` from ownership signal
+- `src/client/services/api.ts` - remove `is_claimed` from BootstrapResponse type
+- `src/server/routes/bootstrap.ts` - remove `is_claimed` from ownership response
+
+---
+
+#### 6.4 Remove PairingView (Optional)
+
+After Landing page handles code entry, PairingView may be redundant.
+
+**Analysis:**
+- `Router.tsx` → `GuardedController()` shows PairingView when no board stored
+- If Landing handles code entry and redirects to `/controller`, PairingView is only shown for direct `/controller` access without prior pairing
+
+**Decision:** Keep PairingView as fallback for edge cases (bookmarked `/controller` URL without stored board)
+
+**Alternative:** Redirect `/controller` without board to `/` (simpler)
+
+---
+
+#### 6.5 Remove Dev/Test Scripts
+
+Scripts that were only for development testing:
+
+**Files to Delete:**
+- `scripts/test-auth.ts` - manual auth testing
+- `scripts/test-db-direct.ts` - direct DB testing
+- `scripts/manual_migrate.ts` - if not needed
+
+**Files to Keep:**
+- `scripts/verify-permission-enforcement.ts` - useful for CI/validation
+
+---
+
+#### 6.6 Documentation Cleanup
+
+**Remove deprecated sections:**
+
+`docs/auth/API_SPEC.md`:
+- Remove "Board Claim (Deprecated)" section (lines 40-71)
+
+`docs/auth/CLIENT_IMPL.md`:
+- Remove any ClaimBoard references
+
+`IMPLEMENTATION_PLAN.md`:
+- Remove Phase 8 ClaimBoard deprecation notes (already done)
+
+**Files to Update:**
+- `docs/auth/API_SPEC.md`
+- `AGENTS.md` - remove ClaimBoard references if any
+
+---
+
+#### 6.7 Unused Imports & Dead Code
+
+Run cleanup pass to remove:
+
+1. **Unused imports** in modified files
+2. **Dead CSS** - styles for removed components
+3. **Commented-out code** - remove rather than keep
+
+**Tool:** `npx tsc --noEmit` to find unused exports
+
+---
+
+#### 6.8 Cleanup Checklist
+
+| Target | Action | Status |
+|--------|--------|--------|
+| Migrations | Collapse to single file | [ ] |
+| TokensTab | Delete after consolidation | [ ] |
+| `is_claimed` | Remove from ownership | [ ] |
+| PairingView | Keep as fallback OR redirect | [ ] |
+| Dev scripts | Delete test-auth.ts, test-db-direct.ts | [ ] |
+| API_SPEC.md | Remove deprecated claim section | [ ] |
+| Dead imports | Run tsc --noEmit, fix warnings | [ ] |
+
+---
+
 ## Part 7: Migration Notes
 
-### Breaking Changes
+Since this is a **greenfield deployment**, backwards compatibility is not required. We can make breaking changes freely.
 
-1. **Tokens tab removed** - Users expecting separate tab need to find tokens in Settings → Permissions
-2. **Landing page changed** - Direct board/controller links removed, code entry is primary
+### What Changes
+
+1. **Tokens tab removed** - Consolidated into Settings → Permissions
+2. **Landing page redesigned** - Code entry is primary action
 3. **Settings reorganized** - Time Mode and Zoom moved to Board tab
+4. **`is_claimed` removed** - Simplified to just `is_owner`
+5. **Migrations collapsed** - Single schema file
 
-### Backwards Compatibility
+### No Rollback Needed
 
-1. **Stored tokens continue working** - No changes to token format or validation
-2. **Existing board IDs preserved** - localStorage keys unchanged
-3. **API endpoints unchanged** - All existing endpoints remain functional
-
-### Rollback Plan
-
-If issues arise:
-1. Revert to `auth` branch
-2. Tokens tab and old Settings layout restored
-3. Landing page returns to dual-link layout
+This is greenfield - no production data to migrate. If issues arise, fix forward.
