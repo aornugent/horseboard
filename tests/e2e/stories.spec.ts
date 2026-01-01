@@ -26,10 +26,10 @@ test.describe('Story 9.1: The Owner', () => {
         await expect(page.locator(selectors.settingsTab)).toBeVisible();
 
         // Verify admin sees Displays section (only visible to admin)
-        await expect(page.getByText('Displays', { exact: false })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Displays' })).toBeVisible();
 
-        // Verify admin sees Staff Access section
-        await expect(page.getByText('Staff Access', { exact: false })).toBeVisible();
+        // Verify admin sees Staff Access section (use first() since there are nested headings)
+        await expect(page.getByRole('heading', { name: 'Staff Access' }).first()).toBeVisible();
 
         // Verify Board Name (optional, if UI shows it)
         // Verify Account ID link (backend check or inferred from UI behavior)
@@ -111,14 +111,13 @@ test.describe('Story 9.3: Remote Control Mode', () => {
         const visitorContext = await browser.newContext();
         const visitorPage = await visitorContext.newPage();
 
-        // Visit root
+        // Visit root - Landing page has code entry as primary action (per USER_PATHS.md)
         await visitorPage.goto('/');
+        await expect(visitorPage.locator('[data-testid="landing-view"]')).toBeVisible();
 
-        await visitorPage.click('[data-testid="landing-controller-link"]');
-        await expect(visitorPage.locator(selectors.pairingView)).toBeVisible();
-
-        await visitorPage.locator('[data-testid="pair-code-input"]').fill(pairCode);
-        await visitorPage.locator('[data-testid="pair-btn"]').click();
+        // Enter pair code directly on landing page
+        await visitorPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
+        await visitorPage.locator('[data-testid="landing-connect-btn"]').click();
 
         // 3. Assertions
         // Should load Controller UI
@@ -147,13 +146,13 @@ test.describe('Story 9.3: Remote Control Mode', () => {
         await visitorPage.locator('[data-testid="tab-settings"]').click();
 
         // Should NOT see Displays section (admin only)
-        await expect(visitorPage.getByText('Displays', { exact: false })).not.toBeVisible();
+        await expect(visitorPage.getByRole('heading', { name: 'Displays' })).not.toBeVisible();
 
         // Should NOT see Staff Access section (admin only)
-        await expect(visitorPage.getByText('Staff Access', { exact: false })).not.toBeVisible();
+        await expect(visitorPage.getByRole('heading', { name: 'Staff Access' })).not.toBeVisible();
 
         // Should see Upgrade Access section (for view-only users)
-        await expect(visitorPage.getByText('Upgrade Access', { exact: false })).toBeVisible();
+        await expect(visitorPage.getByRole('heading', { name: 'Upgrade Access' })).toBeVisible();
 
         await ownerContext.close();
         await visitorContext.close();
@@ -237,10 +236,13 @@ test.describe('Story 9.5: Redeeming Invites', () => {
         const visitorContext = await browser.newContext();
         const visitorPage = await visitorContext.newPage();
 
+        // Visit root - Landing page has code entry as primary action (per USER_PATHS.md)
         await visitorPage.goto('/');
-        await visitorPage.click('[data-testid="landing-controller-link"]');
-        await visitorPage.locator('[data-testid="pair-code-input"]').fill(pairCode);
-        await visitorPage.locator('[data-testid="pair-btn"]').click();
+        await expect(visitorPage.locator('[data-testid="landing-view"]')).toBeVisible();
+
+        // Enter pair code directly on landing page
+        await visitorPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
+        await visitorPage.locator('[data-testid="landing-connect-btn"]').click();
 
         await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible();
         await expect(visitorPage.locator(selectors.addHorseBtn)).not.toBeVisible();

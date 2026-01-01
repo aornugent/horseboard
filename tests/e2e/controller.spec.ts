@@ -18,7 +18,8 @@ test.describe('Mobile Controller', () => {
   test.describe('Navigation', () => {
     test('should have correct tabs in navigation', async ({ page }) => {
       const timestamp = Date.now();
-      const email = `test-${timestamp}@example.com`;
+      const random = Math.random().toString(36).substring(2, 8);
+      const email = `test-nav-${timestamp}-${random}@example.com`;
       const password = 'password123';
       const name = 'Test Owner';
 
@@ -57,7 +58,8 @@ test.describe('Mobile Controller', () => {
   // Setup: create a user and board
   test.beforeEach(async ({ page }) => {
     const timestamp = Date.now();
-    const email = `test-${timestamp}@example.com`;
+    const random = Math.random().toString(36).substring(2, 8);
+    const email = `test-${timestamp}-${random}@example.com`;
     const password = 'password123';
     const name = 'Test Owner';
 
