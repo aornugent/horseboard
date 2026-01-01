@@ -1,22 +1,18 @@
 import { signal } from '@preact/signals';
-import { ownership } from '../stores';
 import {
     HorsesTab,
     HorseDetail,
     BoardTab,
     FeedsTab,
     SettingsTab,
-    TokensTab,
 } from './Controller';
 
-type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings' | 'tokens';
+type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings';
 
 const activeTab = signal<ControllerTab>('horses');
 const selectedHorseId = signal<string | null>(null);
 
 export function ControllerView() {
-    const isAdmin = ownership.value.permission === 'admin';
-
     return (
         <div class="controller-view" data-testid="controller-view">
             {selectedHorseId.value ? (
@@ -36,7 +32,6 @@ export function ControllerView() {
                         {activeTab.value === 'feeds' && <FeedsTab />}
                         {activeTab.value === 'board' && <BoardTab />}
                         {activeTab.value === 'settings' && <SettingsTab />}
-                        {activeTab.value === 'tokens' && isAdmin && <TokensTab />}
                     </div>
 
                     <nav class="controller-tabs" data-testid="controller-tabs">
@@ -72,16 +67,6 @@ export function ControllerView() {
                             <TabIcon type="settings" />
                             <span>Settings</span>
                         </button>
-                        {isAdmin && (
-                            <button
-                                class={`tab-btn ${activeTab.value === 'tokens' ? 'active' : ''}`}
-                                data-testid="tab-tokens"
-                                onClick={() => (activeTab.value = 'tokens')}
-                            >
-                                <TabIcon type="tokens" />
-                                <span>Tokens</span>
-                            </button>
-                        )}
                     </nav>
                 </>
             )}
@@ -90,7 +75,7 @@ export function ControllerView() {
 }
 
 interface TabIconProps {
-    type: 'horses' | 'feeds' | 'board' | 'settings' | 'tokens';
+    type: 'horses' | 'feeds' | 'board' | 'settings';
 }
 
 function TabIcon({ type }: TabIconProps) {
@@ -118,12 +103,6 @@ function TabIcon({ type }: TabIconProps) {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
-            </svg>
-        ),
-        tokens: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
         ),
     };
