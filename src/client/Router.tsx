@@ -1,4 +1,4 @@
-import { pathname } from './router';
+import { pathname, navigate } from './router';
 import { board } from './stores';
 import { isInitialized, initializeApp, STORAGE_KEY } from './services/lifecycle';
 import { Landing } from './views/Landing';
@@ -8,6 +8,18 @@ import { ControllerView } from './views/ControllerView';
 import { Board } from './views/Board';
 import { PairingView } from './views/PairingView';
 import { ProvisioningView } from './views/ProvisioningView';
+
+function GuardedLanding() {
+    const storedBoardId = localStorage.getItem(STORAGE_KEY);
+
+    // If user has sticky access, auto-redirect to controller
+    if (storedBoardId && board.value) {
+        navigate('/controller');
+        return null;
+    }
+
+    return <Landing />;
+}
 
 function GuardedController() {
     const needsPairing = !board.value && !isInitialized.value;
@@ -36,8 +48,8 @@ function GuardedBoard() {
     return <Board />;
 }
 
-const routes: Record<string, () => import('preact').JSX.Element> = {
-    '/': Landing,
+const routes: Record<string, () => import('preact').JSX.Element | null> = {
+    '/': GuardedLanding,
     '/login': LoginView,
     '/signup': SignupView,
     '/controller': GuardedController,
@@ -45,6 +57,6 @@ const routes: Record<string, () => import('preact').JSX.Element> = {
 };
 
 export function Router() {
-    const Component = routes[pathname.value] || Landing;
+    const Component = routes[pathname.value] || GuardedLanding;
     return <Component />;
 }
