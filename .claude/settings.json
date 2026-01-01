@@ -6,11 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm install"
-          },
-          {
-            "type": "command",
-            "command": "npx playwright install --with-deps"
+            "command": "npm install --silent && npx playwright install chromium --with-deps > /dev/null 2>&1 || true"
           }
         ]
       }
