@@ -217,11 +217,6 @@
   border-color: transparent;
 }
 
-.settings-account-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
 /* Connected Displays */
 .settings-devices-list {
   display: flex;
@@ -359,127 +354,8 @@
   margin: 0 0 0.5rem;
 }
 
-.settings-permissions-subsection {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--color-bg-secondary);
-}
-
-.settings-permissions-subsection:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
 .settings-display-timezone {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-bg-secondary);
-}
-
-/* Token list styles */
-.settings-tokens-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin: 1rem 0;
-}
-
-.settings-token-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--color-bg-secondary);
-  border-radius: 12px;
-  padding: 1rem;
-}
-
-.settings-token-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
-}
-
-.settings-token-name {
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-size: 1rem;
-}
-
-.settings-token-details {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.settings-token-badge {
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.settings-token-badge.view {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
-}
-
-.settings-token-badge.edit {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-}
-
-/* Token creation modal styles */
-.settings-token-display {
-  background: var(--color-bg-secondary);
-  padding: 1.5rem;
-  border-radius: 12px;
-  text-align: center;
-}
-
-.settings-token-value {
-  font-family: monospace;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--color-accent);
-  margin: 1rem 0;
-  word-break: break-all;
-  user-select: all;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-}
-
-.settings-warning-text {
-  color: #ef4444;
-  font-size: 0.85rem;
-  margin-top: 1rem;
-}
-
-.settings-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.settings-form-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.settings-form-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-.settings-token-form {
-  padding: 1rem 0;
 }

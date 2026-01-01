@@ -43,11 +43,6 @@ async function handleSignOut() {
 
 import { generateInviteCode } from '../../services';
 
-function handleNavigate(path: string) {
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new Event('popstate'));
-}
-
 function SectionStaffAccess() {
   const inviteCode = useSignal<{ code: string; expires_at: string } | null>(null);
   const loading = useSignal(false);
