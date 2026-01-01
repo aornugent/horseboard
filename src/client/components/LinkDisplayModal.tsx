@@ -32,15 +32,16 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
   }
 
   return (
-    <div class="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="modal-content">
-        <h2>Link Display</h2>
-        <p>Enter the code shown on the TV display.</p>
+    <div class="link-display-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div class="link-display-modal-content">
+        <h2 class="link-display-modal-title">Link Display</h2>
+        <p class="link-display-modal-description">Enter the code shown on the TV display.</p>
 
         <form onSubmit={handleSubmit}>
-          <div class="form-group">
+          <div class="link-display-form-group">
             <input
               type="text"
+              class="link-display-input"
               placeholder="ABCDEF"
               maxLength={6}
               value={code.value}
@@ -54,15 +55,20 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
             />
           </div>
 
-          {error.value && <div class="error-message">{error.value}</div>}
+          {error.value && <div class="link-display-error">{error.value}</div>}
 
-          <div class="modal-actions">
-            <button type="button" onClick={onClose} disabled={isLoading.value}>
+          <div class="link-display-actions">
+            <button
+              type="button"
+              class="link-display-btn"
+              onClick={onClose}
+              disabled={isLoading.value}
+            >
               Cancel
             </button>
             <button
               type="submit"
-              class="primary-btn"
+              class="link-display-btn link-display-btn-primary"
               disabled={isLoading.value || code.value.length < 6}
               data-testid="provisioning-submit"
             >
@@ -73,65 +79,95 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
       </div>
 
       <style>{`
-        .modal-overlay {
+        .link-display-modal-overlay {
           position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
+          background: rgba(0, 0, 0, 0.7);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
         }
-        .modal-content {
-          background: var(--bg-primary);
-          padding: 24px;
+        .link-display-modal-content {
+          background: var(--color-bg-primary);
+          padding: 1.5rem;
           border-radius: 12px;
           width: 90%;
           max-width: 400px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
-        .form-group {
-          margin: 20px 0;
+        .link-display-modal-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--color-text-primary);
+          margin: 0 0 0.5rem;
         }
-        input {
+        .link-display-modal-description {
+          font-size: 0.875rem;
+          color: var(--color-text-secondary);
+          margin: 0 0 1.5rem;
+        }
+        .link-display-form-group {
+          margin: 0 0 1rem;
+        }
+        .link-display-input {
           width: 100%;
-          font-size: 24px;
+          font-size: 1.5rem;
           text-align: center;
-          letter-spacing: 4px;
-          padding: 12px;
+          letter-spacing: 0.2em;
+          padding: 1rem;
           text-transform: uppercase;
-          border: 2px solid var(--border);
-          border-radius: 8px;
-          background: var(--bg-secondary);
-          color: var(--text-primary);
+          border: 2px solid transparent;
+          border-radius: 12px;
+          background: var(--color-bg-secondary);
+          color: var(--color-text-primary);
+          font-family: monospace;
+          min-height: 48px;
         }
-        .error-message {
-          color: var(--danger);
-          margin-bottom: 20px;
+        .link-display-input:focus {
+          outline: none;
+          border-color: var(--color-accent);
+        }
+        .link-display-input:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .link-display-error {
+          color: #ef4444;
+          font-size: 0.875rem;
           text-align: center;
+          margin-bottom: 1rem;
         }
-        .modal-actions {
+        .link-display-actions {
           display: flex;
-          gap: 12px;
+          gap: 0.75rem;
           justify-content: flex-end;
         }
-        button {
-          padding: 10px 20px;
-          border-radius: 6px;
-          font-weight: 500;
+        .link-display-btn {
+          padding: 1rem 1.5rem;
+          border-radius: 12px;
+          font-weight: 600;
           cursor: pointer;
           border: none;
-          background: var(--bg-secondary);
-          color: var(--text-primary);
+          background: var(--color-bg-secondary);
+          color: var(--color-text-primary);
+          min-height: 48px;
+          transition: all 0.15s ease;
         }
-        .primary-btn {
-          background: var(--primary);
+        .link-display-btn:hover:not(:disabled) {
+          border-color: var(--color-text-secondary);
+        }
+        .link-display-btn-primary {
+          background: var(--color-primary);
           color: white;
         }
-        button:disabled {
+        .link-display-btn-primary:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+        .link-display-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
