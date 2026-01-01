@@ -2,84 +2,505 @@
 
 This document serves as the source of truth for the multi-tenant architecture refactor. It defines the specific paths users take and the assertions that must be met for each scenario.
 
-## Story A: The Owner
+---
+
+## Part 1: User Stories & Assertions
+
+### Story A: The Owner (Happy Path)
 
 **Scenario:** A new Barn Manager signs up and immediately manages their stable.
 
-### User Path
+#### User Path
 
-1. **User visits `/` on phone** -> Clicks "Get Started".
-2. **Signs Up** (Name/Email/Pass).
-3. **System:** Detects user has 0 boards -> Auto-creates board "My Stable" -> Redirects to `/controller`.
-4. **User lands on Horses Tab** (Empty State).
+1. **User visits `/` on phone** → Sees landing screen with "Enter 6-digit code" as primary action
+2. **User clicks "I'm the owner"** → Routed to `/signup`
+3. **Signs Up** (Name/Email/Pass)
+4. **System:** Detects user has 0 boards → Auto-creates board "My Stable" → Redirects to `/controller`
+5. **User lands on Horses Tab** (Empty State)
 
-### Critical Assertions
+#### Critical Assertions
 
-- [ ] User has **admin** permission.
-- [ ] Board `account_id` matches User ID.
-- [ ] No "Pairing View" is shown; they go straight to the app.
+- [ ] User has **admin** permission
+- [ ] Board `account_id` matches User ID
+- [ ] No "Pairing View" is shown; they go straight to the app
+- [ ] All edit controls visible immediately
 
-## Story B: The "Dumb" TV (Hardware Provisioning)
+---
+
+### Story B: The "Dumb" TV (Hardware Provisioning)
 
 **Scenario:** Linking a new TV to the stable.
 
-### User Path
+#### User Path
 
-1. **TV:** Opens `/board`. Checks `localStorage` (empty). Displays giant code `99-AA-BB`. Polls `/api/devices/poll`.
-2. **Owner (Phone):** Settings -> Displays -> "Link Display". Enters `99-AA-BB`.
-3. **System:** Validates code -> Generates display token -> Links to Owner's Board.
-4. **TV:** Poll returns `{ token: "hb_..." }`. TV saves token -> Reloads.
+1. **TV:** Opens `/board`. Checks `localStorage` (empty). Displays giant code `99-AA-BB`. Polls `/api/devices/poll`
+2. **Owner (Phone):** Settings → Displays → "Link Display". Enters `99-AA-BB`
+3. **System:** Validates code → Generates display token → Links to Owner's Board
+4. **TV:** Poll returns `{ token: "hb_..." }`. TV saves token → Reloads
 
-### Critical Assertions
+#### Critical Assertions
 
-- [ ] TV now renders the Grid View.
-- [ ] TV has **view** permission.
-- [ ] TV persists token across reloads.
+- [ ] TV now renders the Grid View
+- [ ] TV has **view** permission
+- [ ] TV persists token across reloads
 
-## Story C: Remote Control Mode
+---
+
+### Story C: Remote Control Mode (Staff View-Only)
 
 **Scenario:** A groom wants to see notes and control the TV pages without an account.
 
-### User Path
+#### User Path
 
-1. **Context:** TV is running. Header shows permanent Pair Code (e.g., `123-456`).
-2. **Phone:** Visitor loads `/`. Clicks "Connect to Board". Enters `123-456`.
-3. **System:** Returns **view** token.
-4. **Phone:** Loads Controller UI.
+1. **Context:** TV is running. Header shows permanent Pair Code (e.g., `123456`)
+2. **Phone:** Visitor loads `/`. Enters `123456` in the code input
+3. **System:** Returns **view** token
+4. **Phone:** Loads Controller UI in read-only mode
 
-### Critical Assertions
+#### Critical Assertions
 
-- [ ] "Add Horse" / "Add Feed" buttons are **HIDDEN**.
-- [ ] Clicking a Horse shows details (Read Only).
-- [ ] **Crucial:** Pagination controls (Next/Prev Page) ARE VISIBLE and functional (User can drive the TV).
+- [ ] "Add Horse" / "Add Feed" buttons are **HIDDEN**
+- [ ] Clicking a Horse shows details (Read Only)
+- [ ] **Crucial:** Pagination controls (Next/Prev Page) ARE VISIBLE and functional (User can drive the TV)
 
-## Story D: Generating Invites (Owner)
+---
+
+### Story D: Generating Invites (Owner)
 
 **Scenario:** Owner needs to give staff Edit access.
 
-### User Path
+#### User Path
 
-1. **Owner** goes to Settings -> Staff Access -> "Generate Invite Code".
-2. **System** returns short code `555-888` (Valid 15 mins).
+1. **Owner** goes to Settings → Permissions → "Generate Invite Code"
+2. **System** returns short code `555888` (Valid 15 mins)
 
-### Critical Assertions
+#### Critical Assertions
 
-- [ ] Only **Admins** can generate this.
-- [ ] Code is **distinct** from the permanent Board Pair Code.
+- [ ] Only **Admins** can generate this
+- [ ] Code is **distinct** from the permanent Board Pair Code
 
-## Story E: Redeeming Invites
+---
+
+### Story E: Redeeming Invites
 
 **Scenario:** A user (who might already be a Visitor) enters an Invite Code to get Edit access.
 
-### User Path
+#### User Path
 
-1. **User** (currently View Only) clicks "Enter Invite Code".
-2. **Inputs** `555-888`.
-3. **System:** Exchanges code for permanent **edit** token.
-4. **Client:** Overwrites `hb_view_token` in `localStorage` with `hb_edit_token`. Triggers full reload.
+1. **User** (currently View Only) goes to Settings → "Enter Invite Code"
+2. **Inputs** `555888`
+3. **System:** Exchanges code for permanent **edit** token
+4. **Client:** Overwrites `hb_view_token` in `localStorage` with `hb_edit_token`. Triggers full reload
 
-### Critical Assertions
+#### Critical Assertions
 
-- [ ] App does not crash during token swap.
-- [ ] "Add Horse" buttons appear immediately after reload.
-- [ ] Old View token is abandoned (orphaned).
+- [ ] App does not crash during token swap
+- [ ] "Add Horse" buttons appear immediately after reload
+- [ ] Old View token is abandoned (orphaned)
+
+---
+
+### Story F: Returning User (Session Restore)
+
+**Scenario:** User reloads the app after previously connecting.
+
+#### User Path
+
+1. **User** opens `/` or `/controller`
+2. **System:** Checks `localStorage` for stored board ID
+3. **If found:** Auto-redirects to `/controller`, restores session
+4. **Board loads** with same permission level as before
+
+#### Critical Assertions
+
+- [ ] No re-pairing required
+- [ ] Permission level persisted correctly
+- [ ] SSE reconnects automatically
+
+---
+
+## Part 2: Core UX Model
+
+### Design Principles
+
+> "There is one board. People interact with it at different permission levels.
+> Access always starts with a 6-digit code."
+
+The UI reinforces this everywhere.
+
+### Primary Actors
+
+| Actor | Description | Entry Point |
+|-------|-------------|-------------|
+| **Board (TV)** | Passive display. Shows 6-digit code when idle/unlinked. Code grants view + board controls only. | `/board` |
+| **Staff** | Casual, repeat visitors. Enter code once, get sticky view-only access. Can page feeds / control board. Never see "accounts", "tokens", or "setup". | `/` → Enter code |
+| **Owner/Manager** | Power user with expanded surfaces. Can generate codes, manage displays, manage permissions. | `/` → Sign up/in |
+
+### What Disappears
+
+| Concept | Replacement |
+|---------|-------------|
+| ClaimBoard | Provisioning replaces it entirely. Boards aren't "claimed"; displays are linked. |
+| Token language in UI | Tokens remain internal plumbing only |
+| Pairing vs invite vs token | Users only ever "enter a code" |
+| Tokens tab | Consolidated into Settings → Permissions |
+
+---
+
+## Part 3: Entry & Routing UX
+
+### Landing Page (`/`)
+
+The `/` route becomes a single, calm entry point that works for everyone without asking them to self-identify.
+
+#### Primary Action (Front and center)
+
+```
+┌─────────────────────────────────────┐
+│                                     │
+│           HorseBoard                │
+│     Barn Feed Management System     │
+│                                     │
+│  ┌─────────────────────────────┐    │
+│  │      Enter 6-digit code     │    │
+│  │      [______123456______]   │    │
+│  │                             │    │
+│  │        [ Connect ]          │    │
+│  └─────────────────────────────┘    │
+│                                     │
+│         ─────── or ───────          │
+│                                     │
+│     I'm the owner / manager         │
+│           Sign in                   │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+#### Secondary Actions (Quiet, optional)
+
+Below or behind a subtle divider:
+- "I'm the owner / manager" → `/signup`
+- "Sign in" → `/login`
+
+These are not required to proceed.
+
+#### Routing Behavior
+
+| Condition | Action |
+|-----------|--------|
+| Valid 6-digit code entered | Exchange for access, store in localStorage, route to `/controller` |
+| User signs in (no board) | Route to `/controller`, prompt to create board or link display |
+| Sticky access exists | Auto-redirect to `/controller` |
+| User goes to `/board` | TV provisioning flow (never navigated by humans) |
+
+---
+
+## Part 4: Settings Tab Organization
+
+### Current State (Problems)
+
+1. **Mixed concerns:** Time Mode, Zoom, Timezone mixed with Account/Displays
+2. **TokensTab separate:** Admin-only tab that should be in Settings
+3. **Display controls in Settings:** Should be in Board tab
+4. **No clear sections:** Hard to find what you need
+
+### Target State (Redesign)
+
+Settings becomes clearly segmented based on user role:
+
+#### For All Users
+
+```
+┌─────────────────────────────────────┐
+│ Settings                            │
+├─────────────────────────────────────┤
+│                                     │
+│ ACCOUNT                             │
+│ ┌─────────────────────────────────┐ │
+│ │ Jane Smith                      │ │
+│ │ jane@stable.com                 │ │
+│ │ Role: Owner                     │ │
+│ │                                 │ │
+│ │ [Sign Out]                      │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ─────────────────────────────────── │
+│                                     │
+│ UPGRADE ACCESS (view-only users)    │
+│ ┌─────────────────────────────────┐ │
+│ │ Have an invite code?            │ │
+│ │ [Enter Invite Code]             │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ─────────────────────────────────── │
+│                                     │
+│ BOARD INFO                          │
+│ ┌─────────────────────────────────┐ │
+│ │ Pair Code: 123456               │ │
+│ │ Board ID: abc123...             │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+#### For Owners/Admins (Additional Sections)
+
+```
+│ DISPLAYS                            │
+│ ┌─────────────────────────────────┐ │
+│ │ Barn TV         [Unlink]        │ │
+│ │ Added: Jan 1, 2026              │ │
+│ │                                 │ │
+│ │ [Link New Display]              │ │
+│ │                                 │ │
+│ │ Timezone: Sydney (AEST)    [▼]  │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ─────────────────────────────────── │
+│                                     │
+│ PERMISSIONS                         │
+│ ┌─────────────────────────────────┐ │
+│ │ Staff Access                    │ │
+│ │ Generate a temporary code to    │ │
+│ │ give staff 'Edit' access        │ │
+│ │                                 │ │
+│ │ [Generate Invite Code]          │ │
+│ │                                 │ │
+│ │ ─────────────────────────────── │ │
+│ │                                 │ │
+│ │ API Tokens (Advanced)           │ │
+│ │ For developers and integrations │ │
+│ │                                 │ │
+│ │ • Barn iPad (edit) [Revoke]     │ │
+│ │ • Staff Phone (view) [Revoke]   │ │
+│ │                                 │ │
+│ │ [Create Token]                  │ │
+│ └─────────────────────────────────┘ │
+```
+
+### Board Tab: Display Controls Drawer
+
+Move Time Mode and Zoom controls from Settings to Board tab:
+
+```
+┌─────────────────────────────────────┐
+│ Board Preview                  [AM] │
+├─────────────────────────────────────┤
+│                                     │
+│ ┌─────────────────────────────────┐ │
+│ │ [◀ Allocations] Page 1 [Next ▶] │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ┌─────────────────────────────────┐ │
+│ │                                 │ │
+│ │     [TV Preview Grid]           │ │
+│ │                                 │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ┌─ Display Controls ──────────────┐ │
+│ │                                 │ │
+│ │ Time Mode  [Auto] [AM] [PM]     │ │
+│ │                                 │ │
+│ │ Zoom       [S] [M] [L]          │ │
+│ │                                 │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+---
+
+## Part 5: Implementation Plan
+
+### Phase 1: Landing Page Redesign
+
+**Goal:** Single entry point with 6-digit code as primary action
+
+#### Tasks
+
+1. **Update `Landing.tsx`**
+   - Replace current dual-link layout with code entry form
+   - Add primary "Connect" button
+   - Add secondary "I'm the owner" and "Sign in" links
+   - Handle code submission → call `pairWithCode()`
+   - On success → store in localStorage → navigate to `/controller`
+
+2. **Update `Router.tsx`**
+   - Add auto-redirect logic: if localStorage has board ID, skip Landing
+   - Ensure `/controller` guard checks auth before showing PairingView
+
+3. **Add CSS for new landing layout** (`Auth.css` or new `Landing.css`)
+
+#### Files to Modify
+- `src/client/views/Landing.tsx`
+- `src/client/Router.tsx`
+- `src/client/views/Auth.css`
+
+---
+
+### Phase 2: Settings Tab Reorganization
+
+**Goal:** Clear sections for Account, Displays, Permissions
+
+#### Tasks
+
+1. **Restructure `SettingsTab.tsx`**
+   - Create section components: `SectionAccount`, `SectionDisplays`, `SectionPermissions`, `SectionBoardInfo`
+   - Move `SectionStaffAccess` into `SectionPermissions`
+   - Move `SectionRedeemInvite` into Account area for non-owners
+   - Conditionally show Displays and Permissions sections for owners only
+
+2. **Consolidate TokensTab into Settings**
+   - Move token list/create/revoke UI into `SectionPermissions` as "API Tokens (Advanced)"
+   - Add collapsible/expandable state for advanced section
+   - Remove TokensTab from nav bar
+
+3. **Move Timezone to Displays section**
+   - Group timezone selector with display management
+   - Rationale: timezone affects how displays show time
+
+4. **Update `ControllerView.tsx`**
+   - Remove Tokens tab from navigation
+   - Remove `TokensTab` import
+
+#### Files to Modify
+- `src/client/views/Controller/SettingsTab.tsx`
+- `src/client/views/Controller/SettingsTab.css`
+- `src/client/views/ControllerView.tsx`
+
+#### Files to Delete
+- `src/client/views/Controller/TokensTab.tsx` (after consolidation)
+- `src/client/views/Controller/TokensTab.css`
+
+---
+
+### Phase 3: Board Tab Display Controls
+
+**Goal:** Move display-related controls (Time Mode, Zoom) to Board tab
+
+#### Tasks
+
+1. **Create Display Controls drawer in `BoardTab.tsx`**
+   - Add collapsible "Display Controls" section
+   - Move Time Mode selector from Settings
+   - Move Zoom selector from Settings
+   - Only show controls if user has edit permission
+
+2. **Update `BoardTab.css`**
+   - Style the display controls drawer
+   - Ensure mobile-friendly layout
+
+3. **Remove controls from `SettingsTab.tsx`**
+   - Delete Time Mode section
+   - Delete Display Zoom section
+   - Keep only Account, Displays, Permissions, Board Info
+
+#### Files to Modify
+- `src/client/views/Controller/BoardTab.tsx`
+- `src/client/views/Controller/BoardTab.css`
+- `src/client/views/Controller/SettingsTab.tsx`
+
+---
+
+### Phase 4: Auth Flow Polish
+
+**Goal:** Ensure smooth owner signup → auto-board-creation flow
+
+#### Tasks
+
+1. **Update `SignupView.tsx`**
+   - After successful signup, check for existing boards
+   - If zero boards, call `createBoard()` automatically
+   - Navigate to `/controller`
+
+2. **Update `LoginView.tsx`**
+   - After successful login, fetch user's boards
+   - If exactly one board, auto-select it
+   - Navigate to `/controller`
+
+3. **Add `/api/user/boards` endpoint** (if not exists)
+   - Returns list of boards user has access to
+   - Used for multi-board support (future)
+
+#### Files to Modify
+- `src/client/views/SignupView.tsx`
+- `src/client/views/LoginView.tsx`
+- `src/server/routes/users.ts` (if endpoint missing)
+
+---
+
+### Phase 5: Test Updates
+
+**Goal:** E2E tests validate new flows
+
+#### Tasks
+
+1. **Update `auth.spec.ts`**
+   - Test landing page code entry flow
+   - Test owner signup → auto-board-creation
+   - Test returning user auto-redirect
+
+2. **Update `stories.spec.ts`**
+   - Verify Story A-F assertions
+   - Test Settings tab sections visibility by role
+
+3. **Update `controller.spec.ts`**
+   - Verify Tokens tab removed from nav
+   - Verify display controls in Board tab
+
+#### Files to Modify
+- `tests/e2e/auth.spec.ts`
+- `tests/e2e/stories.spec.ts`
+- `tests/e2e/controller.spec.ts`
+
+---
+
+## Part 6: Component Reference
+
+### Current Components (Auth Branch)
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `Landing` | `views/Landing.tsx` | Entry point, needs redesign |
+| `LoginView` | `views/LoginView.tsx` | Email/password login |
+| `SignupView` | `views/SignupView.tsx` | New user registration |
+| `PairingView` | `views/PairingView.tsx` | Code entry for controller |
+| `ProvisioningView` | `views/ProvisioningView.tsx` | TV display provisioning |
+| `ControllerView` | `views/ControllerView.tsx` | Main controller shell |
+| `SettingsTab` | `views/Controller/SettingsTab.tsx` | Settings, needs reorganization |
+| `TokensTab` | `views/Controller/TokensTab.tsx` | API tokens, to be consolidated |
+| `BoardTab` | `views/Controller/BoardTab.tsx` | TV preview, needs controls |
+
+### Shared Services
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `pairWithCode` | `services/api.ts` | Exchange 6-digit code for access |
+| `createBoard` | `services/api.ts` | Create new board |
+| `redeemInvite` | `services/api.ts` | Upgrade access with invite code |
+| `generateInviteCode` | `services/api.ts` | Generate invite for staff |
+| `listDevices` | `services/api.ts` | List linked TV displays |
+| `listControllerTokens` | `services/api.ts` | List API tokens |
+
+---
+
+## Part 7: Migration Notes
+
+### Breaking Changes
+
+1. **Tokens tab removed** - Users expecting separate tab need to find tokens in Settings → Permissions
+2. **Landing page changed** - Direct board/controller links removed, code entry is primary
+3. **Settings reorganized** - Time Mode and Zoom moved to Board tab
+
+### Backwards Compatibility
+
+1. **Stored tokens continue working** - No changes to token format or validation
+2. **Existing board IDs preserved** - localStorage keys unchanged
+3. **API endpoints unchanged** - All existing endpoints remain functional
+
+### Rollback Plan
+
+If issues arise:
+1. Revert to `auth` branch
+2. Tokens tab and old Settings layout restored
+3. Landing page returns to dual-link layout
