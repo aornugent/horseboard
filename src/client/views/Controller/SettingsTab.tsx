@@ -1,26 +1,22 @@
 import {
   board,
-  configuredMode,
-  effectiveTimeMode,
-  zoomLevel,
   timezone,
-  updateTimeMode,
-  setZoomLevel,
   user,
   authClient,
   ownership,
 } from '../../stores';
-import { updateTimeMode as apiUpdateTimeMode, updateBoard as apiUpdateBoard, redeemInvite } from '../../services';
-import {
-  TIME_MODES,
-  TIME_MODE,
-  TIME_MODE_CONFIG,
-  type TimeMode,
-} from '@shared/resources';
+import { updateBoard as apiUpdateBoard, redeemInvite } from '../../services';
 import { LinkDisplayModal } from '../../components/LinkDisplayModal';
 import { listDevices, revokeDeviceToken } from '../../services';
+import {
+  listControllerTokens,
+  createControllerToken,
+  revokeControllerToken,
+  type ControllerToken
+} from '../../services';
+import { Modal } from '../../components/Modal';
 import { useSignal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import './SettingsTab.css';
 
 // Common timezones for horse farms
@@ -35,43 +31,6 @@ const TIMEZONES = [
   { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
   { value: 'UTC', label: 'UTC' },
 ];
-
-const TIME_MODE_OPTIONS = TIME_MODES.map(mode => ({
-  value: mode,
-  ...TIME_MODE_CONFIG[mode],
-}));
-
-const ZOOM_LEVELS: Array<{ value: 1 | 2 | 3; label: string; description: string }> = [
-  { value: 1, label: 'Small', description: 'More horses visible' },
-  { value: 2, label: 'Medium', description: 'Balanced view' },
-  { value: 3, label: 'Large', description: 'Easier to read' },
-];
-
-async function saveTimeMode(mode: TimeMode) {
-  if (!board.value) return;
-
-  const override_until = mode !== TIME_MODE.AUTO
-    ? new Date(Date.now() + 60 * 60 * 1000).toISOString()
-    : null;
-
-  try {
-    await apiUpdateTimeMode(board.value.id, mode, override_until);
-    updateTimeMode(mode, override_until);
-  } catch (err) {
-    console.error('Failed to update time mode:', err);
-  }
-}
-
-async function saveZoomLevel(level: 1 | 2 | 3) {
-  if (!board.value) return;
-
-  try {
-    await apiUpdateBoard(board.value.id, { zoom_level: level });
-    setZoomLevel(level);
-  } catch (err) {
-    console.error('Failed to update zoom level:', err);
-  }
-}
 
 async function saveTimezone(tz: string) {
   if (!board.value) return;
@@ -151,7 +110,7 @@ function SectionStaffAccess() {
   );
 }
 
-function SectionRedeemInvite() {
+function SectionUpgradeAccess() {
   const showInput = useSignal(false);
   const code = useSignal('');
   const loading = useSignal(false);
@@ -217,6 +176,240 @@ function SectionRedeemInvite() {
       >
         Cancel
       </button>
+    </section>
+  );
+}
+
+function SectionPermissions() {
+  const [showTokens, setShowTokens] = useState(false);
+  const [tokens, setTokens] = useState<ControllerToken[]>([]);
+  const [loadingTokens, setLoadingTokens] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [tokenName, setTokenName] = useState('');
+  const [tokenPermission, setTokenPermission] = useState<'view' | 'edit'>('view');
+  const [creating, setCreating] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [newToken, setNewToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showTokens && !loadingTokens && tokens.length === 0) {
+      loadTokens();
+    }
+  }, [showTokens]);
+
+  async function loadTokens() {
+    if (!board.value) return;
+    try {
+      setLoadingTokens(true);
+      const data = await listControllerTokens(board.value.id);
+      setTokens(data);
+    } catch (err) {
+      console.error('Failed to load tokens:', err);
+    } finally {
+      setLoadingTokens(false);
+    }
+  }
+
+  async function handleCreateToken(e: Event) {
+    e.preventDefault();
+    if (!board.value || !tokenName) return;
+
+    try {
+      setCreating(true);
+      const result = await createControllerToken(
+        board.value.id,
+        tokenName,
+        tokenPermission
+      );
+      setNewToken(result.token);
+      await loadTokens();
+    } catch (err) {
+      console.error('Failed to create token:', err);
+      alert('Failed to create token');
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRevokeToken(id: string) {
+    if (!confirm('Are you sure you want to revoke this token? It will stop working immediately.')) {
+      return;
+    }
+
+    try {
+      setRevokingId(id);
+      await revokeControllerToken(id);
+      await loadTokens();
+    } catch (err) {
+      console.error('Failed to revoke token:', err);
+      alert('Failed to revoke token');
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  function closeCreateModal() {
+    setIsCreateModalOpen(false);
+    setNewToken(null);
+    setTokenName('');
+    setTokenPermission('view');
+  }
+
+  function copyToken() {
+    if (newToken) {
+      navigator.clipboard.writeText(newToken);
+      alert('Token copied to clipboard!');
+    }
+  }
+
+  function formatDate(dateStr: string | null) {
+    if (!dateStr) return 'Never';
+    return new Date(dateStr).toLocaleDateString();
+  }
+
+  return (
+    <section class="settings-section">
+      <h3 class="settings-section-title">Permissions</h3>
+
+      <div class="settings-permissions-subsection">
+        <h4 class="settings-subsection-title">Staff Access</h4>
+        <p class="settings-section-description">
+          Generate a temporary code to give staff 'Edit' access
+        </p>
+        <SectionStaffAccess />
+      </div>
+
+      <div class="settings-permissions-subsection">
+        <h4 class="settings-subsection-title">API Tokens (Advanced)</h4>
+        <p class="settings-section-description">
+          For developers and integrations
+        </p>
+
+        {!showTokens ? (
+          <button
+            class="settings-btn settings-btn-block"
+            onClick={() => setShowTokens(true)}
+          >
+            Show API Tokens
+          </button>
+        ) : (
+          <>
+            {loadingTokens && tokens.length === 0 ? (
+              <div class="settings-empty-state">Loading tokens...</div>
+            ) : tokens.length === 0 ? (
+              <div class="settings-empty-state">
+                <p>No API tokens created yet.</p>
+              </div>
+            ) : (
+              <div class="settings-tokens-list">
+                {tokens.map(token => (
+                  <div class="settings-token-item" key={token.id}>
+                    <div class="settings-token-info">
+                      <span class="settings-token-name">{token.name}</span>
+                      <div class="settings-token-details">
+                        <span class={`settings-token-badge ${token.permission}`}>
+                          {token.permission}
+                        </span>
+                        <span>Created: {formatDate(token.created_at)}</span>
+                        <span>Used: {formatDate(token.last_used_at)}</span>
+                      </div>
+                    </div>
+                    <button
+                      class="settings-btn settings-btn-danger settings-btn-small"
+                      disabled={revokingId === token.id}
+                      onClick={() => handleRevokeToken(token.id)}
+                    >
+                      {revokingId === token.id ? 'Revoking...' : 'Revoke'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              class="settings-btn settings-btn-primary settings-btn-block"
+              onClick={() => setIsCreateModalOpen(true)}
+              data-testid="create-token-btn"
+            >
+              Create Token
+            </button>
+
+            <button
+              class="settings-btn settings-btn-text"
+              onClick={() => setShowTokens(false)}
+            >
+              Hide API Tokens
+            </button>
+          </>
+        )}
+      </div>
+
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={closeCreateModal}
+        title={newToken ? "Token Created" : "Create Controller Token"}
+      >
+        {newToken ? (
+          <div class="settings-token-display">
+            <p>This is the only time you will see this token.</p>
+            <div class="settings-token-value">{newToken}</div>
+            <button class="settings-btn settings-btn-block" onClick={copyToken}>
+              Copy to Clipboard
+            </button>
+            <p class="settings-warning-text">
+              Store this token safely. It grants access to your board.
+            </p>
+            <div class="settings-form-actions">
+              <button class="settings-btn settings-btn-primary settings-btn-block" onClick={closeCreateModal}>
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form class="settings-token-form" onSubmit={handleCreateToken}>
+            <div class="settings-form-group">
+              <label class="settings-form-label">Token Name</label>
+              <input
+                type="text"
+                class="settings-input"
+                placeholder="e.g. Barn iPad, Staff Phone"
+                value={tokenName}
+                onInput={(e) => setTokenName((e.target as HTMLInputElement).value)}
+                required
+              />
+            </div>
+
+            <div class="settings-form-group">
+              <label class="settings-form-label">Permission Level</label>
+              <select
+                class="settings-select"
+                value={tokenPermission}
+                onChange={(e) => setTokenPermission((e.target as HTMLSelectElement).value as 'view' | 'edit')}
+              >
+                <option value="view">View Only (Read-only)</option>
+                <option value="edit">Edit (Full Control)</option>
+              </select>
+            </div>
+
+            <div class="settings-form-actions">
+              <button
+                type="button"
+                class="settings-btn"
+                onClick={closeCreateModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="settings-btn settings-btn-primary"
+                disabled={creating || !tokenName}
+              >
+                {creating ? 'Creating...' : 'Create Token'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </section>
   );
 }
@@ -293,57 +486,30 @@ export function SettingsTab() {
         )}
       </section>
 
-      {!canEdit && <SectionRedeemInvite />}
+      {!canEdit && <SectionUpgradeAccess />}
 
-      <section class="settings-section">
-        <h3 class="settings-section-title">Time Mode</h3>
-        <p class="settings-section-description">
-          Current: <strong data-testid="effective-time-mode">{effectiveTimeMode.value}</strong>
-        </p>
-        <div class="settings-button-group" data-testid="time-mode-selector">
-          {TIME_MODE_OPTIONS.map(mode => (
-            <button
-              key={mode.value}
-              class={`settings-btn ${configuredMode.value === mode.value ? 'active' : ''}`}
-              data-testid={`time-mode-${mode.value.toLowerCase()}`}
-              onClick={() => canEdit && saveTimeMode(mode.value)}
-              disabled={!canEdit}
-            >
-              <span class="settings-btn-label">{mode.label}</span>
-              <span class="settings-btn-description">{mode.description}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section class="settings-section">
-        <h3 class="settings-section-title">Display Zoom</h3>
-        <p class="settings-section-description">
-          Adjust text size on the TV display
-        </p>
-        <div class="settings-button-group" data-testid="zoom-selector">
-          {ZOOM_LEVELS.map(level => (
-            <button
-              key={level.value}
-              class={`settings-btn ${zoomLevel.value === level.value ? 'active' : ''}`}
-              data-testid={`zoom-level-${level.value}`}
-              onClick={() => canEdit && saveZoomLevel(level.value)}
-              disabled={!canEdit}
-            >
-              <span class="settings-btn-label">{level.label}</span>
-              <span class="settings-btn-description">{level.description}</span>
-            </button>
-          ))}
+      <section class="settings-section settings-info">
+        <h3 class="settings-section-title">Board Info</h3>
+        <div class="settings-info-grid">
+          <div class="settings-info-item">
+            <span class="settings-info-label">Pair Code</span>
+            <span class="settings-info-value" data-testid="board-pair-code">
+              {board.value.pair_code}
+            </span>
+          </div>
+          <div class="settings-info-item">
+            <span class="settings-info-label">Board ID</span>
+            <span class="settings-info-value settings-info-value-small" data-testid="board-id">
+              {board.value.id.slice(0, 8)}...
+            </span>
+          </div>
         </div>
       </section>
 
       {ownership.value.is_owner && (
         <>
           <section class="settings-section">
-            <h3 class="settings-section-title">Connected Displays</h3>
-            <p class="settings-section-description">
-              Manage TV displays linked to your board
-            </p>
+            <h3 class="settings-section-title">Displays</h3>
 
             <div class="settings-devices-list">
               {linkedDevices.value.length === 0 ? (
@@ -373,9 +539,31 @@ export function SettingsTab() {
             >
               Link New Display
             </button>
+
+            <div class="settings-display-timezone">
+              <h4 class="settings-subsection-title">Timezone</h4>
+              <p class="settings-section-description">
+                Used for automatic AM/PM calculation
+              </p>
+              <div class="settings-select-wrapper">
+                <select
+                  class="settings-select"
+                  data-testid="timezone-selector"
+                  value={timezone.value}
+                  onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
+                  disabled={!canEdit}
+                >
+                  {TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </section>
 
-          <SectionStaffAccess />
+          <SectionPermissions />
         </>
       )}
 
@@ -385,47 +573,6 @@ export function SettingsTab() {
           onSuccess={() => listDevices().then(d => linkedDevices.value = d)}
         />
       )}
-
-      {/* Timezone Section */}
-      <section class="settings-section">
-        <h3 class="settings-section-title">Timezone</h3>
-        <p class="settings-section-description">
-          Used for automatic AM/PM calculation
-        </p>
-        <div class="settings-select-wrapper">
-          <select
-            class="settings-select"
-            data-testid="timezone-selector"
-            value={timezone.value}
-            onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
-            disabled={!canEdit}
-          >
-            {TIMEZONES.map(tz => (
-              <option key={tz.value} value={tz.value}>
-                {tz.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      <section class="settings-section settings-info">
-        <h3 class="settings-section-title">Board Info</h3>
-        <div class="settings-info-grid">
-          <div class="settings-info-item">
-            <span class="settings-info-label">Pair Code</span>
-            <span class="settings-info-value" data-testid="board-pair-code">
-              {board.value.pair_code}
-            </span>
-          </div>
-          <div class="settings-info-item">
-            <span class="settings-info-label">Board ID</span>
-            <span class="settings-info-value settings-info-value-small" data-testid="board-id">
-              {board.value.id.slice(0, 8)}...
-            </span>
-          </div>
-        </div>
-      </section>
     </div >
   );
 }
