@@ -240,4 +240,84 @@ test.describe('Device Provisioning', () => {
         await tvContext.close();
         await ownerContext.close();
     });
+
+    test('TV reverts to provisioning mode after token is revoked', async ({ browser, request }) => {
+        // This test verifies the fix for: revoking a display from settings
+        // should cause the TV to revert to provisioning mode
+
+        const tvCode = 'REVOKE1';
+
+        // --- SETUP: Owner creates account and board ---
+        const ownerContext = await browser.newContext();
+        const ownerPage = await ownerContext.newPage();
+
+        // Sign up owner
+        await ownerPage.goto('/signup');
+        await ownerPage.fill('[data-testid=name-input]', 'Revoke Test Owner');
+        await ownerPage.fill('[data-testid=email-input]', `revoke-${Date.now()}@example.com`);
+        await ownerPage.fill('[data-testid=password-input]', 'password123');
+        await ownerPage.click('[data-testid=submit-btn]');
+        await expect(ownerPage).toHaveURL(/\/controller/);
+
+        // Create board
+        await expect(ownerPage.getByTestId('create-board-btn')).toBeVisible({ timeout: 10000 });
+        await ownerPage.getByTestId('create-board-btn').click();
+        await expect(ownerPage.getByTestId('controller-tabs')).toBeVisible({ timeout: 10000 });
+
+        // --- STEP 1: Register TV provisioning code ---
+        const pollRes1 = await request.get(`/api/devices/poll?code=${tvCode}`);
+        expect((await pollRes1.json()).pending).toBe(true);
+
+        // --- STEP 2: Owner links the display ---
+        await ownerPage.getByTestId('tab-settings').click();
+        await expect(ownerPage.getByTestId('add-display-btn')).toBeVisible();
+        await ownerPage.getByTestId('add-display-btn').click();
+        await ownerPage.fill('input[placeholder="ABCDEF"]', tvCode);
+        await ownerPage.click('button:has-text("Link Display")');
+        await expect(ownerPage.locator('.settings-device-name')).toContainText(`Display ${tvCode}`);
+
+        // Get the token via polling
+        const pollRes2 = await request.get(`/api/devices/poll?code=${tvCode}`);
+        const { token } = await pollRes2.json();
+        expect(token).toBeTruthy();
+
+        // Get the board ID from owner's localStorage
+        const boardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
+        expect(boardId).toBeTruthy();
+
+        // --- STEP 3: TV browser gets the token and shows board ---
+        const tvContext = await browser.newContext();
+        const tvPage = await tvContext.newPage();
+
+        await tvPage.goto('/');
+        // Set both token and board ID
+        await tvPage.evaluate(({ t, b }) => {
+            localStorage.setItem('horseboard_controller_token', t);
+            localStorage.setItem('horseboard_board_id', b);
+        }, { t: token, b: boardId! });
+
+        // Navigate to /board - should work initially
+        await tvPage.goto('/board');
+        await tvPage.waitForTimeout(2000);
+
+        // Verify TV is NOT showing provisioning (it should show board content)
+        await expect(tvPage.locator('[data-testid="provisioning-code"]')).not.toBeVisible({ timeout: 5000 });
+
+        // --- STEP 4: Owner revokes the display ---
+        ownerPage.on('dialog', dialog => dialog.accept());
+        await ownerPage.click('button:has-text("Unlink")');
+        await expect(ownerPage.locator('.settings-device-name')).not.toBeVisible();
+
+        // --- STEP 5: TV reloads - should now show provisioning mode ---
+        await tvPage.reload();
+        await tvPage.waitForTimeout(2000);
+
+        // THE FIX: TV should now show provisioning code because token is invalid
+        await expect(tvPage.locator('[data-testid="provisioning-code"]')).toBeVisible({ timeout: 10000 });
+
+        // Cleanup
+        await ownerContext.close();
+        await tvContext.close();
+    });
 });
+

@@ -1,6 +1,6 @@
 import { pathname, navigate } from './router';
 import { board } from './stores';
-import { isInitialized, initializeApp, STORAGE_KEY } from './services/lifecycle';
+import { isInitialized, initializeApp, STORAGE_KEY, isTokenInvalid } from './services/lifecycle';
 import { Landing } from './views/Landing';
 import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
@@ -35,10 +35,12 @@ function GuardedBoard() {
     const needsPairing = !board.value && !isInitialized.value;
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
-    if (needsPairing && !storedBoardId) {
+    // Show provisioning if: no board cached, OR token was invalidated (revoked)
+    if ((needsPairing && !storedBoardId) || isTokenInvalid.value) {
         return (
             <ProvisioningView
                 onProvisioned={(id: string) => {
+                    isTokenInvalid.value = false;
                     localStorage.setItem(STORAGE_KEY, id);
                     initializeApp(id);
                 }}
