@@ -147,12 +147,34 @@ export const selectors = {
   enterInviteBtn: '[data-testid="enter-invite-btn"]',
   inviteInput: '[data-testid="invite-input"]',
   inviteSubmit: '[data-testid="invite-submit"]',
+  inviteError: '[data-testid="invite-error"]',
+
+  // Display Management
+  addDisplayBtn: '[data-testid="add-display-btn"]',
+  linkDisplayModal: '[data-testid="link-display-modal"]',
+  provisioningInput: '[data-testid="provisioning-input"]',
+  provisioningSubmit: '[data-testid="provisioning-submit"]',
+  provisioningError: '[data-testid="provisioning-error"]',
+  settingsDeviceName: '[data-testid="settings-device-name"]',
+  unlinkDisplayBtn: '[data-testid="unlink-display-btn"]',
+
+  // Token Management (API Tokens in Permissions section)
+  createTokenBtn: '[data-testid="create-token-btn"]',
+  tokenNameInput: '[data-testid="token-name-input"]',
+  tokenPermissionSelect: '[data-testid="token-permission-select"]',
+  createTokenSubmit: '[data-testid="create-token-submit"]',
+  tokenValueDisplay: '[data-testid="token-value"]',
+  tokenModalDone: '[data-testid="token-modal-done"]',
+  tokenListItem: '[data-testid="token-list-item"]',
+  revokeTokenBtn: '[data-testid="revoke-token-btn"]',
 
   // ============================================
   // Board View (TV)
   // ============================================
   boardView: '[data-testid="board-view"]',
   timeModeBadge: '[data-testid="time-mode-badge"]',
+  provisioningView: '[data-testid="provisioning-view"]',
+  provisioningCode: '[data-testid="provisioning-code"]',
 
   // ============================================
   // General / Navigation
