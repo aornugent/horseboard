@@ -11,6 +11,7 @@ import {
   createBoardStore,
   type UpdateSource,
 } from '../lib/engine';
+export * from './auth';
 
 export type { UpdateSource };
 
@@ -23,6 +24,19 @@ export const overrideUntil = boardStore.override_until;
 export const zoomLevel = boardStore.zoom_level;
 export const currentPage = boardStore.current_page;
 export const effectiveTimeMode = boardStore.effective_time_mode;
+
+import { signal } from '@preact/signals';
+export const ownership = signal<{
+  is_owner: boolean;
+  permission: 'none' | 'view' | 'edit' | 'admin';
+}>({
+  is_owner: false,
+  permission: 'view',
+});
+
+export const setOwnership = (val: typeof ownership.value) => {
+  ownership.value = val;
+};
 
 export const setBoard = (b: Parameters<typeof boardStore.set>[0], source?: UpdateSource) =>
   boardStore.set(b, source);

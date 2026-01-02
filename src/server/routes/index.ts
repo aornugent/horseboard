@@ -5,7 +5,11 @@ import { createBoardsRouter } from './boards';
 import { createHorsesRouter } from './horses';
 import { createFeedsRouter } from './feeds';
 import { createDietRouter } from './diet';
+import { createUsersRouter } from './users';
 import { createBootstrapRouter, createSSEHandler, createHealthRouter } from './bootstrap';
+import { createTokensRouter } from './tokens';
+import { createDevicesRouter } from './devices';
+import { createInvitesRouter } from './invites';
 
 export type { RouteContext } from './types';
 
@@ -15,6 +19,9 @@ export type { RouteContext } from './types';
 export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager): void {
   // Boards routes
   app.use('/api/boards', createBoardsRouter(ctx));
+
+  // Users routes
+  app.use('/api/user', createUsersRouter(ctx));
 
   // Horses routes (board-scoped and standalone)
   const horsesRouters = createHorsesRouter(ctx);
@@ -37,4 +44,13 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
 
   // SSE endpoint (mounted on boards router path)
   app.get('/api/boards/:boardId/events', createSSEHandler(ctx, sse));
+
+  // Tokens routes
+  app.use('/api/tokens', createTokensRouter(ctx));
+
+  // Devices routes
+  app.use('/api/devices', createDevicesRouter(ctx));
+
+  // Invites routes
+  app.use('/api/invites', createInvitesRouter(ctx));
 }
