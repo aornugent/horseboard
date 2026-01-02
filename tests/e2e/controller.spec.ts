@@ -16,33 +16,16 @@ import { selectors, unitSelectors, timeModeSelectors } from './selectors';
 
 test.describe('Mobile Controller', () => {
   test.describe('Navigation', () => {
-    test('should have correct tabs in navigation', async ({ page }) => {
+    test('has correct tabs after signup', async ({ page }) => {
+      // Test via REAL signup flow, not API injection
       const timestamp = Date.now();
-      const random = Math.random().toString(36).substring(2, 8);
-      const email = `test-nav-${timestamp}-${random}@example.com`;
-      const password = 'password123';
-      const name = 'Test Owner';
+      await page.goto('/signup');
+      await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+      await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+      await page.locator(selectors.passwordInput).fill('password123');
+      await page.locator(selectors.submitBtn).click();
 
-      // Sign up to create owner user
-      const signUpRes = await page.request.post('/api/auth/sign-up/email', {
-        data: { email, password, name }
-      });
-      expect(signUpRes.ok()).toBeTruthy();
-
-      // Create board
-      const response = await page.request.post('/api/boards', {
-        data: { name: 'Controller Test Board' }
-      });
-      expect(response.ok()).toBeTruthy();
-
-      const result = await response.json();
-      const boardId = result.data.id;
-
-      await page.addInitScript((id) => {
-        localStorage.setItem('horseboard_board_id', id);
-      }, boardId);
-
-      await page.goto('/controller');
+      await expect(page).toHaveURL(/\/controller/);
       await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
 
       // Verify tabs that SHOULD exist
@@ -51,47 +34,21 @@ test.describe('Mobile Controller', () => {
       await expect(page.locator('[data-testid="tab-board"]')).toBeVisible();
       await expect(page.locator('[data-testid="tab-settings"]')).toBeVisible();
 
-      // Verify Tokens tab does NOT exist (consolidated into Settings)
+      // Verify Tokens tab does NOT exist (consolidated into Settings per USER_PATHS.md)
       await expect(page.locator('[data-testid="tab-tokens"]')).not.toBeVisible();
     });
   });
-  // Setup: create a user and board
+
+  // Setup: Use REAL signup flow, not API injection
   test.beforeEach(async ({ page }) => {
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    const email = `test-${timestamp}-${random}@example.com`;
-    const password = 'password123';
-    const name = 'Test Owner';
+    await page.goto('/signup');
+    await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+    await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+    await page.locator(selectors.passwordInput).fill('password123');
+    await page.locator(selectors.submitBtn).click();
 
-    // 1. Sign up (logs in automatically)
-    const signUpRes = await page.request.post('/api/auth/sign-up/email', {
-      data: { email, password, name }
-    });
-    if (!signUpRes.ok()) {
-      console.error('Signup failed:', await signUpRes.text());
-    }
-    expect(signUpRes.ok()).toBeTruthy();
-
-    // 2. Create a board (will be owned by the user)
-    const response = await page.request.post('/api/boards', {
-      data: { name: 'Controller Test Board' }
-    });
-    expect(response.ok()).toBeTruthy();
-
-    const result = await response.json();
-    const boardId = result.data.id;
-
-    // Set localStorage
-    await page.addInitScript((id) => {
-      localStorage.setItem('horseboard_board_id', id);
-    }, boardId);
-
-    // Visit /board (optional, usually controller is enough if board exists, but some logic might rely on it)
-    await page.goto('/board');
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
-
-    // Now navigate to controller
-    await page.goto('/controller');
+    await expect(page).toHaveURL(/\/controller/);
     await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
   });
 

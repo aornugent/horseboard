@@ -4,107 +4,170 @@ import { selectors, unitSelectors, timeModeSelectors } from './selectors';
 /**
  * E2E Workflow Tests
  *
- * Tests complete user workflows across the application.
- * These tests simulate real user scenarios.
+ * Tests complete user workflows with REAL behavior assertions.
+ * Each test follows TDD principles: tests the feature, not implementation details.
  */
 
 test.describe('End-to-End Workflows', () => {
-  // Setup: create a board by visiting /board first
-  test.beforeEach(async ({ page }) => {
-    // Visit /board to auto-create a board and store it in localStorage
-    await page.goto('/board');
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
-  });
-
   test.describe('Feed Management Workflow', () => {
-    test('should add a new feed and see it in the list', async ({ page }) => {
-      // Go to controller and navigate to feeds tab
-      await page.goto('/controller');
-      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    test('adds new feed and persists in database', async ({ page }) => {
+      // Setup: Real user signup (creates board automatically)
+      const timestamp = Date.now();
+      await page.goto('/signup');
+      await page.locator(selectors.nameInput).fill(`User ${timestamp}`);
+      await page.locator(selectors.emailInput).fill(`user-${timestamp}@example.com`);
+      await page.locator(selectors.passwordInput).fill('password123');
+      await page.locator(selectors.submitBtn).click();
 
-      // Click on Feeds tab
+      await expect(page).toHaveURL(/\/controller/);
+
+      // Navigate to feeds tab
       await page.locator('[data-testid="tab-feeds"]').click();
       await expect(page.locator(selectors.feedsTab)).toBeVisible();
 
-      // Click add feed button
+      // Add feed
       await page.locator(selectors.addFeedBtn).click();
-
-      // Fill in feed details
       const feedName = 'Oats';
       await page.locator(selectors.newFeedName).fill(feedName);
       await page.locator(unitSelectors.unitBtn('scoop')).click();
-
-      // Confirm adding
       await page.locator(selectors.confirmAddFeed).click();
 
-      // Should see the new feed in the list (use class selector to avoid matching nested elements)
+      // REAL BEHAVIOR: Feed appears in list
       const feedCard = page.locator('.feed-card').filter({ hasText: feedName });
+      await expect(feedCard).toBeVisible();
+
+      // REAL BEHAVIOR: Feed persists after reload
+      await page.reload();
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+      await page.locator('[data-testid="tab-feeds"]').click();
       await expect(feedCard).toBeVisible();
     });
 
-    test('should search and filter feeds', async ({ page }) => {
-      // Go to controller and navigate to feeds tab
-      await page.goto('/controller');
-      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    test('filters feeds by search query', async ({ page }) => {
+      // Setup: User with two feeds
+      const timestamp = Date.now();
+      await page.goto('/signup');
+      await page.locator(selectors.nameInput).fill(`User ${timestamp}`);
+      await page.locator(selectors.emailInput).fill(`user-${timestamp}@example.com`);
+      await page.locator(selectors.passwordInput).fill('password123');
+      await page.locator(selectors.submitBtn).click();
+      await expect(page).toHaveURL(/\/controller/);
 
-      // Click on Feeds tab
       await page.locator('[data-testid="tab-feeds"]').click();
-      await expect(page.locator(selectors.feedsTab)).toBeVisible();
 
-      // Type in search
+      // Add two feeds with different names
+      await page.locator(selectors.addFeedBtn).click();
+      await page.locator(selectors.newFeedName).fill('Oats');
+      await page.locator(unitSelectors.unitBtn('scoop')).click();
+      await page.locator(selectors.confirmAddFeed).click();
+
+      await page.locator(selectors.addFeedBtn).click();
+      await page.locator(selectors.newFeedName).fill('Hay');
+      await page.locator(unitSelectors.unitBtn('scoop')).click();
+      await page.locator(selectors.confirmAddFeed).click();
+
+      // Both feeds should be visible initially
+      await expect(page.locator('.feed-card').filter({ hasText: 'Oats' })).toBeVisible();
+      await expect(page.locator('.feed-card').filter({ hasText: 'Hay' })).toBeVisible();
+
+      // REAL BEHAVIOR: Search filters list
       const searchInput = page.locator(selectors.feedSearch);
-      await searchInput.fill('unique');
+      await searchInput.fill('Oats');
 
-      // List should filter (or show empty if no match)
-      const feedList = page.locator(selectors.feedList);
-      await expect(feedList).toBeVisible();
+      // Only Oats should be visible
+      await expect(page.locator('.feed-card').filter({ hasText: 'Oats' })).toBeVisible();
+      await expect(page.locator('.feed-card').filter({ hasText: 'Hay' })).not.toBeVisible();
+
+      // Clear search - both should be visible again
+      await searchInput.fill('');
+      await expect(page.locator('.feed-card').filter({ hasText: 'Oats' })).toBeVisible();
+      await expect(page.locator('.feed-card').filter({ hasText: 'Hay' })).toBeVisible();
     });
   });
 
-  test.describe('Settings Workflow', () => {
-    test('should change time mode', async ({ page }) => {
-      // Go to controller and navigate to settings tab
-      await page.goto('/controller');
+  test.describe('Board Display Controls', () => {
+    test('changes time mode and board display reflects it', async ({ page, browser }) => {
+      // Setup: Owner with board
+      const timestamp = Date.now();
+      await page.goto('/signup');
+      await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+      await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+      await page.locator(selectors.passwordInput).fill('password123');
+      await page.locator(selectors.submitBtn).click();
+      await expect(page).toHaveURL(/\/controller/);
+
+      // Navigate to Board tab (where display controls are located per USER_PATHS.md)
+      await page.locator('[data-testid="tab-board"]').click();
+      await expect(page.locator(selectors.boardTab)).toBeVisible();
+
+      // Open display controls drawer
+      await page.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(page.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+      // Change to PM mode
+      await page.locator(timeModeSelectors.pm).click();
+
+      // REAL BEHAVIOR: Change persists in database (verify by reload)
+      await page.reload();
       await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+      await page.locator('[data-testid="tab-board"]').click();
+      await page.locator('[data-testid="toggle-display-controls"]').click();
 
-      // Click on Settings tab
-      await page.locator('[data-testid="tab-settings"]').click();
-      await expect(page.locator(selectors.settingsTab)).toBeVisible();
+      // PM button should still be selected (or effective mode shows PM)
+      // Note: We can't easily check button state, but we can verify the mode persisted by checking actual board display
+      const boardContext = await browser.newContext();
+      const boardPage = await boardContext.newPage();
 
-      // Get current effective mode
-      const effectiveMode = page.locator(selectors.effectiveTimeMode);
-      const currentMode = await effectiveMode.textContent();
+      const boardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+      await boardPage.addInitScript((id) => {
+        localStorage.setItem('horseboard_board_id', id);
+      }, boardId);
 
-      // Click on a different mode
-      if (currentMode?.trim() === 'AM') {
-        await page.locator(timeModeSelectors.pm).click();
-      } else {
-        await page.locator(timeModeSelectors.am).click();
-      }
+      await boardPage.goto('/board');
+      await expect(boardPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
-      // Wait for update
-      await page.waitForTimeout(500);
+      // Board should display PM schedule (check for PM indicator)
+      const timeModeIndicator = boardPage.locator('[data-testid="board-time-mode"]');
+      await expect(timeModeIndicator).toContainText('PM');
 
-      // Effective mode should update
-      const newMode = await effectiveMode.textContent();
-      expect(newMode?.trim()).not.toBe(currentMode?.trim());
+      await boardContext.close();
     });
 
-    test('should change timezone', async ({ page }) => {
-      // Go to controller and navigate to settings tab
-      await page.goto('/controller');
-      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    test('changes timezone and persists in database', async ({ page, request }) => {
+      // Setup: Owner with board
+      const timestamp = Date.now();
+      await page.goto('/signup');
+      await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+      await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+      await page.locator(selectors.passwordInput).fill('password123');
+      await page.locator(selectors.submitBtn).click();
+      await expect(page).toHaveURL(/\/controller/);
 
-      // Click on Settings tab
+      // Get board ID for API verification
+      const boardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+
+      // Navigate to Settings tab (timezone is in Displays section per USER_PATHS.md)
       await page.locator('[data-testid="tab-settings"]').click();
       await expect(page.locator(selectors.settingsTab)).toBeVisible();
 
       const timezoneSelect = page.locator(selectors.timezoneSelector);
       await expect(timezoneSelect).toBeVisible();
 
-      // Select a different timezone
+      // Change timezone
       await timezoneSelect.selectOption('UTC');
       await expect(timezoneSelect).toHaveValue('UTC');
+
+      // REAL BEHAVIOR: Verify change persisted by checking database via API
+      const response = await request.get(`/api/boards/${boardId}`);
+      expect(response.ok()).toBeTruthy();
+      const board = await response.json();
+      expect(board.timezone).toBe('UTC');
+
+      // REAL BEHAVIOR: Verify persists after reload
+      await page.reload();
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+      await page.locator('[data-testid="tab-settings"]').click();
+      await expect(page.locator(selectors.timezoneSelector)).toHaveValue('UTC');
     });
   });
 });
