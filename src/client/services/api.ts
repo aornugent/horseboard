@@ -1,4 +1,7 @@
 import type { Board, Horse, Feed, DietEntry, Unit, TimeMode } from '@shared/resources';
+import { signal } from '@preact/signals';
+
+export const onAuthError = signal<{ status: number; message: string } | null>(null);
 
 export class ApiError extends Error {
   constructor(
@@ -17,6 +20,25 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+
+let controllerToken: string | null = null;
+
+export function setControllerToken(token: string | null): void {
+  controllerToken = token;
+  if (token) {
+    localStorage.setItem('horseboard_controller_token', token);
+  } else {
+    localStorage.removeItem('horseboard_controller_token');
+  }
+}
+
+export function loadControllerToken(): void {
+  const token = localStorage.getItem('horseboard_controller_token');
+  if (token) {
+    controllerToken = token;
+  }
+}
+
 async function request<T>(
   url: string,
   options: RequestInit = {}
@@ -26,9 +48,17 @@ async function request<T>(
     ...options.headers,
   };
 
+  if (controllerToken) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${controllerToken}`;
+  }
+
   const response = await fetch(url, { ...options, headers });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      onAuthError.value = { status: response.status, message: 'Authentication failed' };
+    }
+
     const text = await response.text();
     let message = 'Request failed';
     try {
@@ -40,6 +70,8 @@ async function request<T>(
     throw new ApiError(message, response.status);
   }
 
+
+
   const text = await response.text();
   if (!text) {
     return undefined as T;
@@ -48,37 +80,61 @@ async function request<T>(
   return JSON.parse(text);
 }
 
-export interface BootstrapData {
-  board: Board;
-  horses: Horse[];
-  feeds: Feed[];
-  diet_entries: DietEntry[];
+
+
+export interface ControllerToken {
+  id: string;
+  board_id: string;
+  name: string;
+  permission: 'view' | 'edit';
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+
+
+
+export async function resolveToken(): Promise<{ token_id: string; board_id: string; permission: string }> {
+  const result = await request<ApiResponse<{ token_id: string; board_id: string; permission: string }>>('/api/devices/me');
+  if (!result.success || !result.data) {
+    throw new ApiError('Failed to resolve token', 401);
+  }
+  return result.data;
+}
+
+export async function generateInviteCode(board_id: string): Promise<{ code: string; expires_at: string }> {
+  const result = await request<ApiResponse<{ code: string; expires_at: string }>>(`/api/boards/${board_id}/invites`, {
+    method: 'POST',
+  });
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to generate invite code', 500);
+  }
+  return result.data;
 }
 
 export interface PairResult {
   success: boolean;
   board_id?: string;
+  token?: string;
   error?: string;
 }
+
+
 
 export interface CreateBoardResult {
   id: string;
   pair_code: string;
 }
 
-export async function bootstrap(board_id: string): Promise<BootstrapData> {
-  const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/${board_id}`);
-  if (!result.success || !result.data) {
-    throw new ApiError(result.error || 'Bootstrap failed', 500);
-  }
-  return result.data;
-}
-
 export async function pairWithCode(code: string): Promise<PairResult> {
   try {
-    const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/pair/${code}`);
-    if (result.success && result.data?.board) {
-      return { success: true, board_id: result.data.board.id };
+    const result = await request<ApiResponse<{ board_id: string; token: string }>>('/api/pair', {
+      method: 'POST',
+      body: JSON.stringify({ code })
+    });
+    if (result.success && result.data) {
+      return { success: true, board_id: result.data.board_id, token: result.data.token };
     }
     return { success: false, error: 'Invalid pairing code' };
   } catch (error) {
@@ -212,4 +268,51 @@ export async function upsertDiet(
     throw new ApiError('Failed to update diet', 500);
   }
   return result.data;
+}
+
+export async function pollProvisioning(code: string): Promise<{ pending?: boolean; token?: string }> {
+  try {
+    const result = await request<ApiResponse<{ pending?: boolean; token?: string }>>(`/api/devices/poll?code=${code}`);
+    return result.data || { pending: true };
+  } catch (err) {
+    console.error('Polling failed', err);
+    return { pending: true };
+  }
+}
+
+export async function linkDevice(code: string, board_id: string): Promise<void> {
+  const result = await request<ApiResponse<void>>('/api/devices/link', {
+    method: 'POST',
+    body: JSON.stringify({ code, board_id }),
+  });
+  if (!result.success) {
+    throw new ApiError(result.error || 'Failed to link device', 500);
+  }
+}
+
+export async function listDevices(): Promise<Array<{ id: string; name: string; board_pair_code: string; last_used_at: string | null }>> {
+  const result = await request<ApiResponse<any[]>>('/api/devices');
+  return result.data || [];
+}
+
+export async function revokeDeviceToken(token_id: string): Promise<void> {
+  await request<void>(`/api/devices/${token_id}`, { method: 'DELETE' });
+}
+export async function listUserBoards(): Promise<Board[]> {
+  const result = await request<ApiResponse<Board[]>>('/api/user/boards');
+  return result.data ?? [];
+}
+
+export async function redeemInvite(code: string): Promise<{ token: string }> {
+  const result = await request<ApiResponse<{ token: string }>>('/api/invites/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+  if (!result.success || !result.data) {
+    throw new ApiError(result.error || 'Failed to redeem invite', 500);
+  }
+
+  const { token } = result.data;
+  setControllerToken(token);
+  return { token };
 }
