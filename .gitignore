@@ -18,4 +18,4 @@ dist/
 mise.toml
 
 .devcontainer/
-.agent
+#.agent
