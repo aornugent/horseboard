@@ -92,21 +92,23 @@ test.describe('End-to-End Workflows', () => {
       // PM button should still be selected (or effective mode shows PM)
       // Note: We can't easily check button state, but we can verify the mode persisted by checking actual board display
       const boardContext = await browser.newContext();
-      const boardPage = await boardContext.newPage();
+      try {
+        const boardPage = await boardContext.newPage();
 
-      // Inject board ID into valid board page
-      await boardPage.addInitScript((id) => {
-        localStorage.setItem('horseboard_board_id', id);
-      }, ownerBoardId);
+        // Inject board ID into valid board page
+        await boardPage.addInitScript((id) => {
+          localStorage.setItem('horseboard_board_id', id);
+        }, ownerBoardId);
 
-      await boardPage.goto('/board');
-      await expect(boardPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        await boardPage.goto('/board');
+        await expect(boardPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
-      // Board should display PM schedule (check for PM indicator)
-      const timeModeIndicator = boardPage.locator(selectors.timeModeBadge);
-      await expect(timeModeIndicator).toContainText('PM');
-
-      await boardContext.close();
+        // Board should display PM schedule (check for PM indicator)
+        const timeModeIndicator = boardPage.locator(selectors.timeModeBadge);
+        await expect(timeModeIndicator).toContainText('PM');
+      } finally {
+        await boardContext.close();
+      }
     });
 
     test('changes timezone and persists in database', async ({ ownerPage, ownerBoardId, request }) => {

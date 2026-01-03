@@ -61,7 +61,7 @@ test.describe('Session Persistence', () => {
     const fullText = await pairCodeElement.innerText();
     const pairCode = fullText.replace('Pair Code:', '').trim();
 
-    await ownerPage.locator(selectors.enterInviteBtn).scrollIntoViewIfNeeded().catch(() => { });
+    await ownerPage.locator(selectors.enterInviteBtn).scrollIntoViewIfNeeded();
 
     // Generate invite
     const generateBtn = ownerPage.locator('[data-testid="generate-invite-btn"]');
@@ -74,41 +74,43 @@ test.describe('Session Persistence', () => {
 
     // User upgrades from view to edit
     const userContext = await browser.newContext();
-    const userPage = await userContext.newPage();
+    try {
+      const userPage = await userContext.newPage();
 
-    await userPage.goto('/');
-    await userPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
-    await userPage.locator('[data-testid="landing-connect-btn"]').click();
-    await expect(userPage).toHaveURL(/\/controller/);
+      await userPage.goto('/');
+      await userPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
+      await userPage.locator('[data-testid="landing-connect-btn"]').click();
+      await expect(userPage).toHaveURL(/\/controller/);
 
-    // Redeem invite
-    await userPage.locator('[data-testid="tab-settings"]').click();
-    await userPage.locator(selectors.enterInviteBtn).click();
-    await userPage.locator(selectors.inviteInput).fill(inviteCode);
-    await userPage.locator(selectors.inviteSubmit).click();
+      // Redeem invite
+      await userPage.locator('[data-testid="tab-settings"]').click();
+      await userPage.locator(selectors.enterInviteBtn).click();
+      await userPage.locator(selectors.inviteInput).fill(inviteCode);
+      await userPage.locator(selectors.inviteSubmit).click();
 
-    await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
-    await userPage.locator('[data-testid="tab-horses"]').click();
+      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+      await userPage.locator('[data-testid="tab-horses"]').click();
 
-    // Verify edit access
-    await expect(userPage.locator(selectors.addHorseBtn)).toBeVisible();
+      // Verify edit access
+      await expect(userPage.locator(selectors.addHorseBtn)).toBeVisible();
 
-    // Reload page
-    await userPage.reload();
+      // Reload page
+      await userPage.reload();
 
-    // Should still be on controller
-    await expect(userPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+      // Should still be on controller
+      await expect(userPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
 
-    // Verify session restored: Still edit (has add button)
-    await expect(userPage.locator(selectors.addHorseBtn)).toBeVisible();
+      // Verify session restored: Still edit (has add button)
+      await expect(userPage.locator(selectors.addHorseBtn)).toBeVisible();
 
-    // Verify can actually add horse (real behavior, not just UI)
-    await userPage.locator(selectors.addHorseBtn).click();
-    await userPage.locator(selectors.newHorseName).fill('Persistence Test Horse');
-    await userPage.locator(selectors.confirmAddHorse).click();
-    await expect(userPage.locator('.horse-card').filter({ hasText: 'Persistence Test Horse' })).toBeVisible();
-
-    await userContext.close();
+      // Verify can actually add horse (real behavior, not just UI)
+      await userPage.locator(selectors.addHorseBtn).click();
+      await userPage.locator(selectors.newHorseName).fill('Persistence Test Horse');
+      await userPage.locator(selectors.confirmAddHorse).click();
+      await expect(userPage.locator('.horse-card').filter({ hasText: 'Persistence Test Horse' })).toBeVisible();
+    } finally {
+      await userContext.close();
+    }
   });
 
   test('board ID persists in localStorage across page refresh', async ({ ownerPage, ownerBoardId }) => {

@@ -5,6 +5,13 @@
  * redundant signup flows in every test.
  * 
  * Uses API-based setup (createBoard) for maximum speed.
+ * 
+ * IMPORTANT: The `ownerPage` fixture injects `x-test-user-id` header into
+ * ALL API requests, granting Admin permissions. This header injection
+ * persists across `page.reload()`, meaning tests using `ownerPage` do NOT
+ * verify real session persistence (cookies/tokens). For tests that need to
+ * verify actual session behavior, use manual signup or create a separate
+ * fixture without header injection.
  */
 
 import { test as base, expect, Page, BrowserContext } from '@playwright/test';
@@ -69,7 +76,9 @@ export const test = base.extend<OwnerFixture>({
     },
 });
 
-// Visitor fixture - connects via pair code, gets view-only access
+// Visitor fixture - connects via pair code, gets view-only access.
+// NOTE: visitorPage intentionally does NOT inject x-test-user-id header.
+// Visitor auth is real (uses pair code → token flow), unlike ownerPage.
 export const testWithVisitor = test.extend<VisitorFixture>({
     visitorContext: async ({ browser }, use) => {
         const context = await browser.newContext();

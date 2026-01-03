@@ -4,8 +4,8 @@ import { selectors, unitSelectors, timeModeSelectors } from './selectors';
 /**
  * E2E Tests for Mobile Controller Views
  * 
- * Uses auth fixtures for efficient setup - signup happens once per test (via API),
- * not manual UI flow.
+ * Uses auth fixtures for efficient setup - board creation happens via API,
+ * bypassing UI signup. Header injection grants Admin permissions.
  */
 
 test.describe('Mobile Controller', () => {
@@ -22,6 +22,7 @@ test.describe('Mobile Controller', () => {
     });
   });
 
+  // No beforeEach needed - Horses tab is the default view after fixture setup
   test.describe('HorsesTab', () => {
     test('should render the horses tab', async ({ ownerPage }) => {
       const horsesTab = ownerPage.locator(selectors.horsesTab);

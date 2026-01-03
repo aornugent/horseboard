@@ -16,6 +16,14 @@ import { UNITS, TIME_MODES, type Unit, type TimeMode } from '../../src/shared/re
 
 export const selectors = {
   // ============================================
+  // Tab Navigation (Controller)
+  // ============================================
+  tabHorses: '[data-testid="tab-horses"]',
+  tabFeeds: '[data-testid="tab-feeds"]',
+  tabBoard: '[data-testid="tab-board"]',
+  tabSettings: '[data-testid="tab-settings"]',
+
+  // ============================================
   // SwimLaneGrid (TV Board Grid)
   // ============================================
   swimLaneGrid: '[data-testid="swim-lane-grid"]',
