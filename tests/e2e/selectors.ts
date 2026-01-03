@@ -158,15 +158,7 @@ export const selectors = {
   settingsDeviceName: '[data-testid="settings-device-name"]',
   unlinkDisplayBtn: '[data-testid="unlink-display-btn"]',
 
-  // Token Management (API Tokens in Permissions section)
-  createTokenBtn: '[data-testid="create-token-btn"]',
-  tokenNameInput: '[data-testid="token-name-input"]',
-  tokenPermissionSelect: '[data-testid="token-permission-select"]',
-  createTokenSubmit: '[data-testid="create-token-submit"]',
-  tokenValueDisplay: '[data-testid="token-value"]',
-  tokenModalDone: '[data-testid="token-modal-done"]',
-  tokenListItem: '[data-testid="token-list-item"]',
-  revokeTokenBtn: '[data-testid="revoke-token-btn"]',
+
 
   // ============================================
   // Board View (TV)

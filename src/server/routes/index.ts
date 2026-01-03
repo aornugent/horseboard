@@ -7,7 +7,7 @@ import { createFeedsRouter } from './feeds';
 import { createDietRouter } from './diet';
 import { createUsersRouter } from './users';
 import { createBootstrapRouter, createSSEHandler, createHealthRouter } from './bootstrap';
-import { createTokensRouter } from './tokens';
+
 import { createDevicesRouter } from './devices';
 import { createInvitesRouter } from './invites';
 
@@ -45,8 +45,7 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
   // SSE endpoint (mounted on boards router path)
   app.get('/api/boards/:boardId/events', createSSEHandler(ctx, sse));
 
-  // Tokens routes
-  app.use('/api/tokens', createTokensRouter(ctx));
+
 
   // Devices routes
   app.use('/api/devices', createDevicesRouter(ctx));

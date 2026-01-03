@@ -93,12 +93,10 @@ export interface ControllerToken {
 }
 
 
-export async function revokeControllerToken(token_id: string): Promise<void> {
-  await request<void>(`/api/tokens/${token_id}`, { method: 'DELETE' });
-}
+
 
 export async function resolveToken(): Promise<{ token_id: string; board_id: string; permission: string }> {
-  const result = await request<ApiResponse<{ token_id: string; board_id: string; permission: string }>>('/api/tokens/me');
+  const result = await request<ApiResponse<{ token_id: string; board_id: string; permission: string }>>('/api/devices/me');
   if (!result.success || !result.data) {
     throw new ApiError('Failed to resolve token', 401);
   }

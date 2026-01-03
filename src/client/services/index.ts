@@ -11,7 +11,7 @@ export {
   deleteFeed,
   updateTimeMode,
   updateBoard,
-  revokeControllerToken,
+
   setControllerToken,
   resolveToken,
   pollProvisioning,

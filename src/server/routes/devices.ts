@@ -55,6 +55,28 @@ export function createDevicesRouter(ctx: RouteContext): Router {
         }
     });
 
+    // GET /api/devices/me - resolve current token to board info
+    // Requires 'view' permission (which validates the token)
+    router.get('/me', requirePermission('view'), (req: Request, res: Response) => {
+        const { token_id, board_id, permission } = req.authContext!;
+
+        // If no token ID, they might be using session auth, which is fine but
+        // this endpoint is primarily for token resolution.
+        if (!token_id && !board_id) {
+            res.status(400).json({ success: false, error: 'No active token found' });
+            return;
+        }
+
+        res.json({
+            success: true,
+            data: {
+                token_id,
+                board_id,
+                permission
+            }
+        });
+    });
+
     // Link device to board (Controller)
     // POST /api/devices/link
     router.post('/link', requirePermission('view'), validate(LinkDeviceSchema), (req: Request, res: Response) => {
@@ -93,15 +115,7 @@ export function createDevicesRouter(ctx: RouteContext): Router {
                 type: 'display',
             } as any, board_id, tokenHash);
 
-            // Wait, `create` method in repository might not support 'type' yet if typed strictly?
-            // I need to update repo type definitions? 
-            // `create` accepts `Omit<ControllerToken, 'id' | ...>`.
-            // If I updated the DB schema, I likely need to update the `ControllerToken` type definition in `src/shared` or `src/server/lib/engine.ts`.
-            // I should check `src/server/lib/engine.ts` types.
 
-            // Assuming for a moment I can pass extra fields if I cast or if I update types.
-            // I will update types in next step if compilation fails.
-            // For now, I'll assume I need to update the repo code too.
 
             // Setting the token in store for TV to pick up
             data.token = tokenValue;
