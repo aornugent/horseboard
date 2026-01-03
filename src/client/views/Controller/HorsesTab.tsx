@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
 import { HorseCard } from '../../components/HorseCard';
 import { Modal } from '../../components/Modal';
-import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board, ownership } from '../../stores';
+import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board, canEdit } from '../../stores';
 import { createHorse as apiCreateHorse } from '../../services';
 import './HorsesTab.css';
 
@@ -28,13 +28,13 @@ async function handleCreateHorse(name: string, note: string) {
 }
 
 export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
-  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const canEditBoard = canEdit();
 
   return (
     <div class="horses-tab" data-testid="horses-tab">
       <div class="horses-tab-header">
         <h2 class="horses-tab-title">Horses</h2>
-        {canEdit && (
+        {canEditBoard && (
           <button
             class="horses-tab-add-btn"
             data-testid="add-horse-btn"

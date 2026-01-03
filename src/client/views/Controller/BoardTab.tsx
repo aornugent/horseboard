@@ -1,5 +1,5 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid';
-import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, ownership } from '../../stores';
+import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, canEdit } from '../../stores';
 import './BoardTab.css';
 
 import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode } from '../../services';
@@ -38,7 +38,7 @@ async function changeZoom(level: 1 | 2 | 3) {
 }
 
 export function BoardTab() {
-  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const canEditBoard = canEdit();
   const showControls = useSignal(false);
 
   return (
@@ -85,7 +85,7 @@ export function BoardTab() {
         </div>
       </div>
 
-      {canEdit && (
+      {canEditBoard && (
         <div class="board-display-controls">
           <button
             class="board-controls-toggle"

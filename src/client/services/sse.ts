@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { batch } from '@preact/signals';
-import { setBoard, setHorses, setFeeds, setDietEntries } from '../stores';
+import { setBoard, setHorses, setFeeds, setDietEntries, setPermission } from '../stores';
 import {
   BoardSchema,
   HorseSchema,
@@ -11,6 +11,8 @@ import {
 /**
  * SSE Event Schemas for runtime validation
  */
+const PermissionSchema = z.enum(['none', 'view', 'edit', 'admin']);
+
 const SSEEventSchema = z.object({
   data: z.object({
     board: BoardSchema,
@@ -18,6 +20,7 @@ const SSEEventSchema = z.object({
     feeds: z.array(FeedSchema),
     diet_entries: z.array(DietEntrySchema),
   }),
+  permission: PermissionSchema.optional(),
   timestamp: z.string().optional(),
 });
 
@@ -109,6 +112,9 @@ class SSEClient {
       setHorses(event.data.horses, 'sse');
       setFeeds(event.data.feeds, 'sse');
       setDietEntries(event.data.diet_entries, 'sse');
+      if (event.permission) {
+        setPermission(event.permission);
+      }
     });
   }
 

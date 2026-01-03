@@ -1,39 +1,23 @@
 import { Router, Request, Response } from 'express';
 import type { RouteContext } from './types';
 import type { SSEManager } from '../lib/engine';
-import { requirePermission, resolveAuth, resolvePermissionForBoard, canView } from '../lib/auth';
+import { resolveAuth, resolvePermissionForBoard, canView } from '../lib/auth';
 
 export function createBootstrapRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos } = ctx;
 
-  router.get('/:boardId', requirePermission('view'), (req: Request, res: Response) => {
-    const board = repos.boards.getById(req.params.boardId);
-    if (!board) {
-      res.status(404).json({ success: false, error: 'Board not found' });
+  // POST /pair - Accept body { code } and return { board_id, token }
+  // SSE handles hydration, so we only need to create token and return minimal data
+  router.post('/pair', async (req: Request, res: Response) => {
+    const { code } = req.body;
+
+    if (!code) {
+      res.status(400).json({ success: false, error: 'Pairing code required' });
       return;
     }
 
-    const horses = repos.horses.getByParent(req.params.boardId) ?? [];
-    const feeds = repos.feeds.getByParent(req.params.boardId) ?? [];
-    const diet_entries = repos.diet.getByBoardId(req.params.boardId) ?? [];
-
-    const permission = req.authContext?.permission || 'view';
-    const user_id = req.authContext?.user_id;
-
-    const ownership = {
-      is_owner: !!user_id && board.account_id === user_id,
-      permission
-    };
-
-    res.json({
-      success: true,
-      data: { board, horses, feeds, diet_entries, ownership },
-    });
-  });
-
-  router.get('/pair/:code', async (req: Request, res: Response) => {
-    const board = repos.boards.getByPairCode(req.params.code);
+    const board = repos.boards.getByPairCode(code);
 
     if (!board) {
       res.status(404).json({ success: false, error: 'Invalid pairing code' });
@@ -51,26 +35,10 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
       type: 'controller'
     }, board.id, tokenHash);
 
-    const authCtx = await resolveAuth(req, repos);
-    authCtx.permission = resolvePermissionForBoard(authCtx, board);
-
-    const horses = repos.horses.getByParent(board.id) ?? [];
-    const feeds = repos.feeds.getByParent(board.id) ?? [];
-    const diet_entries = repos.diet.getByBoardId(board.id) ?? [];
-
-    const ownership = {
-      is_owner: !!authCtx.user_id && board.account_id === authCtx.user_id,
-      permission: authCtx.permission
-    };
-
     res.json({
       success: true,
       data: {
-        board,
-        horses,
-        feeds,
-        diet_entries,
-        ownership,
+        board_id: board.id,
         token: tokenValue
       },
     });
@@ -111,7 +79,8 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
     const diet_entries = repos.diet.getByBoardId(req.params.boardId) ?? [];
 
     const initialData = JSON.stringify({
-      data: { board, horses, feeds, diet_entries, permission: authCtx.permission },
+      data: { board, horses, feeds, diet_entries },
+      permission: authCtx.permission,
       timestamp: new Date().toISOString(),
     });
 

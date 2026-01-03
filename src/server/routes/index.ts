@@ -36,8 +36,8 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
   // Diet routes
   app.use('/api/diet', createDietRouter(ctx));
 
-  // Bootstrap routes
-  app.use('/api/bootstrap', createBootstrapRouter(ctx));
+  // Pair endpoint (for code-based pairing)
+  app.use('/api', createBootstrapRouter(ctx));
 
   // Health endpoint
   app.use('/api/health', createHealthRouter(ctx));

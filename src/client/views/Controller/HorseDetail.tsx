@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { signal, computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad';
 import { formatQuantity } from '@shared/fractions';
-import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry, updateHorse as storeUpdateHorse, removeHorse, ownership } from '../../stores';
+import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry, updateHorse as storeUpdateHorse, removeHorse, canEdit } from '../../stores';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 import './HorseDetail.css';
 
@@ -22,7 +22,7 @@ const isDeleting = signal(false);
 
 export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
-  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const canEditBoard = canEdit();
 
   const horse = getHorse(horseId);
 
@@ -151,7 +151,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
           {horse.name}
         </h2>
         <div class="horse-detail-actions">
-          {canEdit && (
+          {canEditBoard && (
             <>
               <button
                 class="horse-detail-action-btn"
@@ -220,8 +220,8 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 <button
                   class="value-button"
                   data-testid={`feed-tile-am-${feed.id}`}
-                  onClick={() => canEdit && setSelectedFeed({ feed_id: feed.id, field: 'am_amount' })}
-                  disabled={!canEdit}
+                  onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'am_amount' })}
+                  disabled={!canEditBoard}
                 >
                   <span class="value-label">AM</span>
                   <span class="value-amount">
@@ -232,8 +232,8 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 <button
                   class="value-button"
                   data-testid={`feed-tile-pm-${feed.id}`}
-                  onClick={() => canEdit && setSelectedFeed({ feed_id: feed.id, field: 'pm_amount' })}
-                  disabled={!canEdit}
+                  onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'pm_amount' })}
+                  disabled={!canEditBoard}
                 >
                   <span class="value-label">PM</span>
                   <span class="value-amount">

@@ -26,17 +26,15 @@ export const currentPage = boardStore.current_page;
 export const effectiveTimeMode = boardStore.effective_time_mode;
 
 import { signal } from '@preact/signals';
-export const ownership = signal<{
-  is_owner: boolean;
-  permission: 'none' | 'view' | 'edit' | 'admin';
-}>({
-  is_owner: false,
-  permission: 'view',
-});
 
-export const setOwnership = (val: typeof ownership.value) => {
-  ownership.value = val;
-};
+// Permission-based access control (replaces ownership)
+export type Permission = 'none' | 'view' | 'edit' | 'admin';
+export const permission = signal<Permission>('view');
+export const setPermission = (p: Permission) => { permission.value = p; };
+
+// Computed permission helpers
+export const canEdit = () => permission.value === 'edit' || permission.value === 'admin';
+export const isAdmin = () => permission.value === 'admin';
 
 export const setBoard = (b: Parameters<typeof boardStore.set>[0], source?: UpdateSource) =>
   boardStore.set(b, source);

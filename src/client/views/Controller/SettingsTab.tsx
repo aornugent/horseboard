@@ -3,7 +3,9 @@ import {
   timezone,
   user,
   authClient,
-  ownership,
+  permission,
+  isAdmin,
+  canEdit,
 } from '../../stores';
 import { updateBoard as apiUpdateBoard, redeemInvite } from '../../services';
 import { LinkDisplayModal } from '../../components/LinkDisplayModal';
@@ -178,15 +180,15 @@ function SectionPermissions() {
 }
 
 export function SettingsTab() {
-  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const canEditBoard = canEdit();
   const showLinkModal = useSignal(false);
   const linkedDevices = useSignal<any[]>([]);
 
   useEffect(() => {
-    if (canEdit && ownership.value.is_owner) {
+    if (isAdmin()) {
       listDevices().then(d => linkedDevices.value = d).catch(console.error);
     }
-  }, [canEdit, ownership.value.is_owner]);
+  }, [permission.value]);
 
   async function handleUnlink(tokenId: string) {
     if (confirm('Are you sure you want to unlink this display?')) {
@@ -215,7 +217,7 @@ export function SettingsTab() {
               <div class="settings-account-name" data-testid="account-name">{user.value.name}</div>
               <div class="settings-account-email">{user.value.email}</div>
               <div class="settings-account-role">
-                {ownership.value.is_owner ? 'Owner' : `Permission: ${ownership.value.permission}`}
+                {isAdmin() ? 'Owner' : `Permission: ${permission.value}`}
               </div>
             </div>
             <button
@@ -229,7 +231,7 @@ export function SettingsTab() {
         )}
       </section>
 
-      {!canEdit && <SectionUpgradeAccess />}
+      {!canEditBoard && <SectionUpgradeAccess />}
 
       <section class="settings-section settings-info">
         <h3 class="settings-section-title">Board Info</h3>
@@ -249,7 +251,7 @@ export function SettingsTab() {
         </div>
       </section>
 
-      {ownership.value.is_owner && (
+      {isAdmin() && (
         <>
           <section class="settings-section">
             <h3 class="settings-section-title">Displays</h3>
@@ -294,7 +296,7 @@ export function SettingsTab() {
                   data-testid="timezone-selector"
                   value={timezone.value}
                   onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
-                  disabled={!canEdit}
+                  disabled={!canEditBoard}
                 >
                   {TIMEZONES.map(tz => (
                     <option key={tz.value} value={tz.value}>

@@ -1,7 +1,7 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, ownership } from '../../stores';
+import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
 import './FeedsTab.css';
@@ -67,13 +67,13 @@ const UNIT_OPTIONS = UNITS.map(unit => ({
 }));
 
 export function FeedsTab() {
-  const canEdit = ['edit', 'admin'].includes(ownership.value.permission);
+  const canEditBoard = canEdit();
 
   return (
     <div class="feeds-tab" data-testid="feeds-tab">
       <div class="feeds-tab-header">
         <h2 class="feeds-tab-title">Feeds</h2>
-        {canEdit && (
+        {canEditBoard && (
           <button
             class="feeds-tab-add-btn"
             data-testid="add-feed-btn"
@@ -110,8 +110,8 @@ export function FeedsTab() {
               key={feed.id}
               feed={feed}
               horseCount={countHorsesUsingFeed(feed.id)}
-              onEdit={canEdit ? () => { editingFeed.value = { ...feed }; } : undefined}
-              onDelete={canEdit ? () => { deletingFeed.value = feed; } : undefined}
+              onEdit={canEditBoard ? () => { editingFeed.value = { ...feed }; } : undefined}
+              onDelete={canEditBoard ? () => { deletingFeed.value = feed; } : undefined}
             />
           ))
         )}

@@ -93,31 +93,6 @@ export interface ControllerToken {
 }
 
 
-
-export async function createControllerToken(
-  board_id: string,
-  name: string,
-  permission: 'view' | 'edit',
-  expiresAt?: string
-): Promise<{ id: string; name: string; token: string }> {
-  const result = await request<ApiResponse<{ id: string; name: string; token: string }>>(
-    `/api/boards/${board_id}/tokens`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ name, permission, expires_at: expiresAt }),
-    }
-  );
-  if (!result.success || !result.data) {
-    throw new ApiError(result.error || 'Failed to create token', 500);
-  }
-  return result.data;
-}
-
-export async function listControllerTokens(board_id: string): Promise<ControllerToken[]> {
-  const result = await request<ApiResponse<ControllerToken[]>>(`/api/boards/${board_id}/tokens`);
-  return result.data ?? [];
-}
-
 export async function revokeControllerToken(token_id: string): Promise<void> {
   await request<void>(`/api/tokens/${token_id}`, { method: 'DELETE' });
 }
@@ -140,18 +115,6 @@ export async function generateInviteCode(board_id: string): Promise<{ code: stri
   return result.data;
 }
 
-export interface BootstrapData {
-  board: Board;
-  horses: Horse[];
-  feeds: Feed[];
-  diet_entries: DietEntry[];
-  ownership: {
-    is_owner: boolean;
-    permission: 'none' | 'view' | 'edit' | 'admin';
-  };
-  token?: string;
-}
-
 export interface PairResult {
   success: boolean;
   board_id?: string;
@@ -166,19 +129,14 @@ export interface CreateBoardResult {
   pair_code: string;
 }
 
-export async function bootstrap(board_id: string): Promise<BootstrapData> {
-  const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/${board_id}`);
-  if (!result.success || !result.data) {
-    throw new ApiError(result.error || 'Bootstrap failed', 500);
-  }
-  return result.data;
-}
-
 export async function pairWithCode(code: string): Promise<PairResult> {
   try {
-    const result = await request<ApiResponse<BootstrapData>>(`/api/bootstrap/pair/${code}`);
-    if (result.success && result.data?.board) {
-      return { success: true, board_id: result.data.board.id, token: result.data.token };
+    const result = await request<ApiResponse<{ board_id: string; token: string }>>('/api/pair', {
+      method: 'POST',
+      body: JSON.stringify({ code })
+    });
+    if (result.success && result.data) {
+      return { success: true, board_id: result.data.board_id, token: result.data.token };
     }
     return { success: false, error: 'Invalid pairing code' };
   } catch (error) {
