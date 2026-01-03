@@ -136,7 +136,7 @@ test.describe('Authentication', () => {
             await expect(page.locator(selectors.accountName)).toHaveText(name);
 
             // Admin should see displays section (only visible to admin)
-            await expect(page.getByText('Displays', { exact: false })).toBeVisible();
+            await expect(page.getByRole('heading', { name: 'Displays' })).toBeVisible();
 
             // Admin should see staff access section
             await expect(page.getByText('Staff Access', { exact: false })).toBeVisible();

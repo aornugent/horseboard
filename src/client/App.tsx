@@ -2,9 +2,9 @@ import { useEffect } from 'preact/hooks';
 import { Router } from './Router';
 import { pathname, navigate } from './router';
 import { initializeApp, isInitialized, connectionError, STORAGE_KEY } from './services/lifecycle';
-import { initAuth } from './services/auth';
+
 import { loadControllerToken, sseClient } from './services';
-import { board, effectiveTimeMode, user } from './stores';
+import { board, effectiveTimeMode, user, initAuth } from './stores';
 import './styles/theme.css';
 
 export function App() {

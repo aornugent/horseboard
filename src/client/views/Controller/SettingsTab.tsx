@@ -6,7 +6,9 @@ import {
   permission,
   isAdmin,
   canEdit,
+  isAuthLoading,
 } from '../../stores';
+import { navigate } from '../../router';
 import { updateBoard as apiUpdateBoard, redeemInvite } from '../../services';
 import { LinkDisplayModal } from '../../components/LinkDisplayModal';
 import { listDevices, revokeDeviceToken } from '../../services';
@@ -159,7 +161,7 @@ function SectionUpgradeAccess() {
           {loading.value ? 'Verifying...' : 'Submit'}
         </button>
       </div>
-      {error.value && <p class="settings-error">{error.value}</p>}
+      {error.value && <p class="settings-error" data-testid="invite-error">{error.value}</p>}
       <button
         class="settings-btn settings-btn-text"
         onClick={() => showInput.value = false}
@@ -211,7 +213,14 @@ export function SettingsTab() {
 
       <section class="settings-section">
         <h3 class="settings-section-title">Account</h3>
-        {user.value && (
+        {isAuthLoading.value && (
+          <div class="settings-account-info">
+            <div class="settings-account-details">
+              <div class="settings-account-role">Loading...</div>
+            </div>
+          </div>
+        )}
+        {!isAuthLoading.value && user.value && (
           <div class="settings-account-info">
             <div class="settings-account-details">
               <div class="settings-account-name" data-testid="account-name">{user.value.name}</div>
@@ -226,6 +235,20 @@ export function SettingsTab() {
               data-testid="sign-out-btn"
             >
               Sign Out
+            </button>
+          </div>
+        )}
+        {!isAuthLoading.value && !user.value && (
+          <div class="settings-account-info">
+            <div class="settings-account-details">
+              <div class="settings-account-role">Not signed in</div>
+            </div>
+            <button
+              class="settings-btn settings-btn-primary"
+              onClick={() => navigate('/login')}
+              data-testid="sign-in-btn"
+            >
+              Sign In
             </button>
           </div>
         )}

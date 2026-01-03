@@ -11,6 +11,7 @@ import {
   createBoardStore,
   type UpdateSource,
 } from '../lib/engine';
+// Auth (state lives here, not in services)
 export * from './auth';
 
 export type { UpdateSource };
