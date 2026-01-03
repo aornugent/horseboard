@@ -50,7 +50,7 @@ export function ProvisioningView({ onProvisioned }: { onProvisioned: (boardId: s
     }, []);
 
     return (
-        <div class="provisioning-view">
+        <div class="provisioning-view" data-testid="provisioning-view">
             <div class="provisioning-content">
                 <h1>Connect Display</h1>
                 <p>Enter this code in your Controller Settings</p>

@@ -286,12 +286,13 @@ export function SettingsTab() {
                 linkedDevices.value.map(device => (
                   <div class="settings-device-item" key={device.id}>
                     <div class="settings-device-info">
-                      <span class="settings-device-name">{device.name}</span>
+                      <span class="settings-device-name" data-testid="settings-device-name">{device.name}</span>
                       <span class="settings-device-meta">Added: {new Date(device.created_at).toLocaleDateString()}</span>
                     </div>
                     <button
                       class="settings-btn settings-btn-danger settings-btn-small"
                       onClick={() => handleUnlink(device.id)}
+                      data-testid="unlink-display-btn"
                     >
                       Unlink
                     </button>

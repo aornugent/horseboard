@@ -33,7 +33,7 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
 
   return (
     <div class="link-display-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="link-display-modal-content">
+      <div class="link-display-modal-content" data-testid="link-display-modal">
         <h2 class="link-display-modal-title">Link Display</h2>
         <p class="link-display-modal-description">Enter the code shown on the TV display.</p>
 
@@ -55,7 +55,7 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
             />
           </div>
 
-          {error.value && <div class="link-display-error">{error.value}</div>}
+          {error.value && <div class="link-display-error" data-testid="provisioning-error">{error.value}</div>}
 
           <div class="link-display-actions">
             <button
