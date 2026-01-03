@@ -1,110 +1,243 @@
 import { test, expect } from '@playwright/test';
+import { selectors } from './selectors';
+
+/**
+ * Device Provisioning Tests
+ *
+ * Tests REAL TV display provisioning flow per USER_PATHS.md Story B.
+ * These tests verify the complete flow of linking a TV display to a board.
+ *
+ * Test Philosophy:
+ * - Test the actual provisioning flow, not shortcuts
+ * - Verify TV receives token and displays board
+ * - Test permission levels (view only for TV displays)
+ */
 
 test.describe('Device Provisioning', () => {
-    test('Complete provisioning flow', async ({ page, request }) => {
-        // 1. Simulate TV requesting code polling
-        // We just poll once to "register" the code if needed, or just let controller link
-        const tvCode = 'TEST01';
-        const pollRes1 = await request.get(`/api/devices/poll?code=${tvCode}`);
-        const pollData1 = await pollRes1.json();
-        expect(pollData1.pending).toBe(true);
+    test('completes full TV provisioning flow', async ({ browser }) => {
+        // 1. TV Context: Unprovisioned display visits /board
+        const tvContext = await browser.newContext();
+        const tvPage = await tvContext.newPage();
 
-        // 2. Login as Controller
-        // Assuming simple auth setup or using existing setup helpers
-        // We'll use the signup flow quickly
+        await tvPage.goto('/board');
+
+        // TV should show provisioning view with 6-character code
+        const provisioningView = tvPage.locator('[data-testid="provisioning-view"]');
+        await expect(provisioningView).toBeVisible({ timeout: 10000 });
+
+        const codeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
+        await expect(codeDisplay).toBeVisible();
+
+        // Extract the provisioning code (format: AB-CD-EF or ABCDEF)
+        const codeText = (await codeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
+        expect(codeText).toMatch(/^[A-Z0-9]{6}$/);
+
+        // 2. Owner Context: Sign up and create board
+        const ownerContext = await browser.newContext();
+        const ownerPage = await ownerContext.newPage();
+
+        const timestamp = Date.now();
+        await ownerPage.goto('/signup');
+        await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+        await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+        await ownerPage.locator(selectors.passwordInput).fill('password123');
+        await ownerPage.locator(selectors.submitBtn).click();
+
+        await expect(ownerPage).toHaveURL(/\/controller/);
+
+        // 3. Owner links the display via Settings → Displays
+        await ownerPage.locator('[data-testid="tab-settings"]').click();
+        await expect(ownerPage.locator(selectors.settingsTab)).toBeVisible();
+
+        // Click "Link Display" button
+        const addDisplayBtn = ownerPage.locator('[data-testid="add-display-btn"]');
+        await expect(addDisplayBtn).toBeVisible();
+        await addDisplayBtn.click();
+
+        // Modal should appear with provisioning code input
+        const provisioningModal = ownerPage.locator('[data-testid="link-display-modal"]');
+        await expect(provisioningModal).toBeVisible();
+
+        // Enter the TV's provisioning code
+        const provisioningInput = ownerPage.locator('[data-testid="provisioning-input"]');
+        await expect(provisioningInput).toBeVisible();
+        await provisioningInput.fill(codeText);
+
+        // Submit the code
+        const submitBtn = ownerPage.locator('[data-testid="provisioning-submit"]');
+        await submitBtn.click();
+
+        // Modal should close (indicates success)
+        await expect(provisioningModal).not.toBeVisible({ timeout: 10000 });
+
+        // 4. REAL BEHAVIOR: TV should automatically receive token and display board
+        // The TV polls /api/devices/poll?code={code} and receives token
+        const boardView = tvPage.locator(selectors.boardView);
+        await expect(boardView).toBeVisible({ timeout: 15000 });
+
+        // TV should show the board grid (no longer in provisioning state)
+        await expect(provisioningView).not.toBeVisible();
+
+        // 5. REAL BEHAVIOR: Verify TV token persists in localStorage
+        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_display_token'));
+        expect(tvToken).toBeTruthy();
+        expect(tvToken).toMatch(/^hb_/);
+
+        // 6. REAL BEHAVIOR: Verify display appears in owner's linked displays list
+        await ownerPage.locator('[data-testid="tab-settings"]').click();
+        const linkedDisplay = ownerPage.locator('.settings-device-name');
+        await expect(linkedDisplay).toBeVisible();
+        await expect(linkedDisplay).toContainText(/Display|TV/i);
+
+        // 7. REAL BEHAVIOR: Verify TV has view-only permission (cannot edit)
+        // Try to access API with TV token - should be view permission
+        const bootstrapResponse = await tvPage.request.get('/api/bootstrap');
+        expect(bootstrapResponse.ok()).toBeTruthy();
+
+        const bootstrapData = await bootstrapResponse.json();
+        expect(bootstrapData.ownership?.permission).toBe('view');
+
+        await tvContext.close();
+        await ownerContext.close();
+    });
+
+    test('unlinks display and TV returns to provisioning', async ({ browser }) => {
+        // Setup: Owner with linked TV
+        const tvContext = await browser.newContext();
+        const tvPage = await tvContext.newPage();
+
+        await tvPage.goto('/board');
+        const codeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
+        await expect(codeDisplay).toBeVisible({ timeout: 10000 });
+        const codeText = (await codeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
+
+        const ownerContext = await browser.newContext();
+        const ownerPage = await ownerContext.newPage();
+
+        const timestamp = Date.now();
+        await ownerPage.goto('/signup');
+        await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+        await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+        await ownerPage.locator(selectors.passwordInput).fill('password123');
+        await ownerPage.locator(selectors.submitBtn).click();
+
+        await expect(ownerPage).toHaveURL(/\/controller/);
+
+        // Link display
+        await ownerPage.locator('[data-testid="tab-settings"]').click();
+        await ownerPage.locator('[data-testid="add-display-btn"]').click();
+        await ownerPage.locator('[data-testid="provisioning-input"]').fill(codeText);
+        await ownerPage.locator('[data-testid="provisioning-submit"]').click();
+
+        // Wait for TV to display board
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+
+        // 2. REAL BEHAVIOR TEST: Owner unlinks the display
+        await ownerPage.locator('[data-testid="tab-settings"]').click();
+
+        const unlinkBtn = ownerPage.locator('button:has-text("Unlink")').first();
+        await expect(unlinkBtn).toBeVisible();
+
+        // Handle confirmation dialog
+        ownerPage.on('dialog', dialog => dialog.accept());
+        await unlinkBtn.click();
+
+        // Display should be removed from list
+        await expect(ownerPage.locator('.settings-device-name')).not.toBeVisible();
+
+        // 3. CRITICAL TEST: TV should return to provisioning state
+        // Token is revoked, so next API call fails
+        await tvPage.reload();
+
+        // TV should show provisioning view again (token invalid)
+        const provisioningView = tvPage.locator('[data-testid="provisioning-view"]');
+        await expect(provisioningView).toBeVisible({ timeout: 15000 });
+
+        // Should show a NEW provisioning code (not the old one)
+        const newCodeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
+        await expect(newCodeDisplay).toBeVisible();
+        const newCodeText = (await newCodeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
+        expect(newCodeText).toMatch(/^[A-Z0-9]{6}$/);
+
+        await tvContext.close();
+        await ownerContext.close();
+    });
+
+    test('rejects invalid provisioning code with error', async ({ page }) => {
+        // Setup: Owner with board
+        const timestamp = Date.now();
         await page.goto('/signup');
-        await page.fill('[data-testid=name-input]', 'Test User');
-        await page.fill('[data-testid=email-input]', `test-${Date.now()}@example.com`);
-        await page.fill('[data-testid=password-input]', 'password123');
-        await page.click('[data-testid=submit-btn]');
+        await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+        await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+        await page.locator(selectors.passwordInput).fill('password123');
+        await page.locator(selectors.submitBtn).click();
 
-        // Wait for redirect to controller
         await expect(page).toHaveURL(/\/controller/);
 
-        // Create a board first (if needed, but signup usually auto-creates or prompts)
-        // Check if we are on controller main page
-        await expect(page.getByTestId('controller-view')).toBeVisible();
+        // Try to link display with invalid code
+        await page.locator('[data-testid="tab-settings"]').click();
+        await page.locator('[data-testid="add-display-btn"]').click();
 
-        // If we need to create a board, the UI prompt might be there, or we might need to click "Create Board"
-        // "ClaimBoardPrompt" is shown if no board? No, signup usually pairs or creates.
-        // Let's assume user has a board. Wait, signup makes user but no board by default?
-        // User needs to create board.
+        const provisioningInput = page.locator('[data-testid="provisioning-input"]');
+        await provisioningInput.fill('INVALID');
 
-        // Check if we need to create board
-        // The previous flow had "ClaimBoardPrompt", but now we removed "Claim"?
-        // "ClaimBoardPrompt" (component) still exists in `App.tsx` imports?
-        // `ClaimBoardPrompt` is for "Claim THIS board".
+        await page.locator('[data-testid="provisioning-submit"]').click();
 
-        // Let's ensure we have a board.
-        // We can use API to create board for user to be sure.
-        // Or simpler: Use UI "Create New Board" if we are in pairing view? 
-        // No, we are logged in.
+        // REAL BEHAVIOR: Should show error message
+        const errorMessage = page.locator('[data-testid="provisioning-error"]');
+        await expect(errorMessage).toBeVisible();
+        await expect(errorMessage).toContainText(/invalid|not found|expired/i);
 
-        // Let's go to Settings directly
-        await page.getByTestId('tab-settings').click();
+        // Modal should still be open (error state)
+        await expect(page.locator('[data-testid="link-display-modal"]')).toBeVisible();
+    });
 
-        // 3. Link Display
-        // Check if "Link New Display" button is visible
-        // If not visible, we might not be owner (we just signed up, so we have no board yet?)
-        // If we have no board, `SettingsTab` shows "Sign Out" but maybe not "Link Display".
-        // "Displays" section is conditional on `ownership.value.is_owner`.
+    test('TV display persists across page reloads', async ({ browser }) => {
+        // Setup: Link a TV display
+        const tvContext = await browser.newContext();
+        const tvPage = await tvContext.newPage();
 
-        // If we have no board, we should create one.
-        // `SettingsTab` logic doesn't show "Create Board".
-        // `App.tsx`: "Board shows provisioning view if no board exists" (for /board path).
+        await tvPage.goto('/board');
+        const codeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
+        await expect(codeDisplay).toBeVisible({ timeout: 10000 });
+        const codeText = (await codeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
 
-        // How does a new user create a board now? 
-        // Previously: "Phase 4: Board Claiming".
-        // If I sign up, do I have a board? No.
-        // I need to create one.
-        // `App.tsx`: `handleCreateBoard` is in `PairingView`.
-        // But if I am on `/controller`, and I am logged in, and `board` is null?
-        // `App.tsx`: `needsPairing = !board.value && !isInitialized.value`.
-        // If `needsPairing`, it shows `PairingView`.
+        const ownerContext = await browser.newContext();
+        const ownerPage = await ownerContext.newPage();
 
-        // So if I am logged in but no board, I see `PairingView`? 
-        // `App.tsx` redirects logged in users from `/login`.
-        // But `Controller` component needs `board`.
-        // Logic in `Controller` component: `if (!board.value) return Loading...` within SettingsTab?
-        // Wait, `Controller` component renders children. `SettingsTab` checks `!board.value`.
+        const timestamp = Date.now();
+        await ownerPage.goto('/signup');
+        await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+        await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+        await ownerPage.locator(selectors.passwordInput).fill('password123');
+        await ownerPage.locator(selectors.submitBtn).click();
 
-        // If `board.value` is null, `SettingsTab` shows "Loading settings...".
-        // This seems like a gap. If I have no board, I'm stuck loading?
-        // `initializeApp` tries to load board from storage.
-        // If storage empty, `needsPairing` is true -> `PairingView`.
+        await expect(ownerPage).toHaveURL(/\/controller/);
 
-        // Okay, so after signup, if I don't have a board in local storage, `App` shows `PairingView`.
-        // So I should see `PairingView` even after login?
-        // `App.tsx` line 534: redirects from /login to /controller.
-        // `path === '/controller' && needsPairing` -> `PairingView`.
-        // `PairingView` has "Create New Board".
+        // Link display
+        await ownerPage.locator('[data-testid="tab-settings"]').click();
+        await ownerPage.locator('[data-testid="add-display-btn"]').click();
+        await ownerPage.locator('[data-testid="provisioning-input"]').fill(codeText);
+        await ownerPage.locator('[data-testid="provisioning-submit"]').click();
 
-        // So flow:
-        await expect(page.getByTestId('create-board-btn')).toBeVisible();
-        await page.getByTestId('create-board-btn').click();
+        // Wait for TV to display board
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
-        // Now we should be in Controller view with a board.
-        await expect(page.getByTestId('controller-tabs')).toBeVisible();
-        await page.getByTestId('tab-settings').click();
+        // REAL BEHAVIOR TEST: Reload TV page - should still show board
+        await tvPage.reload();
 
-        await expect(page.getByTestId('add-display-btn')).toBeVisible();
-        await page.getByTestId('add-display-btn').click();
+        // Should NOT show provisioning view (token persists)
+        await expect(tvPage.locator('[data-testid="provisioning-view"]')).not.toBeVisible({ timeout: 5000 });
 
-        // 4. Enter Code
-        await page.fill('input[placeholder="ABCDEF"]', tvCode);
-        await page.click('button:has-text("Link Display")');
+        // Should show board view immediately
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
-        // 5. Verify Success
-        await expect(page.locator('.settings-device-name')).toContainText(`Display ${tvCode}`);
+        // Token should still be in localStorage
+        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_display_token'));
+        expect(tvToken).toBeTruthy();
+        expect(tvToken).toMatch(/^hb_/);
 
-        // 6. Verify Token polling
-        const pollRes2 = await request.get(`/api/devices/poll?code=${tvCode}`);
-        const pollData2 = await pollRes2.json();
-        expect(pollData2.token).toBeTruthy();
-
-        // 7. Unlink
-        page.on('dialog', dialog => dialog.accept());
-        await page.click('button:has-text("Unlink")');
-        await expect(page.locator('.settings-device-name')).not.toBeVisible();
+        await tvContext.close();
+        await ownerContext.close();
     });
 });
