@@ -53,6 +53,14 @@ export const test = base.extend<OwnerFixture>({
     ownerPage: async ({ ownerContext, ownerBoard }, use) => {
         const page = await ownerContext.newPage();
 
+        // Inject auth header for API requests from the browser
+        // This mocks the "Admin" session that a real login would provide
+        await page.route('/api/**', async route => {
+            const headers = route.request().headers();
+            headers['x-test-user-id'] = 'e2e-test-user';
+            await route.continue({ headers });
+        });
+
         // Inject state and navigate (FAST)
         await navigateWithBoard(page, '/controller', ownerBoard.id);
         await waitForControllerReady(page);
