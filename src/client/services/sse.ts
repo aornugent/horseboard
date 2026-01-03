@@ -7,6 +7,7 @@ import {
   FeedSchema,
   DietEntrySchema,
 } from '@shared/resources';
+import { getControllerToken } from './api';
 
 /**
  * SSE Event Schemas for runtime validation
@@ -52,7 +53,14 @@ class SSEClient {
       }
 
       this.boardId = boardId;
-      this.eventSource = new EventSource(`/api/boards/${boardId}/events`);
+
+      // Include controller token as query parameter (EventSource doesn't support headers)
+      const token = getControllerToken();
+      const url = token
+        ? `/api/boards/${boardId}/events?token=${encodeURIComponent(token)}`
+        : `/api/boards/${boardId}/events`;
+
+      this.eventSource = new EventSource(url);
 
       this.eventSource.onopen = () => {
         this.reconnectAttempts = 0;

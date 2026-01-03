@@ -39,6 +39,10 @@ export function loadControllerToken(): void {
   }
 }
 
+export function getControllerToken(): string | null {
+  return controllerToken;
+}
+
 async function request<T>(
   url: string,
   options: RequestInit = {}

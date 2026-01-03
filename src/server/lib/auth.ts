@@ -62,10 +62,19 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
         };
     }
 
+    // Check for token in Authorization header or query parameter (for SSE compatibility)
     const authHeader = req.headers.authorization;
+    const queryToken = req.query.token as string | undefined;
+
+    let token: string | null = null;
 
     if (authHeader?.startsWith('Bearer hb_')) {
-        const token = authHeader.slice(7);
+        token = authHeader.slice(7);
+    } else if (queryToken?.startsWith('hb_')) {
+        token = queryToken;
+    }
+
+    if (token) {
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         const controllerToken = repos.controllerTokens.getByHash(tokenHash);
 
@@ -80,11 +89,7 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
                 };
             }
         }
-        // Invalid or expired token -> continue to check session or return none?
-        // Usually invalid token implies we should stop, but let's fall through or return none.
-        // If a token is provided but invalid, we probably shouldn't fall back to session implicitly
-        // unless designed that way. But "Bearer hb_" is specific.
-        // Let's return none if token is invalid.
+        // Invalid or expired token -> return none
         return { permission: 'none', user_id: null, token_id: null, board_id: null };
     }
 
