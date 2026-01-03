@@ -11,6 +11,12 @@ import type { Unit } from '../../../src/shared/resources';
 // API base URL (matches playwright.config.ts)
 const BASE_URL = 'http://localhost:5173';
 
+// Test authentication header - grants admin permission in test mode
+// Must match the x-test-user-id header check in auth.ts
+const TEST_AUTH_HEADERS = {
+  'x-test-user-id': 'e2e-test-user',
+};
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -75,6 +81,7 @@ export interface ApiResponse<T> {
 export async function createBoard(request: APIRequestContext): Promise<Board> {
   const response = await request.post(`${BASE_URL}/api/boards`, {
     data: {},
+    headers: TEST_AUTH_HEADERS,
   });
 
   if (!response.ok()) {
@@ -98,12 +105,43 @@ export async function deleteBoard(
   request: APIRequestContext,
   boardId: string
 ): Promise<void> {
-  const response = await request.delete(`${BASE_URL}/api/boards/${boardId}`);
+  const response = await request.delete(`${BASE_URL}/api/boards/${boardId}`, {
+    headers: TEST_AUTH_HEADERS,
+  });
 
   if (!response.ok() && response.status() !== 404) {
     const text = await response.text();
     throw new Error(`Failed to delete board: ${response.status()} ${text}`);
   }
+}
+
+/**
+ * Get a board via GET /api/boards/:id
+ * Returns null if board not found (404)
+ */
+export async function getBoard(
+  request: APIRequestContext,
+  boardId: string
+): Promise<Board | null> {
+  const response = await request.get(`${BASE_URL}/api/boards/${boardId}`, {
+    headers: TEST_AUTH_HEADERS,
+  });
+
+  if (response.status() === 404) {
+    return null;
+  }
+
+  if (!response.ok()) {
+    const text = await response.text();
+    throw new Error(`Failed to get board: ${response.status()} ${text}`);
+  }
+
+  const json: ApiResponse<Board> = await response.json();
+  if (!json.success || !json.data) {
+    throw new Error(`Failed to get board: ${json.error}`);
+  }
+
+  return json.data;
 }
 
 // =============================================================================
@@ -135,6 +173,7 @@ export async function createHorse(
     `${BASE_URL}/api/boards/${boardId}/horses`,
     {
       data: input,
+      headers: TEST_AUTH_HEADERS,
     }
   );
 
@@ -161,6 +200,7 @@ export async function updateHorse(
 ): Promise<Horse> {
   const response = await request.patch(`${BASE_URL}/api/horses/${horseId}`, {
     data: input,
+    headers: TEST_AUTH_HEADERS,
   });
 
   if (!response.ok()) {
@@ -183,7 +223,9 @@ export async function deleteHorse(
   request: APIRequestContext,
   horseId: string
 ): Promise<void> {
-  const response = await request.delete(`${BASE_URL}/api/horses/${horseId}`);
+  const response = await request.delete(`${BASE_URL}/api/horses/${horseId}`, {
+    headers: TEST_AUTH_HEADERS,
+  });
 
   if (!response.ok() && response.status() !== 404) {
     const text = await response.text();
@@ -212,6 +254,7 @@ export async function createFeed(
     `${BASE_URL}/api/boards/${boardId}/feeds`,
     {
       data: input,
+      headers: TEST_AUTH_HEADERS,
     }
   );
 
@@ -235,7 +278,9 @@ export async function deleteFeed(
   request: APIRequestContext,
   feedId: string
 ): Promise<void> {
-  const response = await request.delete(`${BASE_URL}/api/feeds/${feedId}`);
+  const response = await request.delete(`${BASE_URL}/api/feeds/${feedId}`, {
+    headers: TEST_AUTH_HEADERS,
+  });
 
   if (!response.ok() && response.status() !== 404) {
     const text = await response.text();
@@ -263,6 +308,7 @@ export async function upsertDiet(
 ): Promise<DietEntry> {
   const response = await request.put(`${BASE_URL}/api/diet`, {
     data: input,
+    headers: TEST_AUTH_HEADERS,
   });
 
   if (!response.ok()) {
@@ -287,7 +333,10 @@ export async function deleteDiet(
   feedId: string
 ): Promise<void> {
   const response = await request.delete(
-    `${BASE_URL}/api/diet/${horseId}/${feedId}`
+    `${BASE_URL}/api/diet/${horseId}/${feedId}`,
+    {
+      headers: TEST_AUTH_HEADERS,
+    }
   );
 
   if (!response.ok() && response.status() !== 404) {
