@@ -44,14 +44,14 @@ export function createDevicesRouter(ctx: RouteContext): Router {
 
         if (data.token) {
             // Provisioning complete!
-            res.json({ success: true, token: data.token });
+            res.json({ success: true, data: { token: data.token } });
             // Clean up after successful handoff? 
             // Maybe keep it briefly or delete immediately. 
             // If we delete immediately, valid retry might fail. 
             // Let's delete it.
             provisioningStore.delete(code);
         } else {
-            res.json({ success: true, pending: true });
+            res.json({ success: true, data: { pending: true } });
         }
     });
 

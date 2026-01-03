@@ -79,7 +79,7 @@ test.describe('Device Provisioning', () => {
         await expect(provisioningView).not.toBeVisible();
 
         // 5. REAL BEHAVIOR: Verify TV token persists in localStorage
-        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_display_token'));
+        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
         expect(tvToken).toBeTruthy();
         expect(tvToken).toMatch(/^hb_/);
 
@@ -233,7 +233,7 @@ test.describe('Device Provisioning', () => {
         await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
         // Token should still be in localStorage
-        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_display_token'));
+        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
         expect(tvToken).toBeTruthy();
         expect(tvToken).toMatch(/^hb_/);
 
