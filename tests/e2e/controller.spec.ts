@@ -15,13 +15,40 @@ import { selectors, unitSelectors, timeModeSelectors } from './selectors';
  */
 
 test.describe('Mobile Controller', () => {
-  // Setup: create a board by visiting /board first
+  test.describe('Navigation', () => {
+    test('has correct tabs after signup', async ({ page }) => {
+      // Test via REAL signup flow, not API injection
+      const timestamp = Date.now();
+      await page.goto('/signup');
+      await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+      await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+      await page.locator(selectors.passwordInput).fill('password123');
+      await page.locator(selectors.submitBtn).click();
+
+      await expect(page).toHaveURL(/\/controller/);
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+
+      // Verify tabs that SHOULD exist
+      await expect(page.locator('[data-testid="tab-horses"]')).toBeVisible();
+      await expect(page.locator('[data-testid="tab-feeds"]')).toBeVisible();
+      await expect(page.locator('[data-testid="tab-board"]')).toBeVisible();
+      await expect(page.locator('[data-testid="tab-settings"]')).toBeVisible();
+
+      // Verify Tokens tab does NOT exist (consolidated into Settings per USER_PATHS.md)
+      await expect(page.locator('[data-testid="tab-tokens"]')).not.toBeVisible();
+    });
+  });
+
+  // Setup: Use REAL signup flow, not API injection
   test.beforeEach(async ({ page }) => {
-    // Visit /board to auto-create a board and store it in localStorage
-    await page.goto('/board');
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
-    // Now navigate to controller
-    await page.goto('/controller');
+    const timestamp = Date.now();
+    await page.goto('/signup');
+    await page.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
+    await page.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
+    await page.locator(selectors.passwordInput).fill('password123');
+    await page.locator(selectors.submitBtn).click();
+
+    await expect(page).toHaveURL(/\/controller/);
     await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
   });
 
@@ -139,37 +166,7 @@ test.describe('Mobile Controller', () => {
       await expect(settingsTab).toBeVisible();
     });
 
-    test('should show effective time mode', async ({ page }) => {
-      const effectiveMode = page.locator(selectors.effectiveTimeMode);
-      await expect(effectiveMode).toBeVisible();
-
-      const text = await effectiveMode.textContent();
-      expect(['AM', 'PM']).toContain(text?.trim());
-    });
-
-    test('should have time mode selector', async ({ page }) => {
-      const selector = page.locator(selectors.timeModeSelector);
-      await expect(selector).toBeVisible();
-    });
-
-    test('should show all time mode options', async ({ page }) => {
-      await expect(page.locator(timeModeSelectors.auto)).toBeVisible();
-      await expect(page.locator(timeModeSelectors.am)).toBeVisible();
-      await expect(page.locator(timeModeSelectors.pm)).toBeVisible();
-    });
-
-    test('should have zoom level selector', async ({ page }) => {
-      const selector = page.locator(selectors.zoomSelector);
-      await expect(selector).toBeVisible();
-    });
-
-    test('should show all zoom levels', async ({ page }) => {
-      await expect(page.locator(selectors.zoomLevel(1))).toBeVisible();
-      await expect(page.locator(selectors.zoomLevel(2))).toBeVisible();
-      await expect(page.locator(selectors.zoomLevel(3))).toBeVisible();
-    });
-
-    test('should have timezone selector', async ({ page }) => {
+    test('should have timezone selector (moved from Board tab)', async ({ page }) => {
       const selector = page.locator(selectors.timezoneSelector);
       await expect(selector).toBeVisible();
     });
@@ -182,6 +179,16 @@ test.describe('Mobile Controller', () => {
     test('should show board ID', async ({ page }) => {
       const boardId = page.locator(selectors.boardId);
       await expect(boardId).toBeVisible();
+    });
+
+    test('should NOT show time mode selector (moved to Board tab)', async ({ page }) => {
+      const selector = page.locator(selectors.timeModeSelector);
+      await expect(selector).not.toBeVisible();
+    });
+
+    test('should NOT show zoom selector (moved to Board tab)', async ({ page }) => {
+      const selector = page.locator(selectors.zoomSelector);
+      await expect(selector).not.toBeVisible();
     });
   });
 
@@ -200,6 +207,62 @@ test.describe('Mobile Controller', () => {
     test('should show read-only grid preview', async ({ page }) => {
       const grid = page.locator(selectors.swimLaneGrid);
       await expect(grid).toBeVisible();
+    });
+
+    test('should show pagination controls', async ({ page }) => {
+      await expect(page.locator('[data-testid="prev-page-btn"]')).toBeVisible();
+      await expect(page.locator('[data-testid="next-page-btn"]')).toBeVisible();
+    });
+
+    test('should show display controls toggle for admin users', async ({ page }) => {
+      const toggleBtn = page.locator('[data-testid="toggle-display-controls"]');
+      await expect(toggleBtn).toBeVisible();
+    });
+
+    test('should show/hide display controls drawer when toggled', async ({ page }) => {
+      const toggleBtn = page.locator('[data-testid="toggle-display-controls"]');
+      const drawer = page.locator('[data-testid="display-controls-drawer"]');
+
+      // Initially hidden
+      await expect(drawer).not.toBeVisible();
+
+      // Click to show
+      await toggleBtn.click();
+      await expect(drawer).toBeVisible();
+
+      // Click to hide
+      await toggleBtn.click();
+      await expect(drawer).not.toBeVisible();
+    });
+
+    test('should have time mode selector in display controls', async ({ page }) => {
+      // Open display controls
+      await page.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(page.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+      // Check for time mode selector
+      const selector = page.locator(selectors.timeModeSelector);
+      await expect(selector).toBeVisible();
+
+      // Check all time mode options
+      await expect(page.locator(timeModeSelectors.auto)).toBeVisible();
+      await expect(page.locator(timeModeSelectors.am)).toBeVisible();
+      await expect(page.locator(timeModeSelectors.pm)).toBeVisible();
+    });
+
+    test('should have zoom level selector in display controls', async ({ page }) => {
+      // Open display controls
+      await page.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(page.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+      // Check for zoom selector
+      const selector = page.locator(selectors.zoomSelector);
+      await expect(selector).toBeVisible();
+
+      // Check all zoom levels
+      await expect(page.locator(selectors.zoomLevel(1))).toBeVisible();
+      await expect(page.locator(selectors.zoomLevel(2))).toBeVisible();
+      await expect(page.locator(selectors.zoomLevel(3))).toBeVisible();
     });
   });
 });

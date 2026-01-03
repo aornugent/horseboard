@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { CreateFeedSchema, UpdateFeedSchema } from '@shared/resources';
 import { validate } from './middleware';
+import { requirePermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -20,13 +21,13 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   const { repos, broadcast, rankingManager } = ctx;
 
   // GET /api/boards/:boardId/feeds - list feeds for a board
-  boardScoped.get('/', (req: Request, res: Response) => {
+  boardScoped.get('/', requirePermission('view'), (req: Request, res: Response) => {
     const items = repos.feeds.getByParent(req.params.boardId);
     res.json({ success: true, data: items });
   });
 
   // POST /api/boards/:boardId/feeds - create feed under board
-  boardScoped.post('/', validate(CreateFeedSchema), (req: Request, res: Response) => {
+  boardScoped.post('/', requirePermission('edit'), validate(CreateFeedSchema), (req: Request, res: Response) => {
     try {
       const item = repos.feeds.create(req.body, req.params.boardId);
       rankingManager.scheduleRecalculation(req.params.boardId);
@@ -43,7 +44,7 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // POST /api/boards/:boardId/feeds/recalculate-rankings - recalculate rankings
-  boardScoped.post('/recalculate-rankings', (req: Request, res: Response) => {
+  boardScoped.post('/recalculate-rankings', requirePermission('edit'), (req: Request, res: Response) => {
     const board = repos.boards.getById(req.params.boardId);
     if (!board) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -57,7 +58,10 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // GET /api/feeds/:id - get feed by id
-  standalone.get('/:id', (req: Request, res: Response) => {
+  standalone.get('/:id', requirePermission('view', async (req, repos) => {
+    const item = repos.feeds.getById(req.params.id);
+    return item?.board_id;
+  }), (req: Request, res: Response) => {
     const item = repos.feeds.getById(req.params.id);
     if (!item) {
       res.status(404).json({ success: false, error: 'Feed not found' });
@@ -67,7 +71,10 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // PATCH /api/feeds/:id - update feed
-  standalone.patch('/:id', validate(UpdateFeedSchema), (req: Request, res: Response) => {
+  standalone.patch('/:id', requirePermission('edit', async (req, repos) => {
+    const item = repos.feeds.getById(req.params.id);
+    return item?.board_id;
+  }), validate(UpdateFeedSchema), (req: Request, res: Response) => {
     const existing = repos.feeds.getById(req.params.id);
     if (!existing) {
       res.status(404).json({ success: false, error: 'Feed not found' });
@@ -80,7 +87,10 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // DELETE /api/feeds/:id - delete feed
-  standalone.delete('/:id', (req: Request, res: Response) => {
+  standalone.delete('/:id', requirePermission('edit', async (req, repos) => {
+    const item = repos.feeds.getById(req.params.id);
+    return item?.board_id;
+  }), (req: Request, res: Response) => {
     const existing = repos.feeds.getById(req.params.id);
     const deleted = repos.feeds.delete(req.params.id);
     if (!deleted) {

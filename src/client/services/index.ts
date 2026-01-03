@@ -1,8 +1,8 @@
 export { sseClient } from './sse';
 export {
-  bootstrap,
   pairWithCode,
   createBoard,
+
   createHorse,
   updateHorse,
   deleteHorse,
@@ -11,6 +11,19 @@ export {
   deleteFeed,
   updateTimeMode,
   updateBoard,
+  revokeControllerToken,
+  setControllerToken,
+  resolveToken,
+  pollProvisioning,
+  linkDevice,
+  listDevices,
+  listUserBoards,
+
+  revokeDeviceToken,
+  generateInviteCode,
+  redeemInvite,
+  loadControllerToken,
   ApiError,
 } from './api';
-export type { BootstrapData, PairResult } from './api';
+export type { PairResult, ControllerToken } from './api';
+

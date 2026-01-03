@@ -11,6 +11,7 @@ import {
   createBoardStore,
   type UpdateSource,
 } from '../lib/engine';
+export * from './auth';
 
 export type { UpdateSource };
 
@@ -23,6 +24,17 @@ export const overrideUntil = boardStore.override_until;
 export const zoomLevel = boardStore.zoom_level;
 export const currentPage = boardStore.current_page;
 export const effectiveTimeMode = boardStore.effective_time_mode;
+
+import { signal } from '@preact/signals';
+
+// Permission-based access control (replaces ownership)
+export type Permission = 'none' | 'view' | 'edit' | 'admin';
+export const permission = signal<Permission>('view');
+export const setPermission = (p: Permission) => { permission.value = p; };
+
+// Computed permission helpers
+export const canEdit = () => permission.value === 'edit' || permission.value === 'admin';
+export const isAdmin = () => permission.value === 'admin';
 
 export const setBoard = (b: Parameters<typeof boardStore.set>[0], source?: UpdateSource) =>
   boardStore.set(b, source);
