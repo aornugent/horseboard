@@ -80,11 +80,6 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
                 };
             }
         }
-        // Invalid or expired token -> continue to check session or return none?
-        // Usually invalid token implies we should stop, but let's fall through or return none.
-        // If a token is provided but invalid, we probably shouldn't fall back to session implicitly
-        // unless designed that way. But "Bearer hb_" is specific.
-        // Let's return none if token is invalid.
         return { permission: 'none', user_id: null, token_id: null, board_id: null };
     }
 

@@ -26,14 +26,18 @@ export function LoginView() {
             } else if (data) {
                 // Successful login
                 try {
-                    const { listUserBoards, createBoard } = await import('../services');
+                    const { listUserBoards, createBoard, setPermission } = await import('../services');
                     const boards = await listUserBoards();
                     let boardId;
                     if (boards.length === 0) {
                         const newBoard = await createBoard();
                         boardId = newBoard.id;
+                        // Owner has admin permission on their board
+                        setPermission('admin');
                     } else {
                         boardId = boards[0].id;
+                        // Assume admin for their own board (server validates)
+                        setPermission('admin');
                     }
                     localStorage.setItem('horseboard_board_id', boardId);
                 } catch (e) {
