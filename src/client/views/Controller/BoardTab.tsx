@@ -1,5 +1,5 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid';
-import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, canEdit } from '../../stores';
+import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel } from '../../stores';
 import './BoardTab.css';
 
 import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode } from '../../services';
@@ -38,7 +38,6 @@ async function changeZoom(level: 1 | 2 | 3) {
 }
 
 export function BoardTab() {
-  const canEditBoard = canEdit();
   const showControls = useSignal(false);
 
   return (
@@ -85,66 +84,64 @@ export function BoardTab() {
         </div>
       </div>
 
-      {canEditBoard && (
-        <div class="board-display-controls">
-          <button
-            class="board-controls-toggle"
-            onClick={() => showControls.value = !showControls.value}
-            data-testid="toggle-display-controls"
-          >
-            Display Controls
-            <span class="board-controls-toggle-icon">{showControls.value ? '▼' : '▶'}</span>
-          </button>
+      <div class="board-display-controls">
+        <button
+          class="board-controls-toggle"
+          onClick={() => showControls.value = !showControls.value}
+          data-testid="toggle-display-controls"
+        >
+          Display Controls
+          <span class="board-controls-toggle-icon">{showControls.value ? '▼' : '▶'}</span>
+        </button>
 
-          {showControls.value && (
-            <div class="board-controls-drawer" data-testid="display-controls-drawer">
-              <div class="board-control-group" data-testid="time-mode-selector">
-                <label class="board-control-label">Time Mode</label>
-                <div class="board-control-buttons">
-                  {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
-                    <button
-                      key={mode}
-                      class={`board-control-option ${configuredMode.value === mode ? 'active' : ''}`}
-                      onClick={() => changeTimeMode(mode)}
-                      data-testid={`time-mode-${mode.toLowerCase()}`}
-                      title={TIME_MODE_CONFIG[mode].description}
-                    >
-                      {TIME_MODE_CONFIG[mode].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div class="board-control-group" data-testid="zoom-selector">
-                <label class="board-control-label">Zoom</label>
-                <div class="board-control-buttons">
+        {showControls.value && (
+          <div class="board-controls-drawer" data-testid="display-controls-drawer">
+            <div class="board-control-group" data-testid="time-mode-selector">
+              <label class="board-control-label">Time Mode</label>
+              <div class="board-control-buttons">
+                {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
                   <button
-                    class={`board-control-option ${zoomLevel.value === 1 ? 'active' : ''}`}
-                    onClick={() => changeZoom(1)}
-                    data-testid="zoom-level-1"
+                    key={mode}
+                    class={`board-control-option ${configuredMode.value === mode ? 'active' : ''}`}
+                    onClick={() => changeTimeMode(mode)}
+                    data-testid={`time-mode-${mode.toLowerCase()}`}
+                    title={TIME_MODE_CONFIG[mode].description}
                   >
-                    S
+                    {TIME_MODE_CONFIG[mode].label}
                   </button>
-                  <button
-                    class={`board-control-option ${zoomLevel.value === 2 ? 'active' : ''}`}
-                    onClick={() => changeZoom(2)}
-                    data-testid="zoom-level-2"
-                  >
-                    M
-                  </button>
-                  <button
-                    class={`board-control-option ${zoomLevel.value === 3 ? 'active' : ''}`}
-                    onClick={() => changeZoom(3)}
-                    data-testid="zoom-level-3"
-                  >
-                    L
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
-          )}
-        </div>
-      )}
+
+            <div class="board-control-group" data-testid="zoom-selector">
+              <label class="board-control-label">Zoom</label>
+              <div class="board-control-buttons">
+                <button
+                  class={`board-control-option ${zoomLevel.value === 1 ? 'active' : ''}`}
+                  onClick={() => changeZoom(1)}
+                  data-testid="zoom-level-1"
+                >
+                  S
+                </button>
+                <button
+                  class={`board-control-option ${zoomLevel.value === 2 ? 'active' : ''}`}
+                  onClick={() => changeZoom(2)}
+                  data-testid="zoom-level-2"
+                >
+                  M
+                </button>
+                <button
+                  class={`board-control-option ${zoomLevel.value === 3 ? 'active' : ''}`}
+                  onClick={() => changeZoom(3)}
+                  data-testid="zoom-level-3"
+                >
+                  L
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
