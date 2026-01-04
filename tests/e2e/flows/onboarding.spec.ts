@@ -24,7 +24,7 @@ test.describe('Onboarding and Pairing', () => {
       await page.goto('/board');
 
       // Wait for board view to be ready (auto-creates board)
-      await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+      await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
       // Verify pair code is visible - check both possible locations
       const pairCodeHeader = page.locator(selectors.boardPairCode);
@@ -71,7 +71,7 @@ test.describe('Onboarding and Pairing', () => {
 
       // Wait for controller view to load (indicates successful board creation)
       const controllerView = page.locator('[data-testid="controller-view"]');
-      await expect(controllerView).toBeVisible({ timeout: 15000 });
+      await expect(controllerView).toBeVisible({ timeout: 10000 });
 
       // Verify navigation to Horses tab (default tab)
       const horsesTab = page.locator(selectors.horsesTab);
@@ -113,7 +113,7 @@ test.describe('Onboarding and Pairing', () => {
 
         // Wait for controller view to load (indicates successful pairing)
         const controllerView = page.locator('[data-testid="controller-view"]');
-        await expect(controllerView).toBeVisible({ timeout: 15000 });
+        await expect(controllerView).toBeVisible({ timeout: 10000 });
 
         // Verify navigation to Horses tab (default tab)
         const horsesTab = page.locator(selectors.horsesTab);

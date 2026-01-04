@@ -225,8 +225,11 @@ export async function waitForControllerReady(page: Page): Promise<void> {
     timeout: 15000,
   });
 
-  // Wait for SSE connection to establish and hydrate data
-  await page.waitForTimeout(500);
+  // Wait for the horses tab to be visible (indicates controller is fully hydrated)
+  await page.waitForSelector('[data-testid="horses-tab"]', {
+    state: 'visible',
+    timeout: 5000,
+  });
 }
 
 /**
@@ -239,6 +242,9 @@ export async function waitForBoardReady(page: Page): Promise<void> {
     timeout: 15000,
   });
 
-  // Wait for SSE connection to establish and hydrate data
-  await page.waitForTimeout(500);
+  // Wait for the grid to be visible (indicates board is fully hydrated)
+  await page.waitForSelector('[data-testid="swim-lane-grid"]', {
+    state: 'visible',
+    timeout: 5000,
+  });
 }

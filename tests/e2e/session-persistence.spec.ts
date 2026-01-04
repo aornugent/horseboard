@@ -88,7 +88,7 @@ test.describe('Session Persistence', () => {
       await userPage.locator(selectors.inviteInput).fill(inviteCode);
       await userPage.locator(selectors.inviteSubmit).click();
 
-      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 10000 });
       await userPage.locator('[data-testid="tab-horses"]').click();
 
       // Verify edit access
@@ -151,7 +151,7 @@ test.describe('Session Persistence', () => {
     await ownerPage.goto('/');
 
     // Should auto-redirect to controller (not show landing page)
-    await expect(ownerPage).toHaveURL(/\/controller/, { timeout: 5000 });
+    await expect(ownerPage).toHaveURL(/\/controller/, { timeout: 10000 });
     await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
   });
 });

@@ -202,7 +202,7 @@ test.describe('Permission Enforcement', () => {
       await userPage.locator(selectors.inviteSubmit).click();
 
       // Wait for reload
-      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 10000 });
       await userPage.locator('[data-testid="tab-horses"]').click();
 
       // BEHAVIOR: Edit user CAN add horses
