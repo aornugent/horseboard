@@ -13,6 +13,8 @@ export {
   updateBoard,
 
   setControllerToken,
+  setPermission,
+  loadPermission,
   resolveToken,
   pollProvisioning,
   linkDevice,
