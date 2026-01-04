@@ -7,6 +7,7 @@ import {
   navigateWithBoard,
   type TestData,
 } from './helpers/setup';
+import { getBoard } from './helpers/api';
 
 /**
  * Verification Tests for E2E Helpers
@@ -74,10 +75,8 @@ test.describe('Test Infrastructure Helpers', () => {
     await cleanupTestData(request, boardId);
 
     // Verify the board is deleted by trying to fetch it
-    const response = await request.get(
-      `http://localhost:5173/api/boards/${boardId}`
-    );
-    expect(response.status()).toBe(404);
+    const board = await getBoard(request, boardId);
+    expect(board).toBeNull();
 
     // Clear testData so afterEach doesn't try to clean up again
     testData = null as unknown as TestData;

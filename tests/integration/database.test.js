@@ -14,14 +14,15 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+import { runMigrations } from '../../src/server/db/migrate.ts';
+
 function initializeTestDatabase() {
   const db = new Database(':memory:');
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
-  const schemaPath = join(__dirname, '../../src/server/db/migrations/001_initial_schema.sql');
-  const schema = readFileSync(schemaPath, 'utf-8');
-  db.exec(schema);
+  const migrationsDir = join(__dirname, '../../src/server/db/migrations');
+  runMigrations(db, migrationsDir);
 
   return db;
 }

@@ -16,6 +16,14 @@ import { UNITS, TIME_MODES, type Unit, type TimeMode } from '../../src/shared/re
 
 export const selectors = {
   // ============================================
+  // Tab Navigation (Controller)
+  // ============================================
+  tabHorses: '[data-testid="tab-horses"]',
+  tabFeeds: '[data-testid="tab-feeds"]',
+  tabBoard: '[data-testid="tab-board"]',
+  tabSettings: '[data-testid="tab-settings"]',
+
+  // ============================================
   // SwimLaneGrid (TV Board Grid)
   // ============================================
   swimLaneGrid: '[data-testid="swim-lane-grid"]',
@@ -144,12 +152,29 @@ export const selectors = {
   timezoneSelector: '[data-testid="timezone-selector"]',
   boardPairCode: '[data-testid="board-pair-code"]',
   boardId: '[data-testid="board-id"]',
+  enterInviteBtn: '[data-testid="enter-invite-btn"]',
+  inviteInput: '[data-testid="invite-input"]',
+  inviteSubmit: '[data-testid="invite-submit"]',
+  inviteError: '[data-testid="invite-error"]',
+
+  // Display Management
+  addDisplayBtn: '[data-testid="add-display-btn"]',
+  linkDisplayModal: '[data-testid="link-display-modal"]',
+  provisioningInput: '[data-testid="provisioning-input"]',
+  provisioningSubmit: '[data-testid="provisioning-submit"]',
+  provisioningError: '[data-testid="provisioning-error"]',
+  settingsDeviceName: '[data-testid="settings-device-name"]',
+  unlinkDisplayBtn: '[data-testid="unlink-display-btn"]',
+
+
 
   // ============================================
   // Board View (TV)
   // ============================================
   boardView: '[data-testid="board-view"]',
   timeModeBadge: '[data-testid="time-mode-badge"]',
+  provisioningView: '[data-testid="provisioning-view"]',
+  provisioningCode: '[data-testid="provisioning-code"]',
 
   // ============================================
   // General / Navigation
@@ -159,6 +184,20 @@ export const selectors = {
   connectBtn: '[data-testid="connect-btn"]',
   quantityModal: '[data-testid="quantity-modal"]',
   quantityInput: '[data-testid="quantity-input"]',
+  pairingView: '[data-testid="pairing-view"]',
+
+
+  // ============================================
+  // Auth
+  // ============================================
+  loginView: '[data-testid="login-view"]',
+  signupView: '[data-testid="signup-view"]',
+  emailInput: '[data-testid="email-input"]',
+  passwordInput: '[data-testid="password-input"]',
+  nameInput: '[data-testid="name-input"]',
+  submitBtn: '[data-testid="submit-btn"]',
+  accountName: '[data-testid="account-name"]',
+  signOutBtn: '[data-testid="sign-out-btn"]',
 };
 
 // =============================================================================

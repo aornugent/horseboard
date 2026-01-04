@@ -1,12 +1,12 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries } from '../../stores';
+import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
 import './FeedsTab.css';
 
-// Local UI state
+// ... (keep local state) ...
 const searchQuery = signal('');
 const isAddingFeed = signal(false);
 const newFeedName = signal('');
@@ -14,14 +14,13 @@ const newFeedUnit = signal<Unit>(DEFAULT_UNIT);
 const editingFeed = signal<Feed | null>(null);
 const deletingFeed = signal<Feed | null>(null);
 
-// Filtered feeds based on search
+// ... (keep computed and helpers) ...
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
   if (!query) return feeds.value;
   return feeds.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
-// Count horses using a specific feed
 function countHorsesUsingFeed(feedId: string): number {
   return dietEntries.value.filter(
     entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount)
@@ -62,24 +61,27 @@ async function handleSaveFeedEdit(feed: Feed) {
   }
 }
 
-// Generate unit options from shared constants
 const UNIT_OPTIONS = UNITS.map(unit => ({
   value: unit,
   label: UNIT_LABELS[unit],
 }));
 
 export function FeedsTab() {
+  const canEditBoard = canEdit();
+
   return (
     <div class="feeds-tab" data-testid="feeds-tab">
       <div class="feeds-tab-header">
         <h2 class="feeds-tab-title">Feeds</h2>
-        <button
-          class="feeds-tab-add-btn"
-          data-testid="add-feed-btn"
-          onClick={() => { isAddingFeed.value = true; }}
-        >
-          + Add Feed
-        </button>
+        {canEditBoard && (
+          <button
+            class="feeds-tab-add-btn"
+            data-testid="add-feed-btn"
+            onClick={() => { isAddingFeed.value = true; }}
+          >
+            + Add Feed
+          </button>
+        )}
       </div>
 
       <div class="feeds-tab-search">
@@ -108,8 +110,8 @@ export function FeedsTab() {
               key={feed.id}
               feed={feed}
               horseCount={countHorsesUsingFeed(feed.id)}
-              onEdit={() => { editingFeed.value = { ...feed }; }}
-              onDelete={() => { deletingFeed.value = feed; }}
+              onEdit={canEditBoard ? () => { editingFeed.value = { ...feed }; } : undefined}
+              onDelete={canEditBoard ? () => { deletingFeed.value = feed; } : undefined}
             />
           ))
         )}
@@ -120,6 +122,7 @@ export function FeedsTab() {
       <Modal
         isOpen={isAddingFeed.value}
         title="Add New Feed"
+        data-testid="add-feed-modal"
         onClose={() => {
           isAddingFeed.value = false;
           newFeedName.value = '';
@@ -182,6 +185,7 @@ export function FeedsTab() {
       <Modal
         isOpen={!!editingFeed.value}
         title="Edit Feed"
+        data-testid="edit-feed-modal"
         onClose={() => { editingFeed.value = null; }}
       >
         {editingFeed.value && (
@@ -248,6 +252,7 @@ export function FeedsTab() {
       <Modal
         isOpen={!!deletingFeed.value}
         title="Delete Feed?"
+        data-testid="delete-feed-modal"
         onClose={() => { deletingFeed.value = null; }}
       >
         {deletingFeed.value && (

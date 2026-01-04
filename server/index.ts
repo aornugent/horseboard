@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
@@ -8,18 +9,25 @@ import { fileURLToPath } from 'url';
 import {
   createBoardsRepository,
   createHorsesRepository,
+
   createFeedsRepository,
   createDietRepository,
+  createControllerTokensRepository,
+  createInviteCodesRepository,
   SSEManager,
   FeedRankingManager,
   type HorsesRepository,
   type FeedsRepository,
   type DietRepository,
   type BoardsRepository,
+  type ControllerTokensRepository,
+  type InviteCodesRepository,
 } from '@server/lib/engine';
 import { ExpiryScheduler } from '@server/scheduler';
 import { mountRoutes, RouteContext } from '@server/routes';
 import { runMigrations } from '@server/db/migrate';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from '@server/lib/auth-instance';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -53,6 +61,8 @@ interface ServerContext {
     horses: HorsesRepository;
     feeds: FeedsRepository;
     diet: DietRepository;
+    controllerTokens: ControllerTokensRepository;
+    inviteCodes: InviteCodesRepository;
   };
   timers: NodeJS.Timeout[];
 }
@@ -66,7 +76,7 @@ function createBroadcastHelper(ctx: ServerContext) {
     const feeds = ctx.repos.feeds.getByParent(boardId);
     const diet_entries = ctx.repos.diet.getByBoardId(boardId);
 
-    ctx.sse.broadcast(boardId, 'full', { board, horses, feeds, diet_entries });
+    ctx.sse.broadcast(boardId, { board, horses, feeds, diet_entries });
   };
 }
 
@@ -76,6 +86,8 @@ function createRepositories(db: Database.Database): ServerContext['repos'] {
     horses: createHorsesRepository(db),
     feeds: createFeedsRepository(db),
     diet: createDietRepository(db),
+    controllerTokens: createControllerTokensRepository(db),
+    inviteCodes: createInviteCodesRepository(db),
   };
 }
 
@@ -114,6 +126,27 @@ function createServer(): ServerContext {
   app.use(cors());
   app.use(express.json());
 
+  app.use(express.json());
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === 'test' ? 10000 : 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use("/api/auth/*", authLimiter);
+  app.all("/api/auth/*", toNodeHandler(auth));
+
+  const tokenCreationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: process.env.NODE_ENV === 'test' ? 1000 : 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/boards/:board_id/tokens", tokenCreationLimiter);
+
   const sse = new SSEManager();
   const rankingManager = new FeedRankingManager(db, 500);
   const expiryScheduler = new ExpiryScheduler(db);
@@ -138,15 +171,19 @@ function createServer(): ServerContext {
     broadcast,
     rankingManager,
     expiryScheduler,
+    provisioningStore: new Map(),
   };
+
+  app.use((req, _res, next) => {
+    (req as any).routeContext = routeContext;
+    next();
+  });
 
   mountRoutes(app, routeContext, sse);
 
-  // Serve static files from the client build directory
   const clientDistPath = join(__dirname, '../dist/client');
   app.use(express.static(clientDistPath));
 
-  // Fallback to index.html for client-side routing (SPA)
   app.get('*', (_req, res) => {
     res.sendFile(join(clientDistPath, 'index.html'));
   });
