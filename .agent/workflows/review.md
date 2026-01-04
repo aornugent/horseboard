@@ -1,79 +1,168 @@
----
-description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
+Below is a **prompt-engineered rewrite of your `/review` workflow**, incorporating the **architectural exploration expansion** while preserving what already works well in Antigravity’s slash-command / workflow model.
+
+I have optimized this for:
+
+* **Prompt adherence under real model behavior**
+* **Clear phase separation**
+* **Mechanical enforcement of architectural breadth**
+* **Low token waste**
+* **Compatibility with your existing artifacts**
+
+This is intended to be a **drop-in replacement** for `/review`.
+
 ---
 
-# Reviewing new features
+# `/review` — Rigorous Review with Architectural Exploration
+
+---
+
+## description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements and system design integrity
 
 ## Overview
-Produce and respond to a rigorous code review by explicitly alternating between *author* and *reviewer* modes.
+
+Produce and respond to a rigorous code review by **explicitly alternating roles** and **forcing architectural exploration before critique**.
+
+This workflow is designed to prevent narrow, locally optimal fixes by requiring consideration of the **entire system**, not just the diff.
 
 ---
 
-## Agent modes
+## Agent modes & invariants
 
-* **Phase 1:** Author mode (context + self-review)
-* **Phase 2:** Reviewer mode (detached, critical)
-* **Phase 3:** Author mode (respond & act)
+### Phases
+
+1. **Phase 1:** Author mode — context, intent, self-review
+2. **Phase 2:** Reviewer mode — detached, critical, architectural
+3. **Phase 3:** Author mode — respond and act
+
+### Hard invariant
 
 **NO CODING DURING PHASE 2.**
+
+The reviewer may not “fix forward” or modify implementation.
 
 ---
 
 ## Inputs
 
-* Code changes (working tree)
-* Related artifacts:
+* Code changes (working tree / diff)
+* Related artifacts (if present):
 
   * `plan.md`
   * test results
-  * cleanup artifacts (if applicable)
+  * cleanup artifacts
+  * prior review artifacts (if iterative)
 
 ---
 
 ## Phase 1 — Prepare & request review (Author mode)
 
-**Goal:** Present the change clearly and honestly.
+**Goal:** Present the change clearly, honestly, and with known limitations.
 
-Step 1. **Summarize the change**
+### Step 1. Summarize the change
 
-   * What problem was solved
-   * What approach was taken
-   * What is explicitly *out of scope*
+* What problem was solved
+* Why it mattered
+* High-level approach taken
+* What is explicitly **out of scope**
 
-Step 2. **Declare verification**
+### Step 2. Declare verification
 
-   * Tests run (commands)
-   * Results (pass/fail)
-   * Any skipped or flaky tests (with reason)
+* Tests run (exact commands)
+* Results (pass/fail)
+* Skipped, flaky, or known-failing tests (with reason)
 
-Step 3. **Self-review**
+### Step 3. Self-review (required)
 
-   * Call out:
+Explicitly call out:
 
-     * Risky areas
-     * Known limitations
-     * TODOs or deferred cleanup
+* Risky or complex areas
+* Known limitations or shortcuts
+* Deferred cleanup or TODOs
+* Areas where you are **least confident**
 
-**Required artifact**
+### Required artifact
 
-* `artifact:review-request.md`
+**`artifact:review-request.md`**
 
-  * Summary
-  * Verification
-  * Self-review notes
-  * “What I want feedback on”
+Must contain:
+
+* Summary
+* Verification
+* Self-review notes
+* “What I want feedback on”
+* Optional flags:
+
+  * `Architectural breadth requested`
+  * `Possible reuse/refactor opportunity`
+  * `Acceptable to recommend deletion or consolidation`
 
 ---
 
 ## Phase 2 — Perform code review (Reviewer mode)
 
-**Role switch**
+### Role switch (explicit)
 
 > Act as a strict, experienced reviewer with no attachment to the implementation.
 
-**Goal:** Find issues, not validate intent.
+**Primary goal:** Find issues and system-level risks, not validate intent.
 
-**Reviewer checklist**
+---
+
+### Step 1 — Architectural Exploration (Required, before critique)
+
+Before evaluating the diff, step back and consider the change in the context of the **entire application**.
+
+#### Architectural Exploration
+
+Answer concisely:
+
+1. **Problem Restatement**
+   In one sentence: what problem is this change attempting to solve (ignoring how it was implemented)?
+
+2. **Existing System Capabilities**
+
+   * List up to **three** existing components, modules, or patterns that could plausibly address this problem.
+   * **At least one must be outside the modified files.**
+   * If none exist, explicitly state why.
+
+3. **Alternative Solution Shapes**
+   Enumerate at least **two** distinct approaches, such as:
+
+   * extending an existing abstraction
+   * generalizing current logic
+   * consolidating or deleting similar code
+   * shifting responsibility between layers
+   * configuration instead of new code
+     *(Do not evaluate yet.)*
+
+4. **Why This Approach Was Likely Chosen**
+   What tradeoff does the current diff optimize for? (speed, isolation, minimal blast radius, test locality, etc.)
+
+5. **Primary Constraint Check**
+   What existing constraint most limits the viable solution space?
+   (API compatibility, data model, performance, ownership, migration risk, etc.)
+
+**Constraints**
+
+* ≤150 words
+* Must reference code beyond the immediate diff
+
+---
+
+### Step 2 — Counterfactual Check (Required)
+
+**If this exact implementation were forbidden, what is the next-best system-level approach?**
+
+* One or two sentences.
+* Must differ meaningfully from the current diff.
+
+---
+
+### Step 3 — Detailed review
+
+Evaluate the diff using the checklist below.
+
+#### Reviewer checklist
 
 1. **Correctness**
 
@@ -95,10 +184,35 @@ Step 3. **Self-review**
 
 4. **Cleanup & debt**
 
-   * Any dead/legacy code missed?
+   * Dead or legacy code missed?
    * New tech debt introduced?
 
-**Feedback format (required)**
+---
+
+### Step 4 — Architectural Tension (Required)
+
+If the change is correct but locally optimal, describe:
+
+* What tension it introduces (choose at least one):
+
+  * increasing special cases
+  * increasing coupling
+  * increasing surface area
+  * increasing cognitive load
+* What **small additional step** would reduce this tension
+* Whether that step is:
+
+  * **REQUIRED now**
+  * **STRONGLY RECOMMENDED**
+  * **ACCEPTABLE TECH DEBT** (explicitly named)
+
+≤100 words.
+
+---
+
+### Step 5 — Findings & feedback
+
+#### Feedback format (required)
 
 Each comment must include:
 
@@ -107,28 +221,59 @@ Each comment must include:
 * **Issue**
 * **Suggested fix or question**
 
-**Required artifact**
+#### Required artifact
 
-* `artifact:code-review.md`
+**`artifact:code-review.md`**
+
+Must include:
+
+* Architectural Exploration
+* Counterfactual Check
+* Review comments
+* Architectural Tension
+* Architectural Verdict
+
+---
+
+### Step 6 — Architectural Verdict (Required)
+
+Choose one:
+
+* ✅ Acceptable as-is
+* ⚠️ Acceptable but creates manageable architectural tension
+* ❌ Solves the problem but should be re-shaped
+
+Explain briefly (≤40 words), referencing exploration or counterfactuals.
+
+---
+
+### Reviewer anti-patterns (explicitly forbidden)
+
+* Treating the diff as the only viable solution
+* Proposing new endpoints/modules solely to satisfy a test
+* Suggesting new abstractions without identifying existing ones
+* Deferring architectural concerns without naming the debt created
+
+Recommending **code removal or consolidation** is encouraged when it improves system clarity.
 
 ---
 
 ## Phase 3 — Receive & respond (Author mode)
 
-**Goal:** Act on review feedback deliberately.
+**Goal:** Act on feedback deliberately and transparently.
 
-**Agent actions**
+### Agent actions
 
 1. **Classify feedback**
 
    * Accept (fix now)
    * Clarify (needs discussion)
-   * Defer (with reason)
+   * Defer (with explicit reason)
 
 2. **Apply accepted changes**
 
-   * Make minimal, targeted edits
-   * Update or add tests as needed
+   * Minimal, targeted edits
+   * Update or add tests as required
 
 3. **Re-verify**
 
@@ -137,23 +282,23 @@ Each comment must include:
 
 4. **Respond to review**
 
-   * For each review comment:
+   * For each comment:
 
      * Action taken or justification
-     * Pointer to code change (or explanation)
+     * Pointer to code change or explanation
 
-**Required artifact**
+### Required artifact
 
-* `artifact:review-response.md`
+**`artifact:review-response.md`**
 
 ---
 
-## Hard rules
+## Hard rules (unchanged but reinforced)
 
-* ❌ Reviewer phase may not “fix forward”
+* ❌ Reviewer phase may not modify code
 * ❌ No dismissing feedback without justification
 * ✅ All critical issues must be resolved or explicitly deferred
-* ✅ Role switches must be explicit in the artifact headers
+* ✅ Role switches must be explicit in artifact headers
 
 ---
 
@@ -163,5 +308,9 @@ The `/review` workflow completes when:
 
 * All review comments are addressed
 * Tests pass
-* Review artifacts (`review-request`, `code-review`, `review-response`) exist
+* Review artifacts exist:
+
+  * `review-request`
+  * `code-review`
+  * `review-response`
 * The agent states: **“Review complete”**

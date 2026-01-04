@@ -1,235 +1,148 @@
-import { test, expect } from '@playwright/test';
+import { testWithVisitor as test, expect } from './fixtures/auth';
 import { selectors } from './selectors';
+import { createHorse } from './helpers/api';
 
 /**
  * Permission Enforcement Tests
  *
- * These tests verify that permission boundaries are enforced correctly.
- * They test REAL behavior - a user with view permission trying to edit should fail,
- * not just hide the UI button.
- *
- * Test Philosophy:
- * - Test the actual API calls, not just UI visibility
- * - Verify server-side permission enforcement
- * - Break if permissions are bypassed
+ * Verifies server-side permission enforcement.
+ * Users with 'view' permission should get 403 on mutative actions.
  */
-
 test.describe('Permission Enforcement', () => {
+
   test.describe('View-only users cannot edit', () => {
-    test('rejects API calls to add horse from view-only token', async ({ browser }) => {
-      // Setup: Owner creates board and gets pair code
-      const ownerContext = await browser.newContext();
-      const ownerPage = await ownerContext.newPage();
+    test('rejects API calls to add horse from view-only token', async ({ visitorPage, ownerBoardId, request }) => {
+      // Get visitor token from localStorage
+      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+      expect(token).toBeTruthy();
 
-      const timestamp = Date.now();
-      await ownerPage.goto('/signup');
-      await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
-      await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
-      await ownerPage.locator(selectors.passwordInput).fill('password123');
-      await ownerPage.locator(selectors.submitBtn).click();
-      await expect(ownerPage).toHaveURL(/\/controller/);
-
-      // Get pair code
-      await ownerPage.locator('[data-testid="tab-settings"]').click();
-      const pairCodeElement = ownerPage.locator(selectors.boardPairCode);
-      await expect(pairCodeElement).toBeVisible();
-      const fullText = await pairCodeElement.innerText();
-      const pairCode = fullText.replace('Pair Code:', '').trim();
-
-      // Visitor connects with view-only access
-      const visitorContext = await browser.newContext();
-      const visitorPage = await visitorContext.newPage();
-
-      await visitorPage.goto('/');
-      await visitorPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
-      await visitorPage.locator('[data-testid="landing-connect-btn"]').click();
-      await expect(visitorPage).toHaveURL(/\/controller/);
-
-      // Verify view-only: Add Horse button is hidden
-      await expect(visitorPage.locator(selectors.addHorseBtn)).not.toBeVisible();
-
-      // Get board ID for API call
-      const boardId = await visitorPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
-
-      // REAL TEST: Try to add horse via API with view-only token
-      const response = await visitorPage.request.post(`/api/boards/${boardId}/horses`, {
-        data: { name: 'Hacked Horse', note: 'Should not work' }
+      const response = await request.post(`/api/boards/${ownerBoardId}/horses`, {
+        data: { name: 'Hacked Horse' },
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      // Should be rejected with 403 Forbidden
       expect(response.status()).toBe(403);
-
-      await ownerContext.close();
-      await visitorContext.close();
     });
 
-    test('rejects API calls to delete horse from view-only token', async ({ browser }) => {
-      // Setup: Owner creates board with a horse
-      const ownerContext = await browser.newContext();
-      const ownerPage = await ownerContext.newPage();
+    test('rejects API calls to delete horse from view-only token', async ({ ownerPage, visitorPage, request }) => {
+      // Owner adds a horse via API (since ownerPage needs reload to see it) 
+      // Actually ownerPage fixture helps us get authenticated, but doesn't necessarily auto-refresh.
+      // We can use helpers.
+      const ownerBoardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
 
-      const timestamp = Date.now();
-      await ownerPage.goto('/signup');
-      await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
-      await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
-      await ownerPage.locator(selectors.passwordInput).fill('password123');
-      await ownerPage.locator(selectors.submitBtn).click();
-      await expect(ownerPage).toHaveURL(/\/controller/);
+      const horse = await createHorse(request, ownerBoardId!, { name: 'Test Horse' });
+      await ownerPage.reload();
+      await expect(ownerPage.locator(selectors.horseCard(horse.id))).toBeVisible();
 
-      // Add a horse
-      await ownerPage.locator(selectors.addHorseBtn).click();
-      await ownerPage.locator(selectors.newHorseName).fill('TestHorse');
-      await ownerPage.locator(selectors.confirmAddHorse).click();
-      await expect(ownerPage.locator('.horse-card').filter({ hasText: 'TestHorse' })).toBeVisible();
+      // Get visitor token
+      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
 
-      // Get horse ID from the card
-      const horseCard = ownerPage.locator('.horse-card').filter({ hasText: 'TestHorse' });
-      const horseId = await horseCard.getAttribute('data-testid');
-      const extractedId = horseId?.replace('horse-card-', '') || '';
-
-      // Get pair code
-      await ownerPage.locator('[data-testid="tab-settings"]').click();
-      const pairCodeElement = ownerPage.locator(selectors.boardPairCode);
-      await expect(pairCodeElement).toBeVisible();
-      const fullText = await pairCodeElement.innerText();
-      const pairCode = fullText.replace('Pair Code:', '').trim();
-
-      // Visitor connects with view-only access
-      const visitorContext = await browser.newContext();
-      const visitorPage = await visitorContext.newPage();
-
-      await visitorPage.goto('/');
-      await visitorPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
-      await visitorPage.locator('[data-testid="landing-connect-btn"]').click();
-      await expect(visitorPage).toHaveURL(/\/controller/);
-
-      // REAL TEST: Try to delete horse via API with view-only token
-      const response = await visitorPage.request.delete(`/api/horses/${extractedId}`);
-
-      // Should be rejected with 403 Forbidden
-      expect(response.status()).toBe(403);
-
-      // Verify horse still exists (owner can still see it)
-      await ownerPage.locator('[data-testid="tab-horses"]').click();
-      await expect(ownerPage.locator('.horse-card').filter({ hasText: 'TestHorse' })).toBeVisible();
-
-      await ownerContext.close();
-      await visitorContext.close();
-    });
-
-    test('rejects API calls to update board settings from view-only token', async ({ browser }) => {
-      // Setup: Owner creates board
-      const ownerContext = await browser.newContext();
-      const ownerPage = await ownerContext.newPage();
-
-      const timestamp = Date.now();
-      await ownerPage.goto('/signup');
-      await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
-      await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
-      await ownerPage.locator(selectors.passwordInput).fill('password123');
-      await ownerPage.locator(selectors.submitBtn).click();
-      await expect(ownerPage).toHaveURL(/\/controller/);
-
-      // Get board ID
-      const boardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
-
-      // Get pair code
-      await ownerPage.locator('[data-testid="tab-settings"]').click();
-      const pairCodeElement = ownerPage.locator(selectors.boardPairCode);
-      await expect(pairCodeElement).toBeVisible();
-      const fullText = await pairCodeElement.innerText();
-      const pairCode = fullText.replace('Pair Code:', '').trim();
-
-      // Visitor connects with view-only access
-      const visitorContext = await browser.newContext();
-      const visitorPage = await visitorContext.newPage();
-
-      await visitorPage.goto('/');
-      await visitorPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
-      await visitorPage.locator('[data-testid="landing-connect-btn"]').click();
-      await expect(visitorPage).toHaveURL(/\/controller/);
-
-      // REAL TEST: Try to update board settings via API with view-only token
-      const response = await visitorPage.request.patch(`/api/boards/${boardId}`, {
-        data: { time_mode: 'PM', time_mode_override_until: null }
+      // Visitor tries to delete it
+      const response = await request.delete(`/api/horses/${horse.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      // Should be rejected with 403 Forbidden
       expect(response.status()).toBe(403);
+      await expect(ownerPage.locator(selectors.horseCard(horse.id))).toBeVisible();
+    });
 
-      await ownerContext.close();
-      await visitorContext.close();
+    test('rejects API calls to update board settings from view-only token', async ({ visitorPage, ownerBoardId, request }) => {
+      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+
+      const response = await request.patch(`/api/boards/${ownerBoardId}`, {
+        data: { time_mode: 'PM' },
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      expect(response.status()).toBe(403);
     });
   });
 
   test.describe('Edit users can edit but not admin', () => {
-    test('allows edit user to add horses but not generate invites', async ({ browser }) => {
-      // Setup: Owner creates board and generates invite
-      const ownerContext = await browser.newContext();
-      const ownerPage = await ownerContext.newPage();
-
-      const timestamp = Date.now();
-      await ownerPage.goto('/signup');
-      await ownerPage.locator(selectors.nameInput).fill(`Owner ${timestamp}`);
-      await ownerPage.locator(selectors.emailInput).fill(`owner-${timestamp}@example.com`);
-      await ownerPage.locator(selectors.passwordInput).fill('password123');
-      await ownerPage.locator(selectors.submitBtn).click();
-      await expect(ownerPage).toHaveURL(/\/controller/);
-
-      // Get pair code and invite code
-      await ownerPage.locator('[data-testid="tab-settings"]').click();
-      const pairCodeElement = ownerPage.locator(selectors.boardPairCode);
-      await expect(pairCodeElement).toBeVisible();
-      const fullText = await pairCodeElement.innerText();
-      const pairCode = fullText.replace('Pair Code:', '').trim();
-
-      // Generate invite code
-      await ownerPage.locator('[data-testid="generate-invite-btn"]').click();
-      const inviteCodeDisplay = ownerPage.locator('[data-testid="invite-code-display"]');
-      await expect(inviteCodeDisplay).toBeVisible();
+    test('allows edit user to add horses but not generate invites', async ({ ownerPage, visitorPage, ownerBoardId, request }) => {
+      // 1. Owner generates invite
+      await ownerPage.locator(selectors.tabSettings).click();
+      await ownerPage.locator(selectors.generateInviteBtn).click();
+      await expect(ownerPage.locator('[data-testid="invite-code-display"]')).toBeVisible();
       const inviteCode = await ownerPage.locator('.settings-invite-code').innerText();
 
-      // User connects as view-only then upgrades to edit
-      const userContext = await browser.newContext();
-      const userPage = await userContext.newPage();
+      // 2. Visitor redeems invite to upgrade
+      await visitorPage.locator(selectors.tabSettings).click();
+      await visitorPage.locator(selectors.enterInviteBtn).click();
+      await visitorPage.locator(selectors.inviteInput).fill(inviteCode);
+      await visitorPage.locator(selectors.inviteSubmit).click();
 
-      await userPage.goto('/');
-      await userPage.locator('[data-testid="landing-code-input"]').fill(pairCode);
-      await userPage.locator('[data-testid="landing-connect-btn"]').click();
-      await expect(userPage).toHaveURL(/\/controller/);
+      // Wait for reload/upgrade
+      await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+      await visitorPage.locator(selectors.tabHorses).click();
 
-      // Redeem invite to get edit access
-      await userPage.locator('[data-testid="tab-settings"]').click();
-      await userPage.locator(selectors.enterInviteBtn).click();
-      await userPage.locator(selectors.inviteInput).fill(inviteCode);
-      await userPage.locator(selectors.inviteSubmit).click();
+      // 3. Edit User CAN add horse via UI
+      await visitorPage.locator(selectors.addHorseBtn).click();
+      await visitorPage.locator(selectors.newHorseName).fill('Edit User Horse');
+      await visitorPage.locator(selectors.confirmAddHorse).click();
+      await expect(visitorPage.locator('.horse-card').filter({ hasText: 'Edit User Horse' })).toBeVisible();
 
-      // Wait for reload
-      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
-      await userPage.locator('[data-testid="tab-horses"]').click();
+      // 4. Edit User CANNOT generate invite (Admin only)
+      await visitorPage.locator(selectors.tabSettings).click();
+      await expect(visitorPage.locator(selectors.generateInviteBtn)).not.toBeVisible();
 
-      // BEHAVIOR: Edit user CAN add horses
-      await expect(userPage.locator(selectors.addHorseBtn)).toBeVisible();
-      await userPage.locator(selectors.addHorseBtn).click();
-      await userPage.locator(selectors.newHorseName).fill('Edit User Horse');
-      await userPage.locator(selectors.confirmAddHorse).click();
-      await expect(userPage.locator('.horse-card').filter({ hasText: 'Edit User Horse' })).toBeVisible();
-
-      // BEHAVIOR: Edit user CANNOT generate invites (admin only)
-      await userPage.locator('[data-testid="tab-settings"]').click();
-      await expect(userPage.locator('[data-testid="generate-invite-btn"]')).not.toBeVisible();
-
-      // Get board ID for API call
-      const boardId = await userPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
-
-      // REAL TEST: Try to generate invite via API should fail
-      const response = await userPage.request.post(`/api/boards/${boardId}/invites`);
-
-      // Should be rejected with 403 Forbidden
+      // 5. API Check: Generate invite should fail
+      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+      const response = await request.post(`/api/boards/${ownerBoardId}/invites`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       expect(response.status()).toBe(403);
+    });
+  });
+  test.describe('UI visibility based on permission', () => {
+    test('view-only user does not see add buttons', async ({ visitorPage }) => {
+      // Verify Add Horse button is NOT visible (Horses tab is default)
+      await expect(visitorPage.locator(selectors.addHorseBtn)).not.toBeVisible();
 
-      await ownerContext.close();
-      await userContext.close();
+      // Navigate to Feeds tab and verify Add Feed is also hidden
+      await visitorPage.locator('[data-testid="tab-feeds"]').click();
+      await expect(visitorPage.locator(selectors.feedsTab)).toBeVisible();
+      await expect(visitorPage.locator(selectors.addFeedBtn)).not.toBeVisible();
+    });
+
+    test('view-only user does not see admin-only settings sections', async ({ visitorPage }) => {
+      await visitorPage.locator(selectors.tabSettings).click();
+      await expect(visitorPage.locator(selectors.settingsTab)).toBeVisible();
+
+      // Displays section should be hidden (admin only)
+      await expect(visitorPage.getByRole('heading', { name: 'Displays' })).not.toBeVisible();
+
+      // Staff Access section should be hidden (admin only)  
+      await expect(visitorPage.getByRole('heading', { name: 'Staff Access' })).not.toBeVisible();
+
+      // Upgrade Access section SHOULD be visible (for view-only users to upgrade)
+      await expect(visitorPage.getByRole('heading', { name: 'Upgrade Access' })).toBeVisible();
+    });
+
+    test('view-only user sees pagination controls on Board tab', async ({ ownerBoardId, request, visitorPage }) => {
+      // Need some data for pagination to make sense
+      const { createHorse, createFeed, upsertDiet } = await import('./helpers/api');
+      await createHorse(request, ownerBoardId, { name: 'Test' });
+      const feed = await createFeed(request, ownerBoardId, { name: 'Oats', unit: 'scoop' });
+
+      // Reload visitor to get the data
+      await visitorPage.reload();
+      await expect(visitorPage.locator('[data-testid="controller-view"]')).toBeVisible();
+
+      // Navigate to Board tab (remote control)
+      await visitorPage.locator('[data-testid="tab-board"]').click();
+
+      // Pagination controls should be visible
+      await expect(visitorPage.locator('[data-testid="prev-page-btn"]')).toBeVisible();
+      await expect(visitorPage.locator('[data-testid="next-page-btn"]')).toBeVisible();
     });
   });
 });

@@ -156,6 +156,7 @@ export const selectors = {
   inviteInput: '[data-testid="invite-input"]',
   inviteSubmit: '[data-testid="invite-submit"]',
   inviteError: '[data-testid="invite-error"]',
+  generateInviteBtn: '[data-testid="generate-invite-btn"]',
 
   // Display Management
   addDisplayBtn: '[data-testid="add-display-btn"]',

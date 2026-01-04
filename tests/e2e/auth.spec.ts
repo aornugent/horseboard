@@ -190,4 +190,82 @@ test.describe('Authentication', () => {
         await page.locator('[data-testid="tab-settings"]').click();
         await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
     });
+
+    /**
+     * CRITICAL: Real Auth Flow Verification
+     * 
+     * This test verifies that REAL authentication (without header injection)
+     * correctly grants API access. This is essential because the fixture-based
+     * tests use `x-test-user-id` header injection which bypasses actual auth.
+     * 
+     * If this test fails but fixture tests pass, it indicates the auth system
+     * is broken but our test mocking hides the failure.
+     */
+    test.describe('Real Auth API Access', () => {
+        test('owner can make API calls with real session (no header injection)', async ({ page }) => {
+            const timestamp = Date.now();
+            const email = `api-test-${timestamp}@example.com`;
+            const name = `API Test ${timestamp}`;
+
+            // 1. Real signup via UI
+            await page.goto('/signup');
+            await page.locator(selectors.nameInput).fill(name);
+            await page.locator(selectors.emailInput).fill(email);
+            await page.locator(selectors.passwordInput).fill('password123');
+            await page.locator(selectors.submitBtn).click();
+
+            // Should redirect to controller
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+
+            // 2. Get board ID from localStorage (set by real auth flow)
+            const boardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+            expect(boardId).toBeTruthy();
+
+            // 3. Make API call from page context (uses session, NOT x-test-user-id)
+            // This validates the REAL auth mechanism works
+            const response = await page.evaluate(async (bid) => {
+                const res = await fetch(`/api/boards/${bid}/horses`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: 'Real Auth Horse' })
+                });
+                return { status: res.status, ok: res.ok };
+            }, boardId);
+
+            // Should succeed with 200/201 (not 403!)
+            expect(response.ok).toBe(true);
+            expect(response.status).toBeLessThan(300);
+
+            // 4. Verify horse appears in UI (confirms full round-trip)
+            await page.reload();
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
+            await expect(page.locator('.horse-card').filter({ hasText: 'Real Auth Horse' })).toBeVisible();
+        });
+
+        test('session persists across reload without re-authentication', async ({ page }) => {
+            const timestamp = Date.now();
+
+            // 1. Real signup
+            await page.goto('/signup');
+            await page.locator(selectors.nameInput).fill(`Session Test ${timestamp}`);
+            await page.locator(selectors.emailInput).fill(`session-${timestamp}@example.com`);
+            await page.locator(selectors.passwordInput).fill('password123');
+            await page.locator(selectors.submitBtn).click();
+
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+
+            // 2. Verify we have admin permission (can add horse)
+            await page.locator(selectors.addHorseBtn).click();
+            await expect(page.locator(selectors.addHorseModal)).toBeVisible();
+            await page.locator(selectors.cancelAddHorse).click();
+
+            // 3. Reload page (simulates returning user)
+            await page.reload();
+
+            // 4. Should still have admin permission after reload
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+            await page.locator(selectors.addHorseBtn).click();
+            await expect(page.locator(selectors.addHorseModal)).toBeVisible();
+        });
+    });
 });
