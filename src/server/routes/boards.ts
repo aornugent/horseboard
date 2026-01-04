@@ -1,32 +1,20 @@
 import { Router, Request, Response } from 'express';
-import { UpdateBoardSchema, SetTimeModeSchema } from '@shared/resources';
+import { UpdateBoardSchema, SetTimeModeSchema, CreateControllerTokenSchema } from '@shared/resources';
+import crypto from 'crypto';
 import { validate } from './middleware';
+import { requirePermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
-/**
- * Create boards router with explicit REST endpoints
- *
- * Endpoints:
- * - GET /api/boards - list all boards
- * - GET /api/boards/:id - get board by id
- * - POST /api/boards - create new board
- * - PATCH /api/boards/:id - update board
- * - DELETE /api/boards/:id - delete board
- * - PUT /api/boards/:id/time-mode - update time mode with override
- * - GET /api/boards/:boardId/events - SSE endpoint
- */
 export function createBoardsRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos, broadcast, expiryScheduler } = ctx;
 
-  // GET /api/boards - list all boards
-  router.get('/', (_req: Request, res: Response) => {
+  router.get('/', requirePermission('view'), (_req: Request, res: Response) => {
     const items = repos.boards.getAll();
     res.json({ success: true, data: items });
   });
 
-  // GET /api/boards/:id - get board by id
-  router.get('/:id', (req: Request, res: Response) => {
+  router.get('/:id', requirePermission('view', req => req.params.id), (req: Request, res: Response) => {
     const item = repos.boards.getById(req.params.id);
     if (!item) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -35,10 +23,11 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     res.json({ success: true, data: item });
   });
 
-  // POST /api/boards - create new board
-  router.post('/', (req: Request, res: Response) => {
+  router.post('/', requirePermission('view'), (req: Request, res: Response) => {
     try {
-      const item = repos.boards.create(req.body);
+      const { user_id } = req.authContext!;
+      const payload = { ...req.body, account_id: user_id || null };
+      const item = repos.boards.create(payload);
       res.status(201).json({ success: true, data: item });
     } catch (error) {
       const err = error as Error;
@@ -46,8 +35,9 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     }
   });
 
-  // PATCH /api/boards/:id - update board
-  router.patch('/:id', validate(UpdateBoardSchema), (req: Request, res: Response) => {
+
+
+  router.patch('/:id', requirePermission('edit', req => req.params.id), validate(UpdateBoardSchema), (req: Request, res: Response) => {
     const existing = repos.boards.getById(req.params.id);
     if (!existing) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -59,8 +49,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     res.json({ success: true, data: updated });
   });
 
-  // DELETE /api/boards/:id - delete board
-  router.delete('/:id', (req: Request, res: Response) => {
+  router.delete('/:id', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
     const deleted = repos.boards.delete(req.params.id);
     if (!deleted) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -69,8 +58,7 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     res.json({ success: true });
   });
 
-  // PUT /api/boards/:id/time-mode - update time mode with override
-  router.put('/:id/time-mode', validate(SetTimeModeSchema), (req: Request, res: Response) => {
+  router.put('/:id/time-mode', requirePermission('edit', req => req.params.id), validate(SetTimeModeSchema), (req: Request, res: Response) => {
     const { time_mode, override_until } = req.body;
 
     const existing = repos.boards.getById(req.params.id);
@@ -97,6 +85,46 @@ export function createBoardsRouter(ctx: RouteContext): Router {
 
     broadcast(req.params.id);
     res.json({ success: true, data: updated });
+  });
+
+  router.post('/:id/tokens', requirePermission('admin', req => req.params.id), validate(CreateControllerTokenSchema), (req: Request, res: Response) => {
+    const randomBytes = crypto.randomBytes(32).toString('hex');
+    const tokenValue = `hb_${randomBytes}`;
+    const tokenHash = crypto.createHash('sha256').update(tokenValue).digest('hex');
+
+    try {
+      const created = repos.controllerTokens.create(req.body, req.params.id, tokenHash);
+
+      res.status(201).json({
+        success: true,
+        data: {
+          ...created,
+          token: tokenValue // Inject raw token into response
+        }
+      });
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/:id/tokens', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
+    const tokens = repos.controllerTokens.getByBoard(req.params.id);
+    res.json({ success: true, data: tokens });
+  });
+
+  router.post('/:id/invites', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
+    try {
+      const result = repos.inviteCodes.create(req.params.id, 15);
+
+      res.status(201).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   return router;

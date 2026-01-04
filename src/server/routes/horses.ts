@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { CreateHorseSchema, UpdateHorseSchema } from '@shared/resources';
 import { validate } from './middleware';
+import { requirePermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -19,13 +20,13 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
   const { repos, broadcast } = ctx;
 
   // GET /api/boards/:boardId/horses - list horses for a board
-  boardScoped.get('/', (req: Request, res: Response) => {
+  boardScoped.get('/', requirePermission('view'), (req: Request, res: Response) => {
     const items = repos.horses.getByParent(req.params.boardId);
     res.json({ success: true, data: items });
   });
 
   // POST /api/boards/:boardId/horses - create horse under board
-  boardScoped.post('/', validate(CreateHorseSchema), (req: Request, res: Response) => {
+  boardScoped.post('/', requirePermission('edit'), validate(CreateHorseSchema), (req: Request, res: Response) => {
     try {
       const item = repos.horses.create(req.body, req.params.boardId);
       broadcast(req.params.boardId);
@@ -41,7 +42,10 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
   });
 
   // GET /api/horses/:id - get horse by id
-  standalone.get('/:id', (req: Request, res: Response) => {
+  standalone.get('/:id', requirePermission('view', async (req, repos) => {
+    const horse = repos.horses.getById(req.params.id);
+    return horse?.board_id;
+  }), (req: Request, res: Response) => {
     const item = repos.horses.getById(req.params.id);
     if (!item) {
       res.status(404).json({ success: false, error: 'Horse not found' });
@@ -51,7 +55,10 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
   });
 
   // PATCH /api/horses/:id - update horse
-  standalone.patch('/:id', validate(UpdateHorseSchema), (req: Request, res: Response) => {
+  standalone.patch('/:id', requirePermission('edit', async (req, repos) => {
+    const horse = repos.horses.getById(req.params.id);
+    return horse?.board_id;
+  }), validate(UpdateHorseSchema), (req: Request, res: Response) => {
     const existing = repos.horses.getById(req.params.id);
     if (!existing) {
       res.status(404).json({ success: false, error: 'Horse not found' });
@@ -64,7 +71,10 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
   });
 
   // DELETE /api/horses/:id - delete horse
-  standalone.delete('/:id', (req: Request, res: Response) => {
+  standalone.delete('/:id', requirePermission('edit', async (req, repos) => {
+    const horse = repos.horses.getById(req.params.id);
+    return horse?.board_id;
+  }), (req: Request, res: Response) => {
     const existing = repos.horses.getById(req.params.id);
     const deleted = repos.horses.delete(req.params.id);
     if (!deleted) {
