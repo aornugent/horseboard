@@ -61,11 +61,9 @@ test.describe('Session Persistence', () => {
     const fullText = await pairCodeElement.innerText();
     const pairCode = fullText.replace('Pair Code:', '').trim();
 
-    await ownerPage.locator(selectors.enterInviteBtn).scrollIntoViewIfNeeded();
-
-    // Generate invite
+    // Generate invite (scroll to the button first)
     const generateBtn = ownerPage.locator('[data-testid="generate-invite-btn"]');
-    // Click regardless of visibility heuristic (it should be there for admin)
+    await generateBtn.scrollIntoViewIfNeeded();
     await generateBtn.click();
 
     const inviteCodeDisplay = ownerPage.locator('[data-testid="invite-code-display"]');
@@ -129,21 +127,48 @@ test.describe('Session Persistence', () => {
     await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('clears session when signing out', async ({ ownerPage, ownerBoardId }) => {
-    // Sign out
-    await ownerPage.locator('[data-testid="tab-settings"]').click();
-    await ownerPage.locator(selectors.signOutBtn).click();
+  test('clears session when signing out', async ({ browser }) => {
+    // This test requires a real auth session (not header injection)
+    // so we do a full signup flow
+    const context = await browser.newContext();
+    const page = await context.newPage();
 
-    // Should stay on controller (board ID persists)
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    try {
+      // Sign up a new user
+      const testEmail = `signout-test-${Date.now()}@example.com`;
+      await page.goto('/signup');
+      await page.locator('[data-testid="name-input"]').fill('Sign Out Test');
+      await page.locator('[data-testid="email-input"]').fill(testEmail);
+      await page.locator('[data-testid="password-input"]').fill('password123');
+      await page.locator('[data-testid="submit-btn"]').click();
 
-    // Check settings - should now show sign in option (not account name)
-    await ownerPage.locator('[data-testid="tab-settings"]').click();
-    await expect(ownerPage.getByRole('button', { name: 'Sign In' })).toBeVisible();
+      // Should redirect to controller after signup
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
 
-    // Board ID should still be in storage (board is separate from user session)
-    const boardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
-    expect(boardId).toBe(ownerBoardId);
+      // Capture board ID
+      const boardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+      expect(boardId).toBeTruthy();
+
+      // Go to settings and verify sign out button exists
+      await page.locator('[data-testid="tab-settings"]').click();
+      await expect(page.locator(selectors.signOutBtn)).toBeVisible();
+
+      // Sign out
+      await page.locator(selectors.signOutBtn).click();
+
+      // Should stay on controller (board ID persists)
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+
+      // Check settings - should now show sign in option (not account name)
+      await page.locator('[data-testid="tab-settings"]').click();
+      await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+
+      // Board ID should still be in storage (board is separate from user session)
+      const persistedBoardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+      expect(persistedBoardId).toBe(boardId);
+    } finally {
+      await context.close();
+    }
   });
 
   test('navigating to root auto-redirects returning user to controller', async ({ ownerPage }) => {

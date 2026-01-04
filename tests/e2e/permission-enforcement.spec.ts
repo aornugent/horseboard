@@ -48,8 +48,11 @@ test.describe('Permission Enforcement', () => {
       // Verify view-only: Add Horse button is hidden
       await expect(visitorPage.locator(selectors.addHorseBtn)).not.toBeVisible();
 
+      // Get board ID for API call
+      const boardId = await visitorPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
+
       // REAL TEST: Try to add horse via API with view-only token
-      const response = await visitorPage.request.post('/api/horses', {
+      const response = await visitorPage.request.post(`/api/boards/${boardId}/horses`, {
         data: { name: 'Hacked Horse', note: 'Should not work' }
       });
 
@@ -216,8 +219,11 @@ test.describe('Permission Enforcement', () => {
       await userPage.locator('[data-testid="tab-settings"]').click();
       await expect(userPage.locator('[data-testid="generate-invite-btn"]')).not.toBeVisible();
 
+      // Get board ID for API call
+      const boardId = await userPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
+
       // REAL TEST: Try to generate invite via API should fail
-      const response = await userPage.request.post('/api/invites/generate');
+      const response = await userPage.request.post(`/api/boards/${boardId}/invites`);
 
       // Should be rejected with 403 Forbidden
       expect(response.status()).toBe(403);
