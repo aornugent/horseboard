@@ -2,67 +2,55 @@ import { Router, Request, Response } from 'express';
 import type { RouteContext } from './types';
 import type { SSEManager } from '../lib/engine';
 
-/**
- * Create bootstrap router for initial state hydration
- *
- * Endpoints:
- * - GET /api/bootstrap/:boardId - full state for UI hydration
- * - GET /api/bootstrap/pair/:code - pair by code, returns full state
- */
 export function createBootstrapRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos } = ctx;
 
-  // GET /api/bootstrap/:boardId - full state for UI hydration
-  router.get('/:boardId', (req: Request, res: Response) => {
-    const board = repos.boards.getById(req.params.boardId);
-    if (!board) {
-      res.status(404).json({ success: false, error: 'Board not found' });
+  // POST /pair - Accept body { code } and return { board_id, token, permission }
+  // Creates a view-only token for pairing with a board
+  router.post('/pair', async (req: Request, res: Response) => {
+    const { code } = req.body;
+
+    if (!code) {
+      res.status(400).json({ success: false, error: 'Pairing code required' });
       return;
     }
 
-    const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
-    const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
-    const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
-
-    res.json({
-      success: true,
-      data: { board, horses, feeds, diet_entries },
-    });
-  });
-
-  // GET /api/bootstrap/pair/:code - pair by code
-  router.get('/pair/:code', (req: Request, res: Response) => {
-    const board = repos.boards.getByPairCode?.(req.params.code);
+    const board = repos.boards.getByPairCode(code);
 
     if (!board) {
       res.status(404).json({ success: false, error: 'Invalid pairing code' });
       return;
     }
 
-    const horses = repos.horses.getByParent?.(board.id) ?? [];
-    const feeds = repos.feeds.getByParent?.(board.id) ?? [];
-    const diet_entries = repos.diet.getByBoardId?.(board.id) ?? [];
+    const crypto = await import('crypto');
+    const randomBytes = crypto.randomBytes(32).toString('hex');
+    const tokenValue = `hb_${randomBytes}`;
+    const tokenHash = crypto.createHash('sha256').update(tokenValue).digest('hex');
+
+    repos.controllerTokens.create({
+      name: 'Remote Control Session',
+      permission: 'view',
+      type: 'controller'
+    }, board.id, tokenHash);
 
     res.json({
       success: true,
-      data: { board, horses, feeds, diet_entries },
+      data: {
+        board_id: board.id,
+        token: tokenValue,
+        permission: 'view'
+      },
     });
   });
 
   return router;
 }
 
-/**
- * Create SSE router for real-time updates
- *
- * Endpoints:
- * - GET /api/boards/:boardId/events - SSE endpoint
- */
 export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
   const { repos } = ctx;
 
-  return (req: Request, res: Response): void => {
+  return async (req: Request, res: Response): Promise<void> => {
     const board = repos.boards.getById(req.params.boardId);
     if (!board) {
       res.status(404).json({ success: false, error: 'Board not found' });
@@ -75,16 +63,13 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    // Add client to SSE manager
     sse.addClient(req.params.boardId, res);
 
-    // Send initial full state
-    const horses = repos.horses.getByParent?.(req.params.boardId) ?? [];
-    const feeds = repos.feeds.getByParent?.(req.params.boardId) ?? [];
-    const diet_entries = repos.diet.getByBoardId?.(req.params.boardId) ?? [];
+    const horses = repos.horses.getByParent(req.params.boardId) ?? [];
+    const feeds = repos.feeds.getByParent(req.params.boardId) ?? [];
+    const diet_entries = repos.diet.getByBoardId(req.params.boardId) ?? [];
 
     const initialData = JSON.stringify({
-      type: 'full',
       data: { board, horses, feeds, diet_entries },
       timestamp: new Date().toISOString(),
     });
@@ -93,12 +78,6 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
   };
 }
 
-/**
- * Create health router for monitoring
- *
- * Endpoints:
- * - GET /api/health - health check with stats
- */
 export function createHealthRouter(ctx: RouteContext): Router {
   const router = Router();
   const { rankingManager, expiryScheduler } = ctx;
