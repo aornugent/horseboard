@@ -39,7 +39,7 @@ test.describe('TV Display View', () => {
     await navigateWithBoard(page, '/board', testData.board.id);
 
     // Wait for board view to be ready
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
     // Verify grid is visible
     const grid = page.locator(selectors.swimLaneGrid);
@@ -79,7 +79,7 @@ test.describe('TV Display View', () => {
     await navigateWithBoard(page, '/board', testData.board.id);
 
     // Wait for board view to be ready
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
     // Verify grid is visible
     await expect(page.locator(selectors.swimLaneGrid)).toBeVisible();
@@ -91,12 +91,9 @@ test.describe('TV Display View', () => {
     await expect(cell).toBeVisible();
     await cell.click();
 
-    // Wait briefly for any potential FeedPad to appear
-    await page.waitForTimeout(500);
-
-    // Verify FeedPad does NOT open
+    // Verify FeedPad does NOT open (check with a short timeout to ensure it doesn't appear)
     const feedPad = page.locator(selectors.feedPad);
-    await expect(feedPad).not.toBeVisible();
+    await expect(feedPad).not.toBeVisible({ timeout: 1000 });
   });
 });
 
@@ -132,7 +129,7 @@ test.describe('Real-Time Sync', () => {
         { key: 'horseboard_board_id', value: testData.board.id }
       );
       await displayPage.goto('/board');
-      await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+      await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
       // Verify initial badge value on display
       const displayBadge = displayPage.locator(
@@ -148,7 +145,7 @@ test.describe('Real-Time Sync', () => {
       );
       await controllerPage.goto('/controller');
       await expect(controllerPage.locator('[data-testid="controller-view"]')).toBeVisible({
-        timeout: 15000,
+        timeout: 10000,
       });
 
       // Navigate to horse detail in controller
@@ -204,7 +201,7 @@ test.describe('Real-Time Sync', () => {
         { key: 'horseboard_board_id', value: testData.board.id }
       );
       await displayPage.goto('/board');
-      await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+      await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
       // Note the current time mode badge on display
       const timeModeBadge = displayPage.locator(selectors.timeModeBadge);
@@ -219,7 +216,7 @@ test.describe('Real-Time Sync', () => {
       );
       await controllerPage.goto('/controller');
       await expect(controllerPage.locator('[data-testid="controller-view"]')).toBeVisible({
-        timeout: 15000,
+        timeout: 10000,
       });
 
       // Navigate to Settings tab using the tab navigation button

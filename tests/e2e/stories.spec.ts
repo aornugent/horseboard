@@ -75,7 +75,8 @@ test.describe('Story 9.2: The "Dumb" TV', () => {
         // Verify modal closes (success)
         await expect(ownerPage.locator('[data-testid="provisioning-input"]')).not.toBeVisible();
 
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        // TV polls every ~3 seconds, allow 10s for multiple polling attempts
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
         // Cleanup
         await tvContext.close();
@@ -263,7 +264,7 @@ test.describe('Story 9.5: Redeeming Invites', () => {
 
         // Let's assume it redirects to Horses tab or stays in settings.
         // Check for horses tab existence first (it should still be there)
-        await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+        await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 10000 });
 
         const horsesTabBtn = visitorPage.locator('[data-testid="tab-horses"]');
         if (await horsesTabBtn.isVisible()) {

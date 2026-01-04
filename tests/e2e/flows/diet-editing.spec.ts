@@ -29,7 +29,7 @@ test.describe('Diet Editing via FeedPad', () => {
     await navigateWithBoard(page, '/controller', testData.board.id);
 
     // Wait for controller to be ready
-    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
   });
 
   test.afterEach(async ({ request }) => {
@@ -129,7 +129,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     // Reload to get the updated data
     await page.reload();
-    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
 
     await goToHorseDetail(page);
 
@@ -168,7 +168,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     // Reload to get the updated data
     await page.reload();
-    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
 
     await goToHorseDetail(page);
 
@@ -224,7 +224,7 @@ test.describe('Diet Editing via FeedPad', () => {
     await page.reload();
 
     // Wait for controller to be ready
-    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
 
     // Navigate back to horse detail
     await goToHorseDetail(page);

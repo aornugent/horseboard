@@ -71,9 +71,9 @@ test.describe('Device Provisioning', () => {
         await expect(provisioningModal).not.toBeVisible({ timeout: 10000 });
 
         // 4. REAL BEHAVIOR: TV should automatically receive token and display board
-        // The TV polls /api/devices/poll?code={code} and receives token
+        // The TV polls /api/devices/poll?code={code} every ~3 seconds
         const boardView = tvPage.locator(selectors.boardView);
-        await expect(boardView).toBeVisible({ timeout: 15000 });
+        await expect(boardView).toBeVisible({ timeout: 10000 });
 
         // TV should show the board grid (no longer in provisioning state)
         await expect(provisioningView).not.toBeVisible();
@@ -129,8 +129,8 @@ test.describe('Device Provisioning', () => {
         await ownerPage.locator('[data-testid="provisioning-input"]').fill(codeText);
         await ownerPage.locator('[data-testid="provisioning-submit"]').click();
 
-        // Wait for TV to display board
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        // Wait for TV to display board (TV polls every ~3 seconds)
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
         // 2. REAL BEHAVIOR TEST: Owner unlinks the display
         await ownerPage.locator('[data-testid="tab-settings"]').click();
@@ -151,7 +151,7 @@ test.describe('Device Provisioning', () => {
 
         // TV should show provisioning view again (token invalid)
         const provisioningView = tvPage.locator('[data-testid="provisioning-view"]');
-        await expect(provisioningView).toBeVisible({ timeout: 15000 });
+        await expect(provisioningView).toBeVisible({ timeout: 10000 });
 
         // Should show a NEW provisioning code (not the old one)
         const newCodeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
@@ -220,14 +220,14 @@ test.describe('Device Provisioning', () => {
         await ownerPage.locator('[data-testid="provisioning-input"]').fill(codeText);
         await ownerPage.locator('[data-testid="provisioning-submit"]').click();
 
-        // Wait for TV to display board
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        // Wait for TV to display board (TV polls every ~3 seconds)
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
 
         // REAL BEHAVIOR TEST: Reload TV page - should still show board
         await tvPage.reload();
 
         // Should NOT show provisioning view (token persists)
-        await expect(tvPage.locator('[data-testid="provisioning-view"]')).not.toBeVisible({ timeout: 5000 });
+        await expect(tvPage.locator('[data-testid="provisioning-view"]')).not.toBeVisible({ timeout: 10000 });
 
         // Should show board view immediately
         await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
@@ -298,10 +298,9 @@ test.describe('Device Provisioning', () => {
 
         // Navigate to /board - should work initially
         await tvPage.goto('/board');
-        await tvPage.waitForTimeout(2000);
 
         // Verify TV is NOT showing provisioning (it should show board content)
-        await expect(tvPage.locator('[data-testid="provisioning-code"]')).not.toBeVisible({ timeout: 5000 });
+        await expect(tvPage.locator('[data-testid="provisioning-code"]')).not.toBeVisible({ timeout: 10000 });
 
         // --- STEP 4: Owner revokes the display ---
         ownerPage.on('dialog', dialog => dialog.accept());
@@ -310,7 +309,6 @@ test.describe('Device Provisioning', () => {
 
         // --- STEP 5: TV reloads - should now show provisioning mode ---
         await tvPage.reload();
-        await tvPage.waitForTimeout(2000);
 
         // THE FIX: TV should now show provisioning code because token is invalid
         await expect(tvPage.locator('[data-testid="provisioning-code"]')).toBeVisible({ timeout: 10000 });
