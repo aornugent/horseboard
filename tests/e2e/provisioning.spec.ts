@@ -91,7 +91,9 @@ test.describe('Device Provisioning', () => {
 
         // 7. REAL BEHAVIOR: Verify TV has view-only permission (cannot edit)
         // Try to access API with TV token - should be view permission
-        const bootstrapResponse = await tvPage.request.get('/api/bootstrap');
+        const bootstrapResponse = await tvPage.request.get('/api/bootstrap', {
+            headers: { 'Authorization': `Bearer ${tvToken}` }
+        });
         expect(bootstrapResponse.ok()).toBeTruthy();
 
         const bootstrapData = await bootstrapResponse.json();
@@ -245,13 +247,13 @@ test.describe('Device Provisioning', () => {
         // This test verifies the fix for: revoking a display from settings
         // should cause the TV to revert to provisioning mode
 
-        const tvCode = 'REVOKE1';
+        const tvCode = 'REVOKE';
 
         // --- SETUP: Owner creates account and board ---
         const ownerContext = await browser.newContext();
         const ownerPage = await ownerContext.newPage();
 
-        // Sign up owner
+        // Sign up owner (board is auto-created per USER_PATHS.md Story A)
         await ownerPage.goto('/signup');
         await ownerPage.fill('[data-testid=name-input]', 'Revoke Test Owner');
         await ownerPage.fill('[data-testid=email-input]', `revoke-${Date.now()}@example.com`);
@@ -259,26 +261,33 @@ test.describe('Device Provisioning', () => {
         await ownerPage.click('[data-testid=submit-btn]');
         await expect(ownerPage).toHaveURL(/\/controller/);
 
-        // Create board
-        await expect(ownerPage.getByTestId('create-board-btn')).toBeVisible({ timeout: 10000 });
-        await ownerPage.getByTestId('create-board-btn').click();
+        // Wait for controller to load (board is auto-created on signup)
         await expect(ownerPage.getByTestId('controller-tabs')).toBeVisible({ timeout: 10000 });
 
         // --- STEP 1: Register TV provisioning code ---
         const pollRes1 = await request.get(`/api/devices/poll?code=${tvCode}`);
-        expect((await pollRes1.json()).pending).toBe(true);
+        expect((await pollRes1.json()).data.pending).toBe(true);
 
         // --- STEP 2: Owner links the display ---
         await ownerPage.getByTestId('tab-settings').click();
         await expect(ownerPage.getByTestId('add-display-btn')).toBeVisible();
         await ownerPage.getByTestId('add-display-btn').click();
+
+        // Wait for modal to be visible
+        await expect(ownerPage.getByTestId('link-display-modal')).toBeVisible();
         await ownerPage.fill('input[placeholder="ABCDEF"]', tvCode);
         await ownerPage.click('button:has-text("Link Display")');
+
+        // Wait for modal to close (indicates success)
+        await expect(ownerPage.getByTestId('link-display-modal')).not.toBeVisible({ timeout: 10000 });
+
+        // Verify device appears in list
         await expect(ownerPage.locator('.settings-device-name')).toContainText(`Display ${tvCode}`);
 
         // Get the token via polling
         const pollRes2 = await request.get(`/api/devices/poll?code=${tvCode}`);
-        const { token } = await pollRes2.json();
+        const pollData = await pollRes2.json();
+        const token = pollData.data.token;
         expect(token).toBeTruthy();
 
         // Get the board ID from owner's localStorage

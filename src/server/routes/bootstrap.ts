@@ -1,10 +1,26 @@
 import { Router, Request, Response } from 'express';
 import type { RouteContext } from './types';
 import type { SSEManager } from '../lib/engine';
+import { requirePermission } from '../lib/auth';
 
 export function createBootstrapRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos } = ctx;
+
+  // GET /bootstrap - Returns current user's ownership info for the board
+  // Used by TV displays to verify their permission level
+  router.get('/bootstrap', requirePermission('view'), (req: Request, res: Response) => {
+    const { permission, board_id } = req.authContext!;
+
+    res.json({
+      success: true,
+      ownership: {
+        permission,
+        board_id,
+        is_owner: permission === 'admin'
+      }
+    });
+  });
 
   // POST /pair - Accept body { code } and return { board_id, token, permission }
   // Creates a view-only token for pairing with a board
