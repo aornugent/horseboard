@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
 import { HorseCard } from '../../components/HorseCard';
 import { Modal } from '../../components/Modal';
-import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board } from '../../stores';
+import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board, canEdit } from '../../stores';
 import { createHorse as apiCreateHorse } from '../../services';
 import './HorsesTab.css';
 
@@ -28,17 +28,21 @@ async function handleCreateHorse(name: string, note: string) {
 }
 
 export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
+  const canEditBoard = canEdit();
+
   return (
     <div class="horses-tab" data-testid="horses-tab">
       <div class="horses-tab-header">
         <h2 class="horses-tab-title">Horses</h2>
-        <button
-          class="horses-tab-add-btn"
-          data-testid="add-horse-btn"
-          onClick={() => { isAddingHorse.value = true; }}
-        >
-          + Add Horse
-        </button>
+        {canEditBoard && (
+          <button
+            class="horses-tab-add-btn"
+            data-testid="add-horse-btn"
+            onClick={() => { isAddingHorse.value = true; }}
+          >
+            + Add Horse
+          </button>
+        )}
       </div>
 
       <div class="horses-tab-search">

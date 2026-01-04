@@ -6,9 +6,10 @@ interface ModalProps {
     title?: string;
     className?: string;
     children: ComponentChildren;
+    'data-testid'?: string;
 }
 
-export function Modal({ isOpen, onClose, title, className = '', children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, className = '', children, 'data-testid': testId }: ModalProps) {
     if (!isOpen) return null;
 
     return (
@@ -21,7 +22,7 @@ export function Modal({ isOpen, onClose, title, className = '', children }: Moda
                 }
             }}
         >
-            <div class={`modal-content ${className}`} data-testid="modal-content">
+            <div class={`modal-content ${className}`} data-testid={testId || 'modal-content'}>
                 {title && <h3 class="modal-title">{title}</h3>}
                 {children}
             </div>

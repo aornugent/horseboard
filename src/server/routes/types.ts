@@ -4,6 +4,8 @@ import type {
   FeedsRepository,
   DietRepository,
   BoardsRepository,
+  ControllerTokensRepository,
+  InviteCodesRepository,
 } from '../lib/engine';
 import type { FeedRankingManager } from '../lib/rankings';
 import type { ExpiryScheduler } from '../scheduler';
@@ -15,8 +17,16 @@ export interface RouteContext {
     horses: HorsesRepository;
     feeds: FeedsRepository;
     diet: DietRepository;
+    controllerTokens: ControllerTokensRepository;
+    inviteCodes: InviteCodesRepository;
   };
   broadcast: (boardId: string) => void;
   rankingManager: FeedRankingManager;
   expiryScheduler: ExpiryScheduler;
+  provisioningStore: Map<string, {
+    code: string;
+    board_id?: string;
+    timestamp: number;
+    token?: string;
+  }>;
 }

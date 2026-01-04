@@ -192,20 +192,34 @@ export async function clearBoardFromStorage(page: Page): Promise<void> {
   );
 }
 
+// Storage key for permission (from api.ts)
+const PERMISSION_KEY = 'horseboard_permission';
+
 /**
  * Navigate to a page with the board ID set in localStorage.
  * This is the recommended way to navigate after seeding data.
+ *
+ * @param permission - Permission level to set in localStorage (default: 'admin' for owner fixtures)
  */
 export async function navigateWithBoard(
   page: Page,
   path: string,
-  boardId: string
+  boardId: string,
+  permission: 'view' | 'edit' | 'admin' = 'admin'
 ): Promise<void> {
   // First navigate to the base URL to have access to localStorage
   await page.goto('/');
 
   // Set the board ID in localStorage
   await injectBoardId(page, boardId);
+
+  // Set the permission in localStorage (admin for owner fixtures)
+  await page.evaluate(
+    ({ key, value }) => {
+      localStorage.setItem(key, value);
+    },
+    { key: PERMISSION_KEY, value: permission }
+  );
 
   // Now navigate to the actual destination
   await page.goto(path);

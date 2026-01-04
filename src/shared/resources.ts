@@ -116,6 +116,7 @@ export const BoardSchema = z.object({
   override_until: z.string().nullable(),
   zoom_level: z.number().int().min(1).max(3),
   current_page: z.number().int().min(0),
+  account_id: z.string().nullable(), // Added for ownership
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -130,4 +131,27 @@ export const UpdateBoardSchema = z.object({
 export const SetTimeModeSchema = z.object({
   time_mode: TimeModeSchema,
   override_until: z.string().optional().nullable(),
+});
+
+export const ControllerTokenSchema = z.object({
+  id: z.string(),
+  board_id: z.string(),
+  // token_hash is internal, strict schema for API might exclude it or include it.
+  // For shared resources, it's often better to match DB row.
+  token_hash: z.string(),
+  name: z.string().min(1).max(50),
+  type: z.enum(['controller', 'display']).default('controller'),
+  permission: z.enum(['view', 'edit']),
+  last_used_at: z.string().nullable(),
+  expires_at: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type ControllerToken = z.infer<typeof ControllerTokenSchema>;
+
+export const CreateControllerTokenSchema = z.object({
+  name: z.string().min(1).max(50),
+  permission: z.enum(['view', 'edit']).default('edit'),
+  expires_at: z.string().optional().nullable(),
+  type: z.enum(['controller', 'display']).default('controller'),
 });
