@@ -1,5 +1,7 @@
 import { signal } from '@preact/signals';
 import { sseClient } from './sse';
+import { loadPermission } from './api';
+import { setPermission as setPermissionStore } from '../stores';
 
 export const STORAGE_KEY = 'horseboard_board_id';
 export const TOKEN_STORAGE_KEY = 'horseboard_controller_token';
@@ -8,21 +10,23 @@ export const connectionError = signal<string | null>(null);
 export const isTokenInvalid = signal(false);
 
 /**
- * Initialize the app by connecting to SSE.
- * SSE sends initial state (board, horses, feeds, diet_entries, permission) on connect.
- * No bootstrap API call needed - SSE is the single source of truth.
+ * Initialize the app by loading cached permission and connecting to SSE.
+ * Permission is cached from pair/redeem responses for instant UI.
+ * SSE provides board data and real-time updates (unauthenticated).
  */
 export async function initializeApp(boardId: string): Promise<boolean> {
     try {
-        // SSE connection handles hydration via initial event
+        // Load cached permission from localStorage (instant UI)
+        const cachedPermission = loadPermission();
+        setPermissionStore(cachedPermission as any);
+
+        // Connect to SSE for board data and live updates
         await sseClient.connect(boardId);
         isInitialized.value = true;
         isTokenInvalid.value = false;
         connectionError.value = null;
         return true;
     } catch (error) {
-        // SSE connection failed - could be auth failure or network issue
-        // For now, treat as connection error. Auth failures are handled via onAuthError signal.
         console.error('SSE connection failed:', error);
         connectionError.value = 'Connection failed';
         return false;

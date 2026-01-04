@@ -62,19 +62,10 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
         };
     }
 
-    // Check for token in Authorization header or query parameter (for SSE compatibility)
     const authHeader = req.headers.authorization;
-    const queryToken = req.query.token as string | undefined;
-
-    let token: string | null = null;
 
     if (authHeader?.startsWith('Bearer hb_')) {
-        token = authHeader.slice(7);
-    } else if (queryToken?.startsWith('hb_')) {
-        token = queryToken;
-    }
-
-    if (token) {
+        const token = authHeader.slice(7);
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         const controllerToken = repos.controllerTokens.getByHash(tokenHash);
 
@@ -89,7 +80,6 @@ export async function resolveAuth(req: Request, repos: Repos): Promise<AuthConte
                 };
             }
         }
-        // Invalid or expired token -> return none
         return { permission: 'none', user_id: null, token_id: null, board_id: null };
     }
 

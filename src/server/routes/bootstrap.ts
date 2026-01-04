@@ -1,14 +1,13 @@
 import { Router, Request, Response } from 'express';
 import type { RouteContext } from './types';
 import type { SSEManager } from '../lib/engine';
-import { resolveAuth, resolvePermissionForBoard, canView } from '../lib/auth';
 
 export function createBootstrapRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos } = ctx;
 
-  // POST /pair - Accept body { code } and return { board_id, token }
-  // SSE handles hydration, so we only need to create token and return minimal data
+  // POST /pair - Accept body { code } and return { board_id, token, permission }
+  // Creates a view-only token for pairing with a board
   router.post('/pair', async (req: Request, res: Response) => {
     const { code } = req.body;
 
@@ -39,7 +38,8 @@ export function createBootstrapRouter(ctx: RouteContext): Router {
       success: true,
       data: {
         board_id: board.id,
-        token: tokenValue
+        token: tokenValue,
+        permission: 'view'
       },
     });
   });
@@ -57,15 +57,6 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
       return;
     }
 
-    // Verify permission
-    const authCtx = await resolveAuth(req, repos);
-    authCtx.permission = resolvePermissionForBoard(authCtx, board);
-
-    if (!canView(authCtx)) {
-      res.status(403).json({ success: false, error: 'Insufficient permissions' });
-      return;
-    }
-
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -80,7 +71,6 @@ export function createSSEHandler(ctx: RouteContext, sse: SSEManager) {
 
     const initialData = JSON.stringify({
       data: { board, horses, feeds, diet_entries },
-      permission: authCtx.permission,
       timestamp: new Date().toISOString(),
     });
 

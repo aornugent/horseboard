@@ -1,5 +1,6 @@
 import type { Board, Horse, Feed, DietEntry, Unit, TimeMode } from '@shared/resources';
 import { signal } from '@preact/signals';
+import { setPermission as setPermissionStore } from '../stores';
 
 export const onAuthError = signal<{ status: number; message: string } | null>(null);
 
@@ -39,8 +40,12 @@ export function loadControllerToken(): void {
   }
 }
 
-export function getControllerToken(): string | null {
-  return controllerToken;
+export function setPermission(permission: string): void {
+  localStorage.setItem('horseboard_permission', permission);
+}
+
+export function loadPermission(): string {
+  return localStorage.getItem('horseboard_permission') || 'view';
 }
 
 async function request<T>(
@@ -59,7 +64,12 @@ async function request<T>(
   const response = await fetch(url, { ...options, headers });
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 403) {
+      // Permission denied - downgrade to view-only and show friendly message
+      setPermission('view');
+      setPermissionStore('view');
+      onAuthError.value = { status: 403, message: 'You need edit access to do that' };
+    } else if (response.status === 401) {
       onAuthError.value = { status: response.status, message: 'Authentication failed' };
     }
 
@@ -133,11 +143,15 @@ export interface CreateBoardResult {
 
 export async function pairWithCode(code: string): Promise<PairResult> {
   try {
-    const result = await request<ApiResponse<{ board_id: string; token: string }>>('/api/pair', {
+    const result = await request<ApiResponse<{ board_id: string; token: string; permission: string }>>('/api/pair', {
       method: 'POST',
       body: JSON.stringify({ code })
     });
     if (result.success && result.data) {
+      // Store permission for UI decisions
+      if (result.data.permission) {
+        setPermission(result.data.permission);
+      }
       return { success: true, board_id: result.data.board_id, token: result.data.token };
     }
     return { success: false, error: 'Invalid pairing code' };
@@ -308,7 +322,7 @@ export async function listUserBoards(): Promise<Board[]> {
 }
 
 export async function redeemInvite(code: string): Promise<{ token: string }> {
-  const result = await request<ApiResponse<{ token: string }>>('/api/invites/redeem', {
+  const result = await request<ApiResponse<{ token: string; permission: string }>>('/api/invites/redeem', {
     method: 'POST',
     body: JSON.stringify({ code }),
   });
@@ -316,7 +330,11 @@ export async function redeemInvite(code: string): Promise<{ token: string }> {
     throw new ApiError(result.error || 'Failed to redeem invite', 500);
   }
 
-  const { token } = result.data;
+  const { token, permission } = result.data;
   setControllerToken(token);
+  // Store permission for UI decisions
+  if (permission) {
+    setPermission(permission);
+  }
   return { token };
 }
