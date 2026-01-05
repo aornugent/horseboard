@@ -338,6 +338,28 @@ describe('createDietStore', () => {
 
       assert.equal(store.get('h_1', 'f_1').am_amount, null);
     });
+
+    test('preserves existing variant when updating amount', () => {
+      const store = createDietStore();
+
+      // Set up an entry with a variant
+      store.upsert(mockDietEntry({
+        horse_id: 'h_1',
+        feed_id: 'f_1',
+        am_amount: 1,
+        pm_amount: null,
+        am_variant: 'Small',
+        pm_variant: null,
+      }));
+
+      // Update only the amount
+      store.updateAmount('h_1', 'f_1', 'am_amount', 2);
+
+      // Variant should still be preserved
+      const entry = store.get('h_1', 'f_1');
+      assert.equal(entry.am_amount, 2);
+      assert.equal(entry.am_variant, 'Small');
+    });
   });
 
   describe('countActiveFeeds', () => {
