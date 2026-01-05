@@ -292,7 +292,7 @@ export function createDietRepository(db: Database.Database): DietRepository {
     ),
     getAll: db.prepare(`SELECT ${selectCols} FROM diet_entries`),
     getByBoardId: db.prepare(`
-      SELECT d.horse_id, d.feed_id, d.am_amount, d.pm_amount, d.created_at, d.updated_at
+      SELECT ${selectCols.split(', ').map(c => `d.${c}`).join(', ')}
       FROM diet_entries d
       JOIN horses h ON d.horse_id = h.id
       WHERE h.board_id = ?
