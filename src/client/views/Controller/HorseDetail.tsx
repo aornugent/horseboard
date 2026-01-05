@@ -66,10 +66,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const handleConfirm = async (value: number | null, variant: string | null) => {
     if (!selectedFeed) return;
 
-    // TODO: update variant in store too? Local updateDietAmount probably only updates amount.
-    // We should update `updateDietAmount` to handle variant, or just rely on optimistic UI from upsert?
-    // Stores need update. Plan Task 7 covers this.
-    // For now, we update amount locally.
+
     updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
 
     const currentEntry = dietStore.get(horseId, selectedFeed.feed_id);

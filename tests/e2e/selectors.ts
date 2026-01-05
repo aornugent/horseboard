@@ -10,8 +10,7 @@
 
 import { TIME_MODES, type TimeMode } from '../../src/shared/resources';
 
-// Legacy units for backward compatibility in tests
-// These match the IDs used in FeedsTab.tsx
+// Valid unit IDs for testing iteration
 const UNITS = ['scoop', 'ml', 'biscuit', 'sachet'] as const;
 
 // =============================================================================
