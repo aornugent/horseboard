@@ -258,59 +258,100 @@ Recommending **code removal or consolidation** is encouraged when it improves sy
 
 ---
 
-## Phase 3 — Receive & respond (Author mode)
+## Phase 3 — Reconcile & Plan (Author mode)
 
-**Goal:** Act on feedback deliberately and transparently.
+**Default mode:** Planning, not justification.
 
-### Agent actions
+**Goal:** Produce a concrete implementation plan that aligns the system, tests, and architecture with the stated intent.
 
-1. **Classify feedback**
+> **Important:**
+> Phase 3 must assume that *identified gaps are real defects*, not optional improvements, unless explicitly downgraded by the reviewer.
 
-   * Accept (fix now)
-   * Clarify (needs discussion)
-   * Defer (with explicit reason)
+---
 
-2. **Apply accepted changes**
+### Step 1 — Restate Architectural Intent (Required)
 
-   * Minimal, targeted edits
-   * Update or add tests as required
+In ≤3 sentences:
 
-3. **Re-verify**
+* Restate the **intended system behaviour** as implied by:
 
-   * Re-run relevant tests
-   * Confirm no regressions
+  * the original problem statement
+  * the Architectural Exploration
+  * the Reviewer’s Verdict
 
-4. **Respond to review**
+This is the *north star*.
 
-   * For each comment:
+Example:
 
-     * Action taken or justification
-     * Pointer to code change or explanation
+> “Feed units should be fully strategy-driven, with no parallel legacy mappings, and all unit types must be validated through tests that assert real user behaviour.”
+
+---
+
+### Step 2 — Gap Acknowledgement (No deferral yet)
+
+List **every gap** identified in the review and classify each as:
+
+* **Correctness gap** (system does not behave as intended)
+* **Coverage gap** (tests do not assert intended behaviour)
+* **Structural gap** (architecture allows drift or inconsistency)
+
+⚠️ **No deferral allowed in this step.**
+This step is diagnostic only.
+
+---
+
+### Step 3 — Produce an Implementation Plan (Default)
+
+Unless the changes required are trivial (e.g. minor, nits, or important but simple), you must:
+
+> **Invoke the `/plan` workflow and produce `artifact:implementation-plan.md`.**
+
+The plan must include:
+
+1. **Tests-first changes**
+
+   * New or modified tests that would currently FAIL
+   * Explicitly name what old behaviour becomes invalid
+
+2. **Code changes**
+
+   * Minimal implementation steps to make tests pass
+   * Explicit deletions or consolidations (required where applicable)
+
+3. **Migration / compatibility decisions**
+
+   * What legacy paths are removed
+   * What is intentionally unsupported going forward
+
+4. **Stopping criteria**
+
+   * When the work is considered complete
+   * What tests define “done”
+
+---
+
+### Step 4 — Explicit Debt Proposal (Optional, constrained)
+
+Only after producing the plan may you propose deferring items.
+
+For each deferred item:
+
+* State **why it cannot be included in the plan**
+* State **what test or invariant is being violated**
+* Assign a **time-bound follow-up** (not “later”)
+
+Deferred items without a violated invariant are **not acceptable**.
+
+---
+
+### Step 5 — Await Direction
+
+End Phase 3 with:
+
+> “Proposed implementation plan ready for review. Awaiting direction.”
+
+No code changes are made until the plan is approved.
 
 ### Required artifact
 
 **`artifact:review-response.md`**
-
----
-
-## Hard rules (unchanged but reinforced)
-
-* ❌ Reviewer phase may not modify code
-* ❌ No dismissing feedback without justification
-* ✅ All critical issues must be resolved or explicitly deferred
-* ✅ Role switches must be explicit in artifact headers
-
----
-
-## Completion criteria
-
-The `/review` workflow completes when:
-
-* All review comments are addressed
-* Tests pass
-* Review artifacts exist:
-
-  * `review-request`
-  * `code-review`
-  * `review-response`
-* The agent states: **“Review complete”**

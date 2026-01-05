@@ -205,6 +205,23 @@ describe('Database Integration Tests', () => {
       assert.ok(dietRepo.delete(horseId, feedId));
       assert.equal(dietRepo.getById(horseId, feedId), null);
     });
+
+    test('getByBoardId returns variant columns', () => {
+      // Create diet entry with variants
+      dietRepo.upsert({
+        horse_id: horseId,
+        feed_id: feedId,
+        am_amount: 1,
+        pm_amount: 2,
+        am_variant: 'Small',
+        pm_variant: 'Large'
+      });
+
+      const entries = dietRepo.getByBoardId(boardId);
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].am_variant, 'Small');
+      assert.equal(entries[0].pm_variant, 'Large');
+    });
   });
 
   describe('CASCADE deletes', () => {
