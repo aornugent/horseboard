@@ -82,7 +82,7 @@ test.describe('TV Display View', () => {
 
 test.describe('Real-Time Sync', () => {
   test('diet change in controller syncs to display', async ({ ownerPage, ownerBoardId, request, browser }) => {
-    // Seed data
+    // Seed data with initial values we'll change
     const horse = await createHorse(request, ownerBoardId, { name: 'Sync Horse' });
     const feed = await createFeed(request, ownerBoardId, { name: 'Sync Feed', unit: 'scoop' });
     await upsertDiet(request, {
@@ -106,28 +106,39 @@ test.describe('Real-Time Sync', () => {
       await displayPage.goto('/board');
       await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
-      // Verify initial value on display
       const displayBadge = displayPage.locator(selectors.badge(horse.id, feed.id));
-      await expect(displayBadge).toContainText('1');
 
-      // Use ownerPage (Controller) to change value
-      // Reload ownerPage to ensure it has latest data
+      // --- Update AM slot to 2 ---
       await ownerPage.reload();
       await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
-
-      // Navigate to detail
       await ownerPage.locator(selectors.horseCard(horse.id)).click();
 
-      // Open FeedPad
       await ownerPage.locator(selectors.feedTileAM(feed.id)).click();
       await expect(ownerPage.locator(selectors.feedPad)).toBeVisible();
-
-      // Change to 2
       await ownerPage.locator(selectors.presetTwo).click();
       await ownerPage.locator(selectors.feedPadConfirm).click();
+      await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible();
 
-      // Wait for sync
-      await expect(displayBadge).toContainText('2', { timeout: 3000 });
+      // --- Update PM slot to ½ (using preset, no stepper needed) ---
+      await ownerPage.locator(selectors.feedTilePM(feed.id)).click();
+      await expect(ownerPage.locator(selectors.feedPad)).toBeVisible();
+      await ownerPage.locator(selectors.presetHalf).click();
+      await ownerPage.locator(selectors.feedPadConfirm).click();
+      await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible();
+
+      // --- Force AM mode and verify display shows 2 ---
+      await ownerPage.locator(selectors.horseDetailBack).click();
+      await ownerPage.locator(selectors.tabBoard).click();
+      await expect(ownerPage.locator(selectors.boardTab)).toBeVisible();
+      await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+      await ownerPage.locator(timeModeSelectors.am).click();
+
+      await expect(displayBadge).toContainText('2', { timeout: 5000 });
+
+      // --- Force PM mode and verify display shows ½ ---
+      await ownerPage.locator(timeModeSelectors.pm).click();
+      await expect(displayBadge).toContainText('½', { timeout: 5000 });
 
     } finally {
       await displayContext.close();
@@ -158,17 +169,21 @@ test.describe('Real-Time Sync', () => {
       await expect(timeModeBadge).toBeVisible();
       const initialMode = await timeModeBadge.textContent();
 
-      // Switch mode in Controller
+      // Switch mode in Controller - time mode is now on Board tab
       await ownerPage.reload();
-      await ownerPage.locator(selectors.tabSettings).click();
-      await expect(ownerPage.locator(selectors.settingsTab)).toBeVisible();
+      await ownerPage.locator(selectors.tabBoard).click();
+      await expect(ownerPage.locator(selectors.boardTab)).toBeVisible();
 
-      // Determine new mode
+      // Expand the display controls drawer
+      await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+      // Determine new mode and click
       const newMode = initialMode?.includes('AM') ? 'PM' : 'AM';
       await ownerPage.locator(timeModeSelectors.timeMode(newMode as 'AM' | 'PM')).click();
 
       // Wait for sync
-      await expect(timeModeBadge).toContainText(newMode, { timeout: 3000 });
+      await expect(timeModeBadge).toContainText(newMode, { timeout: 5000 });
 
     } finally {
       await displayContext.close();

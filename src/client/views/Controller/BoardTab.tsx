@@ -1,9 +1,8 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid';
-import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel } from '../../stores';
+import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, updateTimeMode, board, setCurrentPage, currentPage, setZoomLevel } from '../../stores';
 import './BoardTab.css';
 
 import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode } from '../../services';
-import { board, setCurrentPage, currentPage, setZoomLevel } from '../../stores';
 import { TIME_MODE, TIME_MODE_CONFIG, type TimeMode } from '../../../shared/resources';
 import { useSignal } from '@preact/signals';
 
@@ -20,8 +19,15 @@ async function changePage(delta: number) {
 
 async function changeTimeMode(mode: TimeMode) {
   if (!board.value) return;
+
+  // Calculate override expiry (1 hour) for non-AUTO modes, matching SettingsTab behavior
+  const override_until = mode !== TIME_MODE.AUTO
+    ? new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    : null;
+
   try {
-    await apiUpdateTimeMode(board.value.id, mode, null);
+    await apiUpdateTimeMode(board.value.id, mode, override_until);
+    updateTimeMode(mode, override_until);  // Update local store so UI reflects change
   } catch (err) {
     console.error('Failed to update time mode:', err);
   }
