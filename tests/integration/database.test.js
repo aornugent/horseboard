@@ -133,10 +133,11 @@ describe('Database Integration Tests', () => {
     });
 
     test('creates a feed', () => {
-      const feed = feedRepo.create({ name: 'Oats', unit: 'scoop' }, boardId);
+      const feed = feedRepo.create({ name: 'Oats' }, boardId);
       assert.ok(feed.id.startsWith('f_'));
       assert.equal(feed.name, 'Oats');
-      assert.equal(feed.unit, 'scoop');
+      assert.equal(feed.unit_type, 'fraction');
+      assert.equal(feed.unit_label, 'scoop');
     });
 
     test('lists feeds for board', () => {
@@ -148,9 +149,10 @@ describe('Database Integration Tests', () => {
 
     test('updates feed', () => {
       const created = feedRepo.create({ name: 'Oats' }, boardId);
-      feedRepo.update({ unit: 'ml', stock_level: 100 }, created.id);
+      feedRepo.update({ unit_type: 'decimal', unit_label: 'ml', stock_level: 100 }, created.id);
       const feed = feedRepo.getById(created.id);
-      assert.equal(feed.unit, 'ml');
+      assert.equal(feed.unit_type, 'decimal');
+      assert.equal(feed.unit_label, 'ml');
       assert.equal(feed.stock_level, 100);
     });
 
