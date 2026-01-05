@@ -74,7 +74,8 @@ export function FeedPad({
   };
 
   // The strategy formatDisplay might accept label as 4th arg
-  const displayValue = strategy.formatDisplay(editValue, editVariant, options, unitLabel);
+  // We pass undefined for label because FeedPad renders the unit label separately below
+  const displayValue = strategy.formatDisplay(editValue, editVariant, options);
 
   return (
     <div
