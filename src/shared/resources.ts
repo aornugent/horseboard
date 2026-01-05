@@ -1,9 +1,7 @@
 import { z } from 'zod';
 import { UnitTypeSchema } from './unit-strategies';
 
-// Legacy unit schema (for backward compat during transition)
-export const LegacyUnitSchema = z.enum(['scoop', 'ml', 'sachet', 'biscuit']);
-export type LegacyUnit = z.infer<typeof LegacyUnitSchema>;
+
 
 // Re-export UnitType for convenience
 export { UnitTypeSchema };

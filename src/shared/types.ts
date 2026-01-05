@@ -14,7 +14,7 @@ export type {
   DietEntry,
   Board,
   UnitType,
-  LegacyUnit,
+
   TimeMode,
   EffectiveTimeMode,
 } from './resources';
