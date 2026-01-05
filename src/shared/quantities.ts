@@ -1,33 +1,29 @@
 /**
- * Fraction Formatting
- *
- * Converts decimal quantities to human-readable format with Unicode fractions.
- * Used for the TV board to show feed amounts in an easy-to-read format.
- *
- * Examples:
- * - 0.25 → ¼
- * - 0.5 → ½
- * - 1.5 → 1½
- * - 2.75 → 2¾
- * - 0.6 → 0.6 (no fraction available)
+ * Quantity Formatting & Parsing
+ * 
+ * Refactored to delegate formatting to UnitStrategy while keeping
+ * parsing logic for backward compatibility.
  */
+
+import { getStrategyForType } from './unit-strategies';
+export { getStrategyForType, parseEntryOptions } from './unit-strategies';
+
+/**
+ * Step size for quantity adjustments (stepper increment/decrement)
+ */
+export const QUANTITY_STEP = 0.25;
 
 /**
  * Supported fraction values with their Unicode representations
  * Stored as [decimal, unicode] tuples for iteration
  */
-export const FRACTION_ENTRIES: ReadonlyArray<readonly [number, string]> = [
+const FRACTION_ENTRIES: ReadonlyArray<readonly [number, string]> = [
   [0.25, '¼'],
   [0.33, '⅓'],
   [0.5, '½'],
   [0.67, '⅔'],
   [0.75, '¾'],
 ] as const;
-
-/**
- * Map of decimal fractions to Unicode characters (derived from FRACTION_ENTRIES)
- */
-const FRACTION_MAP: Record<number, string> = Object.fromEntries(FRACTION_ENTRIES);
 
 /**
  * Reverse map: Unicode fraction to decimal value
@@ -37,65 +33,34 @@ const FRACTION_REVERSE_MAP: Record<string, number> = Object.fromEntries(
 );
 
 /**
- * Tolerance for floating point comparison
- */
-export const EPSILON = 0.01;
-
-/**
- * Step size for quantity adjustments (stepper increment/decrement)
- */
-export const QUANTITY_STEP = 0.25;
-
-/**
- * Find matching fraction character for a decimal value
- */
-function findFraction(decimal: number): string | null {
-  for (const [value, char] of Object.entries(FRACTION_MAP)) {
-    if (Math.abs(decimal - parseFloat(value)) < EPSILON) {
-      return char;
-    }
-  }
-  return null;
-}
-
-/**
  * Format a quantity for the board
- *
- * @param value - The numeric value (null or 0 returns empty string)
- * @param unit - Optional unit to append for non-fraction values
- * @returns Formatted string (e.g., "2½", "¾", "1.6 scoops", or "")
+ * Delegates to fraction strategy for backward compatibility
+ * Replicates legacy behavior: appends unit only for non-integer decimals
  */
 export function formatQuantity(value: number | null, unit?: string): string {
-  // Null or zero renders as blank (design requirement)
-  if (value === null || value === 0) {
-    return '';
+  const strategy = getStrategyForType('fraction');
+  // We don't pass unit to strategy because fractionStrategy ignores it anyway, 
+  // and we want to handle conditional appending here.
+  const result = strategy.formatDisplay(value, null, null);
+
+  if (!result) return '';
+
+  // If it contains a fraction character, return as is (no unit)
+  if (/[¼⅓½⅔¾]/.test(result)) {
+    return result;
   }
 
-  const intPart = Math.floor(value);
-  const decPart = Math.round((value - intPart) * 100) / 100;
-
-  // Integers should be returned without unit (matches fraction behavior)
-  if (decPart === 0) {
-    return String(intPart);
+  // If it's an integer, return as is (no unit, per legacy behavior)
+  if (value !== null && value % 1 === 0) {
+    return result;
   }
 
-  // Check if decimal part maps to a fraction
-  const fraction = findFraction(decPart);
-
-  if (fraction) {
-    // Has a nice fraction representation
-    if (intPart > 0) {
-      return `${intPart}${fraction}`;
-    }
-    return fraction;
-  }
-
-  // No fraction match - show decimal with optional unit
+  // If it's a decimal (and no fraction match), append unit if provided
   if (unit) {
-    return `${value} ${unit}`;
+    return `${result} ${unit}`;
   }
 
-  return String(value);
+  return result;
 }
 
 /**
@@ -141,6 +106,7 @@ export function parseQuantity(input: string | null | undefined): number | null {
 
 /**
  * Get all available fraction presets for the FeedPad component
+ * (Legacy support)
  */
 export function getFractionPresets(): Array<{ value: number; label: string }> {
   return [
@@ -155,6 +121,7 @@ export function getFractionPresets(): Array<{ value: number; label: string }> {
 
 /**
  * Get quick presets for FeedPad buttons (Empty, ½, 1, 2)
+ * (Legacy support)
  */
 export function getQuickPresets(): Array<{ value: number | null; label: string }> {
   return [

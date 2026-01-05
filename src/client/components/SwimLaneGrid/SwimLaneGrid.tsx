@@ -1,5 +1,5 @@
 import type { Signal } from '@preact/signals';
-import { formatQuantity } from '@shared/fractions';
+import { formatQuantity } from '@shared/quantities';
 import { TIME_MODE, type Horse, type Feed, type EffectiveTimeMode } from '@shared/resources';
 import { dietByKey } from '../../stores';
 import './SwimLaneGrid.css';

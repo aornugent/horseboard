@@ -4,7 +4,7 @@ import {
   formatQuantity,
   parseQuantity,
   getFractionPresets,
-} from '../../src/shared/fractions.js';
+} from '../../src/shared/quantities.js';
 
 describe('Fractions', () => {
   describe('formatQuantity', () => {

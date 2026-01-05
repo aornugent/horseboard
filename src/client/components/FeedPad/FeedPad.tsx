@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
-import { formatQuantity, getQuickPresets, QUANTITY_STEP } from '@shared/fractions';
+import { formatQuantity, getQuickPresets, parseQuantity, QUANTITY_STEP } from '@shared/quantities';
 import './FeedPad.css';
 
 // Get presets once (they're static)
@@ -57,13 +57,13 @@ export function FeedPad({
 
   return (
     <div
-      class={`feed-pad-overlay ${isOpen ? 'feed-pad-overlay--open' : ''}`}
+      class={`feed - pad - overlay ${isOpen ? 'feed-pad-overlay--open' : ''} `}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleCancel();
       }}
     >
       <div
-        class={`feed-pad-drawer ${isOpen ? 'feed-pad-drawer--open' : ''}`}
+        class={`feed - pad - drawer ${isOpen ? 'feed-pad-drawer--open' : ''} `}
         data-testid="feed-pad"
         aria-hidden={!isOpen}
       >
@@ -93,7 +93,7 @@ export function FeedPad({
             <button
               key={index}
               class="feed-pad-preset"
-              data-testid={`preset-${preset.value ?? 'empty'}`}
+              data-testid={`preset - ${preset.value ?? 'empty'} `}
               onClick={() => handlePreset(preset.value)}
             >
               {preset.label}
@@ -107,7 +107,7 @@ export function FeedPad({
             class="feed-pad-stepper-btn"
             data-testid="stepper-decrement"
             onClick={handleDecrement}
-            aria-label={`Decrease by ${QUANTITY_STEP}`}
+            aria-label={`Decrease by ${QUANTITY_STEP} `}
           >
             −
           </button>
@@ -118,7 +118,7 @@ export function FeedPad({
             class="feed-pad-stepper-btn"
             data-testid="stepper-increment"
             onClick={handleIncrement}
-            aria-label={`Increase by ${QUANTITY_STEP}`}
+            aria-label={`Increase by ${QUANTITY_STEP} `}
           >
             +
           </button>
