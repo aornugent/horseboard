@@ -125,15 +125,15 @@ export async function seedTestData(
 
   // Create feeds
   const defaultFeeds = [
-    { name: 'Oats', unit: 'scoop' as const },
-    { name: 'Hay', unit: 'biscuit' as const },
-    { name: 'Vitamins', unit: 'sachet' as const },
-    { name: 'Water', unit: 'ml' as const },
+    { name: 'Oats', unit_type: 'fraction' as const, unit_label: 'scoop' },
+    { name: 'Hay', unit_type: 'int' as const, unit_label: 'biscuit' },
+    { name: 'Supplements', unit_type: 'int' as const, unit_label: 'tablet' },
+    { name: 'Water', unit_type: 'decimal' as const, unit_label: 'ml' },
   ];
   const feeds: Feed[] = [];
 
   for (let i = 0; i < feedCount; i++) {
-    const feedData = defaultFeeds[i] || { name: `Feed ${i + 1}`, unit: 'scoop' as const };
+    const feedData = defaultFeeds[i] || { name: `Feed ${i + 1}`, unit_type: 'fraction' as const, unit_label: 'scoop' };
     const feed = await createFeed(request, board.id, feedData);
     feeds.push(feed);
   }

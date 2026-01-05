@@ -20,6 +20,12 @@ const editingFeed = signal<Feed | null>(null);
 const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
 const deletingFeed = signal<Feed | null>(null);
 
+const board = boardStore.board;
+const dietEntries = dietStore.items;
+
+const addFeed = (feed: Feed) => feedStore.add(feed);
+const updateFeed = (id: string, feed: Feed) => feedStore.update(id, feed);
+
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
   if (!query) return feedStore.items.value;
@@ -38,7 +44,6 @@ function getUnitId(feed: Feed): UnitTypeOptionId {
   if (feed.unit_type === 'fraction' && feed.unit_label === 'scoop') return 'scoop';
   if (feed.unit_type === 'decimal' && feed.unit_label === 'ml') return 'ml';
   if (feed.unit_type === 'int' && feed.unit_label === 'biscuit') return 'biscuit';
-  if (feed.unit_type === 'int' && feed.unit_label === 'sachet') return 'sachet';
   return 'scoop'; // Default fallback
 }
 

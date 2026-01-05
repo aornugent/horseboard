@@ -28,8 +28,8 @@ test.describe('Feed CRUD Operations', () => {
         unit_type: 'fraction',
         unit_label: 'scoop',
       });
-      const vitamins = await createFeed(request, ownerBoardId, {
-        name: 'Vitamins',
+      const hay = await createFeed(request, ownerBoardId, {
+        name: 'Hay',
         unit_type: 'int',
         unit_label: 'biscuit',
       });
@@ -47,11 +47,11 @@ test.describe('Feed CRUD Operations', () => {
       await expect(ownerPage.locator(selectors.feedCardName(oats.id))).toHaveText('Oats');
       await expect(ownerPage.locator(selectors.feedCardMeta(oats.id))).toContainText('scoop');
 
-      // Verify Vitamins feed
-      const vitaminsCard = ownerPage.locator(selectors.feedCard(vitamins.id));
-      await expect(vitaminsCard).toBeVisible();
-      await expect(ownerPage.locator(selectors.feedCardName(vitamins.id))).toHaveText('Vitamins');
-      await expect(ownerPage.locator(selectors.feedCardMeta(vitamins.id))).toContainText('biscuit');
+      // Verify Hay feed
+      const hayCard = ownerPage.locator(selectors.feedCard(hay.id));
+      await expect(hayCard).toBeVisible();
+      await expect(ownerPage.locator(selectors.feedCardName(hay.id))).toHaveText('Hay');
+      await expect(ownerPage.locator(selectors.feedCardMeta(hay.id))).toContainText('biscuit');
     });
   });
 
