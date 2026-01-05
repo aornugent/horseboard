@@ -327,7 +327,7 @@ Move Time Mode and Zoom controls from Settings to Board tab:
 
 2. **Update `Router.tsx`**
    - Add auto-redirect logic: if localStorage has board ID, skip Landing
-   - Ensure `/controller` guard checks auth before showing PairingView
+   - Redirect `/controller` without stored board to `/` (Landing)
 
 3. **Add CSS for new landing layout** (`Auth.css` or new `Landing.css`)
 
@@ -461,10 +461,9 @@ Move Time Mode and Zoom controls from Settings to Board tab:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `Landing` | `views/Landing.tsx` | Entry point, needs redesign |
+| `Landing` | `views/Landing.tsx` | Entry point with code entry |
 | `LoginView` | `views/LoginView.tsx` | Email/password login |
 | `SignupView` | `views/SignupView.tsx` | New user registration |
-| `PairingView` | `views/PairingView.tsx` | Code entry for controller |
 | `ProvisioningView` | `views/ProvisioningView.tsx` | TV display provisioning |
 | `ControllerView` | `views/ControllerView.tsx` | Main controller shell |
 | `SettingsTab` | `views/Controller/SettingsTab.tsx` | Settings, needs reorganization |
@@ -559,17 +558,15 @@ ownership: {
 
 ---
 
-#### 6.4 Remove PairingView (Optional)
+#### 6.4 PairingView Removal (Completed)
 
-After Landing page handles code entry, PairingView may be redundant.
+PairingView was removed as Landing page now handles code entry.
 
-**Analysis:**
-- `Router.tsx` → `GuardedController()` shows PairingView when no board stored
-- If Landing handles code entry and redirects to `/controller`, PairingView is only shown for direct `/controller` access without prior pairing
-
-**Decision:** Keep PairingView as fallback for edge cases (bookmarked `/controller` URL without stored board)
-
-**Alternative:** Redirect `/controller` without board to `/` (simpler)
+**Changes Made:**
+- Deleted `views/PairingView.tsx`
+- Updated `Router.tsx` → `GuardedController()` now redirects to `/` when no board stored
+- Removed pairing CSS from `layout.css`
+- Cleaned up test selectors
 
 ---
 
@@ -625,7 +622,7 @@ Run cleanup pass to remove:
 | Migrations | Collapse to single file | [x] |
 | TokensTab | Delete after consolidation | [x] |
 | `is_claimed` | Remove from ownership | [x] |
-| PairingView | Keep as fallback | [x] |
+| PairingView | Removed (redirect to Landing) | [x] |
 | Dev scripts | Delete test-auth.ts, test-db-direct.ts | [x] |
 | docs/auth/ | Removed (consolidated into USER_PATHS) | [x] |
 | E2E parallel | Fixed with workers: 1 | [x] |

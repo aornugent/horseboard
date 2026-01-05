@@ -117,12 +117,9 @@ test.describe('Authentication', () => {
             await page.locator(selectors.passwordInput).fill(password);
             await page.locator(selectors.submitBtn).click();
 
-            // Should redirect to controller (not pairing view)
+            // Should redirect to controller
             await expect(page).toHaveURL(/\/controller/, { timeout: 10000 });
             await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
-
-            // Should NOT show pairing view (board was auto-created)
-            await expect(page.locator(selectors.pairingView)).not.toBeVisible();
 
             // Should show horses tab (default)
             await expect(page.locator(selectors.horsesTab)).toBeVisible();
