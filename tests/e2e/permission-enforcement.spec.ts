@@ -131,7 +131,7 @@ test.describe('Permission Enforcement', () => {
       // Need some data for pagination to make sense
       const { createHorse, createFeed, upsertDiet } = await import('./helpers/api');
       await createHorse(request, ownerBoardId, { name: 'Test' });
-      const feed = await createFeed(request, ownerBoardId, { name: 'Oats', unit: 'scoop' });
+      const feed = await createFeed(request, ownerBoardId, { name: 'Oats', unit_type: 'fraction', unit_label: 'scoop' });
 
       // Reload visitor to get the data
       await visitorPage.reload();
