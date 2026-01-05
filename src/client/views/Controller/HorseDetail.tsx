@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { signal, computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
-import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry, updateHorse as storeUpdateHorse, removeHorse, canEdit } from '../../stores';
+import { horseStore, feedStore, dietStore, canEdit } from '../../stores';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 import './HorseDetail.css';
 
@@ -59,7 +59,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getCurrentVariant = (): string | null => {
     if (!selectedFeed) return null;
-    const entry = getDietEntry(horseId, selectedFeed.feed_id);
+    const entry = dietStore.get(horseId, selectedFeed.feed_id);
     return selectedFeed.field === 'am_amount' ? entry?.am_variant ?? null : entry?.pm_variant ?? null;
   };
 
@@ -67,7 +67,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     if (!selectedFeed) return;
 
 
-    updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
+    dietStore.updateAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
 
     const currentEntry = dietStore.get(horseId, selectedFeed.feed_id);
     const am_amount = selectedFeed.field === 'am_amount' ? value : currentEntry?.am_amount;
@@ -85,7 +85,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getSelectedFeedInfo = () => {
     if (!selectedFeed) return { name: '', unitType: 'fraction' as const, unitLabel: 'scoop', entryOptions: null };
-    const feed = getFeed(selectedFeed.feed_id);
+    const feed = feedStore.get(selectedFeed.feed_id);
     return {
       name: feed?.name ?? '',
       unitType: feed?.unit_type ?? 'fraction',
