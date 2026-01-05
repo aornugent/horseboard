@@ -31,7 +31,7 @@ test.describe('Feed CRUD Operations', () => {
       const vitamins = await createFeed(request, ownerBoardId, {
         name: 'Vitamins',
         unit_type: 'int',
-        unit_label: 'sachet',
+        unit_label: 'biscuit',
       });
 
       // Reload to pick up new data
@@ -51,7 +51,7 @@ test.describe('Feed CRUD Operations', () => {
       const vitaminsCard = ownerPage.locator(selectors.feedCard(vitamins.id));
       await expect(vitaminsCard).toBeVisible();
       await expect(ownerPage.locator(selectors.feedCardName(vitamins.id))).toHaveText('Vitamins');
-      await expect(ownerPage.locator(selectors.feedCardMeta(vitamins.id))).toContainText('sachet');
+      await expect(ownerPage.locator(selectors.feedCardMeta(vitamins.id))).toContainText('biscuit');
     });
   });
 
@@ -124,7 +124,7 @@ test.describe('Feed CRUD Operations', () => {
   test.describe('Delete a feed', () => {
     test('should delete one feed and leave the other', async ({ ownerPage, ownerBoardId, request }) => {
       const feed1 = await createFeed(request, ownerBoardId, { name: 'Grain', unit_type: 'fraction', unit_label: 'scoop' });
-      const feed2 = await createFeed(request, ownerBoardId, { name: 'Supplements', unit_type: 'int', unit_label: 'sachet' });
+      const feed2 = await createFeed(request, ownerBoardId, { name: 'Supplements', unit_type: 'int', unit_label: 'biscuit' });
 
       // Reload
       await ownerPage.reload();

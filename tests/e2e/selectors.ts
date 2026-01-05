@@ -11,7 +11,7 @@
 import { TIME_MODES, type TimeMode } from '../../src/shared/resources';
 
 // Valid unit IDs for testing iteration
-const UNITS = ['scoop', 'ml', 'biscuit', 'sachet'] as const;
+const UNITS = ['scoop', 'ml', 'biscuit'] as const;
 
 // =============================================================================
 // STATIC SELECTORS
@@ -212,7 +212,7 @@ export const selectors = {
  * If a unit is renamed in resources.ts, tests using this will fail loudly
  * rather than silently passing with a stale selector.
  */
-type UnitId = 'scoop' | 'ml' | 'biscuit' | 'sachet';
+type UnitId = 'scoop' | 'ml' | 'biscuit';
 
 export const unitSelectors = {
   /** Get selector for a unit button in the add feed modal */
