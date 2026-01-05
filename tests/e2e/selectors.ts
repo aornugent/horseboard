@@ -181,11 +181,9 @@ export const selectors = {
   // General / Navigation
   // ============================================
   pairingCode: '[data-testid="pairing-code"]',
-  codeInput: (index: number) => `[data-testid="code-input-${index}"]`,
   connectBtn: '[data-testid="connect-btn"]',
   quantityModal: '[data-testid="quantity-modal"]',
   quantityInput: '[data-testid="quantity-input"]',
-  pairingView: '[data-testid="pairing-view"]',
 
 
   // ============================================
@@ -245,7 +243,6 @@ export const timeModeSelectors = {
  * | board.spec.js       | .grid-cell.feed-name             | selectors.feedName(id)                |
  * | board.spec.js       | .grid-cell.note                  | selectors.note(id)                    |
  * | controller.spec.js  | .grid-cell.value (keypad)        | selectors.feedPad + preset/stepper    |
- * | controller.spec.js  | .code-digit[data-index="N"]      | selectors.codeInput(N)                |
  * | controller.spec.js  | .mode-btn[data-mode="..."]       | timeModeSelectors.timeMode(mode)      |
  * | controller.spec.js  | unit-btn-scoop                   | unitSelectors.unitBtn('scoop')        |
  * | workflows.spec.js   | .grid-cell.feed-name             | selectors.feedName(id)                |

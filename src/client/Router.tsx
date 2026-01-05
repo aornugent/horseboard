@@ -6,7 +6,6 @@ import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
 import { ControllerView } from './views/ControllerView';
 import { Board } from './views/Board';
-import { PairingView } from './views/PairingView';
 import { ProvisioningView } from './views/ProvisioningView';
 
 function GuardedLanding() {
@@ -25,8 +24,10 @@ function GuardedController() {
     const needsPairing = !board.value && !isInitialized.value;
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
+    // If no board, redirect to Landing page for pairing
     if (needsPairing && !storedBoardId) {
-        return <PairingView />;
+        navigate('/');
+        return null;
     }
     return <ControllerView />;
 }
