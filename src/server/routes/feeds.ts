@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { CreateFeedSchema, UpdateFeedSchema } from '@shared/resources';
 import { validate } from './middleware';
-import { requirePermission } from '../lib/auth';
+import { authenticate, requireEdit, getBoardPermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -21,13 +21,36 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   const { repos, broadcast, rankingManager } = ctx;
 
   // GET /api/boards/:boardId/feeds - list feeds for a board
-  boardScoped.get('/', requirePermission('view'), (req: Request, res: Response) => {
+  boardScoped.get('/', authenticate(), (req: Request, res: Response) => {
+    const board = repos.boards.getById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, board);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     const items = repos.feeds.getByParent(req.params.boardId);
     res.json({ success: true, data: items });
   });
 
   // POST /api/boards/:boardId/feeds - create feed under board
-  boardScoped.post('/', requirePermission('edit'), validate(CreateFeedSchema), (req: Request, res: Response) => {
+  boardScoped.post('/', authenticate(), validate(CreateFeedSchema), (req: Request, res: Response) => {
+    const board = repos.boards.getById(req.params.boardId);
+    if (!board) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, board);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    if (permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Edit permission required' });
+    }
+
     try {
       const item = repos.feeds.create(req.body, req.params.boardId);
       rankingManager.scheduleRecalculation(req.params.boardId);
@@ -44,11 +67,18 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // POST /api/boards/:boardId/feeds/recalculate-rankings - recalculate rankings
-  boardScoped.post('/recalculate-rankings', requirePermission('edit'), (req: Request, res: Response) => {
+  boardScoped.post('/recalculate-rankings', authenticate(), (req: Request, res: Response) => {
     const board = repos.boards.getById(req.params.boardId);
     if (!board) {
-      res.status(404).json({ success: false, error: 'Board not found' });
-      return;
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, board);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    if (permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Edit permission required' });
     }
 
     const count = rankingManager.recalculateNow(req.params.boardId);
@@ -58,27 +88,32 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // GET /api/feeds/:id - get feed by id
-  standalone.get('/:id', requirePermission('view', async (req, repos) => {
-    const item = repos.feeds.getById(req.params.id);
-    return item?.board_id;
-  }), (req: Request, res: Response) => {
+  standalone.get('/:id', authenticate(), (req: Request, res: Response) => {
     const item = repos.feeds.getById(req.params.id);
     if (!item) {
-      res.status(404).json({ success: false, error: 'Feed not found' });
-      return;
+      return res.status(404).json({ success: false, error: 'Feed not found' });
     }
+
+    const board = repos.boards.getById(item.board_id);
+    const permission = getBoardPermission(req, board);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     res.json({ success: true, data: item });
   });
 
   // PATCH /api/feeds/:id - update feed
-  standalone.patch('/:id', requirePermission('edit', async (req, repos) => {
-    const item = repos.feeds.getById(req.params.id);
-    return item?.board_id;
-  }), validate(UpdateFeedSchema), (req: Request, res: Response) => {
+  standalone.patch('/:id', authenticate(), requireEdit, validate(UpdateFeedSchema), (req: Request, res: Response) => {
     const existing = repos.feeds.getById(req.params.id);
     if (!existing) {
-      res.status(404).json({ success: false, error: 'Feed not found' });
-      return;
+      return res.status(404).json({ success: false, error: 'Feed not found' });
+    }
+
+    const board = repos.boards.getById(existing.board_id);
+    const permission = getBoardPermission(req, board);
+    if (permission === 'none' || permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
     const updated = repos.feeds.update(req.body, req.params.id);
@@ -87,20 +122,21 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // DELETE /api/feeds/:id - delete feed
-  standalone.delete('/:id', requirePermission('edit', async (req, repos) => {
-    const item = repos.feeds.getById(req.params.id);
-    return item?.board_id;
-  }), (req: Request, res: Response) => {
+  standalone.delete('/:id', authenticate(), requireEdit, (req: Request, res: Response) => {
     const existing = repos.feeds.getById(req.params.id);
-    const deleted = repos.feeds.delete(req.params.id);
-    if (!deleted) {
-      res.status(404).json({ success: false, error: 'Feed not found' });
-      return;
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Feed not found' });
     }
-    if (existing) {
-      rankingManager.scheduleRecalculation(existing.board_id);
-      broadcast(existing.board_id);
+
+    const board = repos.boards.getById(existing.board_id);
+    const permission = getBoardPermission(req, board);
+    if (permission === 'none' || permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
     }
+
+    repos.feeds.delete(req.params.id);
+    rankingManager.scheduleRecalculation(existing.board_id);
+    broadcast(existing.board_id);
     res.json({ success: true });
   });
 
