@@ -39,6 +39,7 @@ class SSEClient {
   private onConnectedCallback?: () => void;
   private onDisconnectedCallback?: () => void;
   private onErrorCallback?: (error: Event) => void;
+  private onRevokedCallback?: () => void;
 
   /**
    * Connect to SSE endpoint for a board
@@ -71,6 +72,13 @@ class SSEClient {
           console.error('Failed to parse SSE event:', err);
         }
       };
+
+      // Handle named events
+      this.eventSource.addEventListener('revoked', () => {
+        console.log('SSE: Received revocation event');
+        this.onRevokedCallback?.();
+        this.disconnect();
+      });
 
       this.eventSource.onerror = (error) => {
         console.error('SSE connection error:', error);
@@ -127,8 +135,19 @@ class SSEClient {
 
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (this.boardId) {
+        // Safety net: validate token before reconnecting
+        const { getToken, resolveToken } = await import('./api');
+        if (getToken()) {
+          try {
+            await resolveToken();
+          } catch {
+            // Token invalid - trigger revocation flow
+            this.onRevokedCallback?.();
+            return;
+          }
+        }
         this.connect(this.boardId).catch(console.error);
       }
     }, delay);
@@ -161,6 +180,10 @@ class SSEClient {
 
   onError(callback: (error: Event) => void): void {
     this.onErrorCallback = callback;
+  }
+
+  onRevoked(callback: () => void): void {
+    this.onRevokedCallback = callback;
   }
 }
 

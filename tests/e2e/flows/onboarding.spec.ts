@@ -15,39 +15,25 @@ import { clearBoardFromStorage } from '../helpers/setup';
 
 test.describe('Onboarding and Pairing', () => {
   test.describe('Display', () => {
-    test('shows 6-digit pair code on first load', async ({ page }) => {
+    test('shows 6-character provisioning code on first load', async ({ page }) => {
       // Clear localStorage to ensure clean state
       await page.goto('/');
       await clearBoardFromStorage(page);
 
-      // Navigate to /board - this auto-creates a board
+      // Navigate to /board - shows provisioning view for unlinked displays
       await page.goto('/board');
 
-      // Wait for board view to be ready (auto-creates board)
-      await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+      // TV should show provisioning view with 6-character code
+      const provisioningView = page.locator('[data-testid="provisioning-view"]');
+      await expect(provisioningView).toBeVisible({ timeout: 10000 });
 
-      // Verify pair code is visible - check both possible locations
-      const pairCodeHeader = page.locator(selectors.boardPairCode);
-      const pairCodeEmpty = page.locator('[data-testid="board-empty-pair-code"]');
+      // Verify provisioning code is visible
+      const codeDisplay = page.locator('[data-testid="provisioning-code"]');
+      await expect(codeDisplay).toBeVisible();
 
-      // Either the header pair code or the empty state pair code should be visible
-      const headerVisible = await pairCodeHeader.isVisible();
-      const emptyVisible = await pairCodeEmpty.isVisible();
-
-      expect(headerVisible || emptyVisible).toBeTruthy();
-
-      // Get the pair code text from whichever element is visible
-      let pairCodeText: string;
-      if (headerVisible) {
-        pairCodeText = (await pairCodeHeader.textContent()) || '';
-      } else {
-        pairCodeText = (await pairCodeEmpty.textContent()) || '';
-      }
-
-      // Verify it's a 6-digit numeric code
-      const codeMatch = pairCodeText.match(/\d{6}/);
-      expect(codeMatch).toBeTruthy();
-      expect(codeMatch![0]).toHaveLength(6);
+      // Get the code text and verify format (6 alphanumeric chars)
+      const codeText = (await codeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
+      expect(codeText).toMatch(/^[A-Z0-9]{6}$/);
     });
   });
 
@@ -79,7 +65,7 @@ test.describe('Onboarding and Pairing', () => {
 
       // Verify localStorage contains a board ID
       const boardId = await page.evaluate(() => {
-        return localStorage.getItem('horseboard_board_id');
+        return localStorage.getItem('hb_board_id');
       });
       expect(boardId).toBeTruthy();
       expect(boardId).toMatch(/^[a-zA-Z0-9_-]+$/);
@@ -121,7 +107,7 @@ test.describe('Onboarding and Pairing', () => {
 
         // Verify localStorage contains the correct board ID
         const storedBoardId = await page.evaluate(() => {
-          return localStorage.getItem('horseboard_board_id');
+          return localStorage.getItem('hb_board_id');
         });
         expect(storedBoardId).toBe(board.id);
       } finally {

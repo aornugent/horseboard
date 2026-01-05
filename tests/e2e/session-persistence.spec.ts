@@ -113,14 +113,14 @@ test.describe('Session Persistence', () => {
 
   test('board ID persists in localStorage across page refresh', async ({ ownerPage, ownerBoardId }) => {
     // Capture board ID from localStorage
-    const pageBoardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
+    const pageBoardId = await ownerPage.evaluate(() => localStorage.getItem('hb_board_id'));
     expect(pageBoardId).toBe(ownerBoardId);
 
     // Reload page
     await ownerPage.reload();
 
     // Board ID should still be in localStorage
-    const persistedBoardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
+    const persistedBoardId = await ownerPage.evaluate(() => localStorage.getItem('hb_board_id'));
     expect(persistedBoardId).toBe(ownerBoardId);
 
     // Should auto-redirect to controller (not show landing page)
@@ -146,7 +146,7 @@ test.describe('Session Persistence', () => {
       await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
 
       // Capture board ID
-      const boardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+      const boardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
       expect(boardId).toBeTruthy();
 
       // Go to settings and verify sign out button exists
@@ -164,7 +164,7 @@ test.describe('Session Persistence', () => {
       await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
 
       // Board ID should still be in storage (board is separate from user session)
-      const persistedBoardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+      const persistedBoardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
       expect(persistedBoardId).toBe(boardId);
     } finally {
       await context.close();

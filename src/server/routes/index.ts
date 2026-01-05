@@ -48,7 +48,7 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
 
 
   // Devices routes
-  app.use('/api/devices', createDevicesRouter(ctx));
+  app.use('/api/devices', createDevicesRouter(ctx, sse));
 
   // Invites routes
   app.use('/api/invites', createInvitesRouter(ctx));

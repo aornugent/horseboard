@@ -13,7 +13,7 @@ test.describe('Permission Enforcement', () => {
   test.describe('View-only users cannot edit', () => {
     test('rejects API calls to add horse from view-only token', async ({ visitorPage, ownerBoardId, request }) => {
       // Get visitor token from localStorage
-      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+      const token = await visitorPage.evaluate(() => localStorage.getItem('hb_token'));
       expect(token).toBeTruthy();
 
       const response = await request.post(`/api/boards/${ownerBoardId}/horses`, {
@@ -30,14 +30,14 @@ test.describe('Permission Enforcement', () => {
       // Owner adds a horse via API (since ownerPage needs reload to see it) 
       // Actually ownerPage fixture helps us get authenticated, but doesn't necessarily auto-refresh.
       // We can use helpers.
-      const ownerBoardId = await ownerPage.evaluate(() => localStorage.getItem('horseboard_board_id'));
+      const ownerBoardId = await ownerPage.evaluate(() => localStorage.getItem('hb_board_id'));
 
       const horse = await createHorse(request, ownerBoardId!, { name: 'Test Horse' });
       await ownerPage.reload();
       await expect(ownerPage.locator(selectors.horseCard(horse.id))).toBeVisible();
 
       // Get visitor token
-      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+      const token = await visitorPage.evaluate(() => localStorage.getItem('hb_token'));
 
       // Visitor tries to delete it
       const response = await request.delete(`/api/horses/${horse.id}`, {
@@ -51,7 +51,7 @@ test.describe('Permission Enforcement', () => {
     });
 
     test('rejects API calls to update board settings from view-only token', async ({ visitorPage, ownerBoardId, request }) => {
-      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+      const token = await visitorPage.evaluate(() => localStorage.getItem('hb_token'));
 
       const response = await request.patch(`/api/boards/${ownerBoardId}`, {
         data: { time_mode: 'PM' },
@@ -93,7 +93,7 @@ test.describe('Permission Enforcement', () => {
       await expect(visitorPage.locator(selectors.generateInviteBtn)).not.toBeVisible();
 
       // 5. API Check: Generate invite should fail
-      const token = await visitorPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+      const token = await visitorPage.evaluate(() => localStorage.getItem('hb_token'));
       const response = await request.post(`/api/boards/${ownerBoardId}/invites`, {
         headers: {
           'Authorization': `Bearer ${token}`

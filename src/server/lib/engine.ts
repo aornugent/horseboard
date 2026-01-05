@@ -554,4 +554,18 @@ export class SSEManager {
       }
     }
   }
+
+  /**
+   * Send revocation event to all clients of a board
+   * Used when a display token is unlinked
+   */
+  sendRevoked(boardId: string): void {
+    const clients = this.clients.get(boardId);
+    if (!clients) return;
+
+    const event = JSON.stringify({ type: 'revoked' });
+    for (const client of clients) {
+      client.write(`event: revoked\ndata: ${event}\n\n`);
+    }
+  }
 }

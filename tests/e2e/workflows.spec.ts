@@ -97,7 +97,7 @@ test.describe('End-to-End Workflows', () => {
 
         // Inject board ID into valid board page
         await boardPage.addInitScript((id) => {
-          localStorage.setItem('horseboard_board_id', id);
+          localStorage.setItem('hb_board_id', id);
         }, ownerBoardId);
 
         await boardPage.goto('/board');

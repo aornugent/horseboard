@@ -52,7 +52,7 @@ test.describe('Device Provisioning', () => {
         await expect(provisioningView).not.toBeVisible();
 
         // 4. Verify TV token persists
-        const tvToken = await tvPage.evaluate(() => localStorage.getItem('horseboard_controller_token'));
+        const tvToken = await tvPage.evaluate(() => localStorage.getItem('hb_token'));
         expect(tvToken).toBeTruthy();
 
         // 5. Verify display appears in owner's linked displays list

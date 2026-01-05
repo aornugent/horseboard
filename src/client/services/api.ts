@@ -1,6 +1,7 @@
 import type { Board, Horse, Feed, DietEntry, Unit, TimeMode } from '@shared/resources';
 import { signal } from '@preact/signals';
 import { setPermission as setPermissionStore } from '../stores';
+import { TOKEN_STORAGE_KEY } from './lifecycle';
 
 export const onAuthError = signal<{ status: number; message: string } | null>(null);
 
@@ -24,28 +25,34 @@ interface ApiResponse<T> {
 
 let controllerToken: string | null = null;
 
+export function getToken(): string | null {
+  return controllerToken;
+}
+
 export function setControllerToken(token: string | null): void {
   controllerToken = token;
   if (token) {
-    localStorage.setItem('horseboard_controller_token', token);
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
   } else {
-    localStorage.removeItem('horseboard_controller_token');
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
 }
 
 export function loadControllerToken(): void {
-  const token = localStorage.getItem('horseboard_controller_token');
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (token) {
     controllerToken = token;
   }
 }
 
+export const PERMISSION_STORAGE_KEY = 'hb_permission';
+
 export function setPermission(permission: string): void {
-  localStorage.setItem('horseboard_permission', permission);
+  localStorage.setItem(PERMISSION_STORAGE_KEY, permission);
 }
 
 export function loadPermission(): string {
-  return localStorage.getItem('horseboard_permission') || 'view';
+  return localStorage.getItem(PERMISSION_STORAGE_KEY) || 'view';
 }
 
 async function request<T>(

@@ -10,7 +10,9 @@ const LinkDeviceSchema = z.object({
     board_id: z.string().uuid().or(z.string().min(1)), // UUID or robust ID
 });
 
-export function createDevicesRouter(ctx: RouteContext): Router {
+import type { SSEManager } from '../lib/engine';
+
+export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router {
     const router = Router();
     const { repos, provisioningStore } = ctx;
 
@@ -113,7 +115,7 @@ export function createDevicesRouter(ctx: RouteContext): Router {
                 name: `Display ${code}`,
                 permission: 'view',
                 type: 'display',
-            } as any, board_id, tokenHash);
+            }, board_id, tokenHash);
 
 
 
@@ -144,7 +146,7 @@ export function createDevicesRouter(ctx: RouteContext): Router {
         const devices: any[] = [];
         for (const board of myBoards) {
             const tokens = repos.controllerTokens.getByBoard(board.id);
-            const displayTokens = tokens.filter((t: any) => t.type === 'display');
+            const displayTokens = tokens.filter(t => t.type === 'display');
             devices.push(...displayTokens.map(t => ({ ...t, board_pair_code: board.pair_code })));
         }
 
@@ -169,6 +171,11 @@ export function createDevicesRouter(ctx: RouteContext): Router {
         }
 
         repos.controllerTokens.delete(req.params.id);
+
+        if (token.type === 'display') {
+            sse.sendRevoked(token.board_id);
+        }
+
         res.json({ success: true });
     });
 

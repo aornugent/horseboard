@@ -90,7 +90,7 @@ This document serves as the source of truth for the multi-tenant architecture re
 1. **User** (currently View Only) goes to Settings → "Enter Invite Code"
 2. **Inputs** `555888`
 3. **System:** Exchanges code for permanent **edit** token
-4. **Client:** Overwrites `hb_view_token` in `localStorage` with `hb_edit_token`. Triggers full reload
+4. **Client:** Overwrites `hb_token` in `localStorage`. Triggers full reload
 
 #### Critical Assertions
 

@@ -3,8 +3,8 @@ import { sseClient } from './sse';
 import { loadPermission } from './api';
 import { setPermission as setPermissionStore } from '../stores';
 
-export const STORAGE_KEY = 'horseboard_board_id';
-export const TOKEN_STORAGE_KEY = 'horseboard_controller_token';
+export const STORAGE_KEY = 'hb_board_id';
+export const TOKEN_STORAGE_KEY = 'hb_token';
 export const isInitialized = signal(false);
 export const connectionError = signal<string | null>(null);
 export const isTokenInvalid = signal(false);
@@ -22,6 +22,14 @@ export async function initializeApp(boardId: string): Promise<boolean> {
 
         // Connect to SSE for board data and live updates
         await sseClient.connect(boardId);
+
+        // Handle token revocation (display unlinked)
+        sseClient.onRevoked(() => {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(TOKEN_STORAGE_KEY);
+            isTokenInvalid.value = true;
+        });
+
         isInitialized.value = true;
         isTokenInvalid.value = false;
         connectionError.value = null;

@@ -1,6 +1,7 @@
 import { signal } from '@preact/signals';
 import { authClient } from '../stores';
 import { navigate } from '../router';
+import { STORAGE_KEY } from '../services/lifecycle';
 import './Auth.css';
 
 const email = signal('');
@@ -39,7 +40,7 @@ export function LoginView() {
                         // Assume admin for their own board (server validates)
                         setPermission('admin');
                     }
-                    localStorage.setItem('horseboard_board_id', boardId);
+                    localStorage.setItem(STORAGE_KEY, boardId);
                 } catch (e) {
                     console.error('Auto-setup failed:', e);
                 }

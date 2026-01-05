@@ -78,7 +78,7 @@ test.describe('Authentication', () => {
             await expect(page).toHaveURL(/\/controller/);
 
             // Verify board ID is stored
-            const storedBoardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+            const storedBoardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
             expect(storedBoardId).toBeTruthy();
 
             // Now visit landing page - should auto-redirect
@@ -128,7 +128,7 @@ test.describe('Authentication', () => {
             await expect(page.locator(selectors.horsesTab)).toBeVisible();
 
             // Verify board ID is stored
-            const storedBoardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+            const storedBoardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
             expect(storedBoardId).toBeTruthy();
 
             // Check settings for account info and admin permission indicators
@@ -218,7 +218,7 @@ test.describe('Authentication', () => {
             await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
 
             // 2. Get board ID from localStorage (set by real auth flow)
-            const boardId = await page.evaluate(() => localStorage.getItem('horseboard_board_id'));
+            const boardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
             expect(boardId).toBeTruthy();
 
             // 3. Make API call from page context (uses session, NOT x-test-user-id)

@@ -19,7 +19,7 @@ import {
 } from './api';
 
 // Storage key used by the app (from App.tsx)
-const STORAGE_KEY = 'horseboard_board_id';
+const STORAGE_KEY = 'hb_board_id';
 
 // =============================================================================
 // TYPES
@@ -193,7 +193,7 @@ export async function clearBoardFromStorage(page: Page): Promise<void> {
 }
 
 // Storage key for permission (from api.ts)
-const PERMISSION_KEY = 'horseboard_permission';
+const PERMISSION_KEY = 'hb_permission';
 
 /**
  * Navigate to a page with the board ID set in localStorage.

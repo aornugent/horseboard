@@ -101,7 +101,7 @@ test.describe('Real-Time Sync', () => {
       await displayPage.goto('/');
       await displayPage.evaluate(
         ({ key, value }) => localStorage.setItem(key, value),
-        { key: 'horseboard_board_id', value: ownerBoardId }
+        { key: 'hb_board_id', value: ownerBoardId }
       );
       await displayPage.goto('/board');
       await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
@@ -159,7 +159,7 @@ test.describe('Real-Time Sync', () => {
       await displayPage.goto('/');
       await displayPage.evaluate(
         ({ key, value }) => localStorage.setItem(key, value),
-        { key: 'horseboard_board_id', value: ownerBoardId }
+        { key: 'hb_board_id', value: ownerBoardId }
       );
       await displayPage.goto('/board');
       await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
