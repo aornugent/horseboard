@@ -74,6 +74,11 @@ export function formatQuantity(value: number | null, unit?: string): string {
   const intPart = Math.floor(value);
   const decPart = Math.round((value - intPart) * 100) / 100;
 
+  // Integers should be returned without unit (matches fraction behavior)
+  if (decPart === 0) {
+    return String(intPart);
+  }
+
   // Check if decimal part maps to a fraction
   const fraction = findFraction(decPart);
 

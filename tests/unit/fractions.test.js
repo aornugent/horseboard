@@ -48,6 +48,11 @@ describe('Fractions', () => {
       assert.equal(formatQuantity(10), '10');
     });
 
+    test('formats whole numbers with unit as just the number', () => {
+      assert.equal(formatQuantity(1, 'scoop'), '1');
+      assert.equal(formatQuantity(2, 'oz'), '2');
+    });
+
     test('formats non-standard decimals with unit', () => {
       assert.equal(formatQuantity(1.6, 'ml'), '1.6 ml');
       assert.equal(formatQuantity(0.4, 'scoop'), '0.4 scoop');
