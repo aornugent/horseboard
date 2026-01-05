@@ -85,7 +85,7 @@ test.describe('Authentication', () => {
             await page.goto('/');
 
             // Should redirect to controller (not show landing page)
-            await expect(page).toHaveURL(/\/controller/, { timeout: 5000 });
+            await expect(page).toHaveURL(/\/controller/);
         });
     });
 
@@ -118,7 +118,7 @@ test.describe('Authentication', () => {
             await page.locator(selectors.submitBtn).click();
 
             // Should redirect to controller
-            await expect(page).toHaveURL(/\/controller/, { timeout: 10000 });
+            await expect(page).toHaveURL(/\/controller/);
             await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
             // Should show horses tab (default)
@@ -153,7 +153,7 @@ test.describe('Authentication', () => {
             await page.locator(selectors.submitBtn).click();
 
             // Should redirect to controller
-            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
             // Check settings for account info
             await page.locator('[data-testid="tab-settings"]').click();
@@ -174,14 +174,14 @@ test.describe('Authentication', () => {
         await page.locator(selectors.passwordInput).fill(password);
         await page.locator(selectors.submitBtn).click();
 
-        await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
         // Sign out
         await page.locator('[data-testid="tab-settings"]').click();
         await page.locator(selectors.signOutBtn).click();
 
         // Should reload and stay on controller (board ID persists in localStorage)
-        await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
         // Check we are logged out - should see sign in option
         await page.locator('[data-testid="tab-settings"]').click();
@@ -212,7 +212,7 @@ test.describe('Authentication', () => {
             await page.locator(selectors.submitBtn).click();
 
             // Should redirect to controller
-            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
             // 2. Get board ID from localStorage (set by real auth flow)
             const boardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
@@ -249,7 +249,7 @@ test.describe('Authentication', () => {
             await page.locator(selectors.passwordInput).fill('password123');
             await page.locator(selectors.submitBtn).click();
 
-            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
             // 2. Verify we have admin permission (can add horse)
             await page.locator(selectors.addHorseBtn).click();
@@ -260,7 +260,7 @@ test.describe('Authentication', () => {
             await page.reload();
 
             // 4. Should still have admin permission after reload
-            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+            await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
             await page.locator(selectors.addHorseBtn).click();
             await expect(page.locator(selectors.addHorseModal)).toBeVisible();
         });

@@ -36,7 +36,7 @@ test.describe('Feed CRUD Operations', () => {
 
       // Reload to pick up new data
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
       // Navigate back to feeds tab after reload
       await ownerPage.locator(selectors.tabFeeds).click();
       await expect(ownerPage.locator(selectors.feedsTab)).toBeVisible();
@@ -92,7 +92,7 @@ test.describe('Feed CRUD Operations', () => {
 
       // Reload data
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
       await ownerPage.locator(selectors.tabFeeds).click();
 
       // Click on feed card to open edit modal
@@ -128,7 +128,7 @@ test.describe('Feed CRUD Operations', () => {
 
       // Reload
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
       await ownerPage.locator(selectors.tabFeeds).click();
 
       // Verify both feeds are visible

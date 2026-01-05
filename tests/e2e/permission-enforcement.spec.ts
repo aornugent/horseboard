@@ -79,7 +79,7 @@ test.describe('Permission Enforcement', () => {
       await visitorPage.locator(selectors.inviteSubmit).click();
 
       // Wait for reload/upgrade
-      await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+      await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible();
       await visitorPage.locator(selectors.tabHorses).click();
 
       // 3. Edit User CAN add horse via UI
