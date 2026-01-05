@@ -1,69 +1,90 @@
 import { useState, useEffect } from 'preact/hooks';
-import { formatQuantity, getQuickPresets, parseQuantity, QUANTITY_STEP } from '@shared/quantities';
+import { getStrategyForType, parseEntryOptions, type UnitType, type EntryOptions } from '@shared/unit-strategies';
 import './FeedPad.css';
-
-// Get presets once (they're static)
-const QUICK_PRESETS = getQuickPresets();
 
 interface FeedPadProps {
   isOpen: boolean;
   currentValue: number | null;
-  onConfirm: (value: number | null) => void;
+  currentVariant?: string | null;
+  onConfirm: (value: number | null, variant: string | null) => void;
   onClose: () => void;
   feedName: string;
-  unit: string;
+  unitType: UnitType;
+  unitLabel: string;
+  entryOptions: string | null;
 }
 
 export function FeedPad({
   isOpen,
   currentValue,
+  currentVariant,
   onConfirm,
   onClose,
   feedName,
-  unit,
+  unitType,
+  unitLabel,
+  entryOptions,
 }: FeedPadProps) {
-  // Local editing state - only saved when Done is clicked
-  const [editValue, setEditValue] = useState<number | null>(currentValue);
+  const strategy = getStrategyForType(unitType);
+  const options = parseEntryOptions(entryOptions, unitType);
+  const presets = strategy.getPresets(options);
+  const stepSize = strategy.getStepSize();
 
-  // Reset edit value when FeedPad opens with new currentValue
+  const [editValue, setEditValue] = useState<number | null>(currentValue);
+  const [editVariant, setEditVariant] = useState<string | null>(currentVariant ?? null);
+
   useEffect(() => {
     if (isOpen) {
       setEditValue(currentValue);
+      setEditVariant(currentVariant ?? null);
     }
-  }, [isOpen, currentValue]);
+  }, [isOpen, currentValue, currentVariant]);
 
   const handleDecrement = () => {
-    const newValue = Math.max(0, (editValue ?? 0) - QUANTITY_STEP);
+    if (stepSize === null) return;
+    const newValue = Math.max(0, (editValue ?? 0) - stepSize);
     setEditValue(newValue === 0 ? null : newValue);
+    // Clearing variant on stepper change? Plan says setEditVariant(null).
+    setEditVariant(null);
   };
 
   const handleIncrement = () => {
-    setEditValue((editValue ?? 0) + QUANTITY_STEP);
+    if (stepSize === null) return;
+    setEditValue((editValue ?? 0) + stepSize);
+    setEditVariant(null);
   };
 
-  const handlePreset = (value: number | null) => {
+  const handlePreset = (value: number | null, label?: string) => {
     setEditValue(value);
+    // For choice type, store the label as variant
+    if (unitType === 'choice' && label && value !== null) {
+      setEditVariant(label);
+    } else {
+      setEditVariant(null);
+    }
   };
 
   const handleConfirm = () => {
-    onConfirm(editValue);
+    onConfirm(editValue, editVariant);
     onClose();
   };
 
   const handleCancel = () => {
-    // Just close without saving - editValue will be reset on next open
     onClose();
   };
 
+  // The strategy formatDisplay might accept label as 4th arg
+  const displayValue = strategy.formatDisplay(editValue, editVariant, options, unitLabel);
+
   return (
     <div
-      class={`feed - pad - overlay ${isOpen ? 'feed-pad-overlay--open' : ''} `}
+      class={`feed-pad-overlay ${isOpen ? 'feed-pad-overlay--open' : ''}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleCancel();
       }}
     >
       <div
-        class={`feed - pad - drawer ${isOpen ? 'feed-pad-drawer--open' : ''} `}
+        class={`feed-pad-drawer ${isOpen ? 'feed-pad-drawer--open' : ''}`}
         data-testid="feed-pad"
         aria-hidden={!isOpen}
       >
@@ -81,48 +102,65 @@ export function FeedPad({
 
         {/* Current value display */}
         <div class="feed-pad-current" data-testid="feed-pad-current">
-          <span class="feed-pad-current-value">
-            {formatQuantity(editValue, unit)}
-          </span>
-          <span class="feed-pad-current-unit">{unit}</span>
+          <span class="feed-pad-current-value">{displayValue || '—'}</span>
+          {unitType !== 'choice' && <span class="feed-pad-current-unit">{unitLabel}</span>}
         </div>
 
-        {/* Row 1: Presets (large touch targets, min 48px) */}
+        {/* Presets */}
         <div class="feed-pad-presets" data-testid="feed-pad-presets">
-          {QUICK_PRESETS.map((preset, index) => (
+          {presets.map((preset, index) => (
             <button
               key={index}
               class="feed-pad-preset"
-              data-testid={`preset - ${preset.value ?? 'empty'} `}
-              onClick={() => handlePreset(preset.value)}
+              data-testid={`preset-${preset.value ?? 'empty'}`}
+              onClick={() => handlePreset(preset.value, preset.label)}
             >
               {preset.label}
             </button>
           ))}
         </div>
 
-        {/* Row 2: Stepper (increments in configurable steps) */}
-        <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
-          <button
-            class="feed-pad-stepper-btn"
-            data-testid="stepper-decrement"
-            onClick={handleDecrement}
-            aria-label={`Decrease by ${QUANTITY_STEP} `}
-          >
-            −
-          </button>
-          <div class="feed-pad-stepper-value" data-testid="stepper-value">
-            {formatQuantity(editValue, unit)}
+        {/* Stepper (only for fraction/int types) */}
+        {stepSize !== null && (
+          <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
+            <button
+              class="feed-pad-stepper-btn"
+              data-testid="stepper-decrement"
+              onClick={handleDecrement}
+              aria-label={`Decrease by ${stepSize}`}
+            >
+              −
+            </button>
+            <div class="feed-pad-stepper-value" data-testid="stepper-value">
+              {displayValue || '0'}
+            </div>
+            <button
+              class="feed-pad-stepper-btn"
+              data-testid="stepper-increment"
+              onClick={handleIncrement}
+              aria-label={`Increase by ${stepSize}`}
+            >
+              +
+            </button>
           </div>
-          <button
-            class="feed-pad-stepper-btn"
-            data-testid="stepper-increment"
-            onClick={handleIncrement}
-            aria-label={`Increase by ${QUANTITY_STEP} `}
-          >
-            +
-          </button>
-        </div>
+        )}
+
+        {/* Text input (for decimal type) */}
+        {unitType === 'decimal' && (
+          <div class="feed-pad-input" data-testid="feed-pad-input">
+            <input
+              type="number"
+              inputMode="decimal"
+              value={editValue ?? ''}
+              onInput={(e) => {
+                const val = parseFloat((e.target as HTMLInputElement).value);
+                setEditValue(isNaN(val) ? null : val);
+              }}
+              placeholder="Enter amount"
+            />
+            <span class="feed-pad-input-unit">{unitLabel}</span>
+          </div>
+        )}
 
         <button
           class="feed-pad-confirm"

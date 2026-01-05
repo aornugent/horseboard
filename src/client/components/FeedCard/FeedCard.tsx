@@ -19,7 +19,7 @@ export function FeedCard({ feed, horseCount, onEdit, onDelete }: FeedCardProps) 
           {feed.name}
         </div>
         <div class="feed-card-meta" data-testid={`feed-card-meta-${feed.id}`}>
-          <span class="feed-card-unit">{feed.unit}</span>
+          <span class="feed-card-unit">{feed.unit_label}</span>
           <span class="feed-card-usage">
             {horseCount === 0 ? 'Not in use' : `${horseCount} horse${horseCount !== 1 ? 's' : ''}`}
           </span>

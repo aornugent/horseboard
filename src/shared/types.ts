@@ -13,16 +13,13 @@ export type {
   Feed,
   DietEntry,
   Board,
-  Unit,
+  UnitType,
+  LegacyUnit,
   TimeMode,
   EffectiveTimeMode,
 } from './resources';
 
 export {
-  UNITS,
-  UNIT,
-  UNIT_LABELS,
-  DEFAULT_UNIT,
   TIME_MODES,
   TIME_MODE,
   TIME_MODE_CONFIG,
