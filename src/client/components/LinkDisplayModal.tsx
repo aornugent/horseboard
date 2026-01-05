@@ -161,8 +161,8 @@ export function LinkDisplayModal({ onClose, onSuccess }: Props) {
           border-color: var(--color-text-secondary);
         }
         .link-display-btn-primary {
-          background: var(--color-primary);
-          color: white;
+          background: var(--color-accent);
+          color: var(--color-bg-primary);
         }
         .link-display-btn-primary:hover:not(:disabled) {
           opacity: 0.9;
