@@ -70,4 +70,54 @@ test.describe('Unit Types & Formatting', () => {
         // decimalStrategy.formatDisplay returns "15.5 ml" (appends label).
         await expect(oilPmBtn.locator('.value-amount')).toHaveText('15.5 ml');
     });
+    test('int type shows integer stepper with step=1', async ({ ownerPage }) => {
+        // Create int-type feed
+        await ownerPage.locator('[data-testid="tab-feeds"]').click();
+        await ownerPage.click('[data-testid="add-feed-btn"]');
+        await ownerPage.fill('[data-testid="new-feed-name"]', 'Biscuits');
+        await ownerPage.click('[data-testid="unit-btn-biscuit"]');
+        await ownerPage.click('[data-testid="confirm-add-feed"]');
+        await expect(ownerPage.locator('[data-testid="feed-list"]')).toContainText('Biscuits');
+
+        // Create horse
+        await ownerPage.locator('[data-testid="tab-horses"]').click();
+        await ownerPage.click('[data-testid="add-horse-btn"]');
+        await ownerPage.fill('[data-testid="new-horse-name"]', 'Blaze');
+        await ownerPage.click('[data-testid="confirm-add-horse"]');
+
+        // Navigate to horse detail
+        const horseCard = ownerPage.locator('.horse-card').first();
+        await horseCard.click();
+        await expect(ownerPage.locator('[data-testid="horse-detail-name"]')).toHaveText('Blaze');
+
+        // Open FeedPad for Biscuits
+        const biscuitTile = ownerPage.locator('.feed-tile').filter({ hasText: 'Biscuits' });
+        const biscuitAmBtn = biscuitTile.locator('.value-button').first();
+        await biscuitAmBtn.click();
+
+        // Verify stepper is visible (int type has stepper)
+        await expect(ownerPage.locator('[data-testid="feed-pad-stepper"]')).toBeVisible();
+        // Verify NO decimal input (that's for decimal type only)
+        await expect(ownerPage.locator('[data-testid="feed-pad-input"]')).not.toBeVisible();
+
+        // Verify presets are integer values (1, 2, 3)
+        await expect(ownerPage.locator('[data-testid="preset-1"]')).toBeVisible();
+        await expect(ownerPage.locator('[data-testid="preset-2"]')).toBeVisible();
+        await expect(ownerPage.locator('[data-testid="preset-3"]')).toBeVisible();
+        // No fractional presets
+        await expect(ownerPage.locator('[data-testid="preset-0.5"]')).not.toBeVisible();
+
+        // Click increment - should go from 0 to 1 (step=1)
+        await ownerPage.click('[data-testid="stepper-increment"]');
+        await expect(ownerPage.locator('[data-testid="feed-pad-current"] .feed-pad-current-value')).toHaveText('1');
+
+        // Click increment again - should go to 2
+        await ownerPage.click('[data-testid="stepper-increment"]');
+        await expect(ownerPage.locator('[data-testid="feed-pad-current"] .feed-pad-current-value')).toHaveText('2');
+
+        await ownerPage.click('[data-testid="feed-pad-confirm"]');
+
+        // Verify display shows "2" (no fraction)
+        await expect(biscuitAmBtn.locator('.value-amount')).toHaveText('2');
+    });
 });

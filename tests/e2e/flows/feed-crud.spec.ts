@@ -25,11 +25,13 @@ test.describe('Feed CRUD Operations', () => {
       // Seed 2 feeds via API
       const oats = await createFeed(request, ownerBoardId, {
         name: 'Oats',
-        unit: 'scoop',
+        unit_type: 'fraction',
+        unit_label: 'scoop',
       });
       const vitamins = await createFeed(request, ownerBoardId, {
         name: 'Vitamins',
-        unit: 'sachet',
+        unit_type: 'int',
+        unit_label: 'sachet',
       });
 
       // Reload to pick up new data
@@ -84,7 +86,8 @@ test.describe('Feed CRUD Operations', () => {
       // Seed a feed
       const feed = await createFeed(request, ownerBoardId, {
         name: 'Hay',
-        unit: 'biscuit',
+        unit_type: 'int',
+        unit_label: 'biscuit',
       });
 
       // Reload data
@@ -120,8 +123,8 @@ test.describe('Feed CRUD Operations', () => {
 
   test.describe('Delete a feed', () => {
     test('should delete one feed and leave the other', async ({ ownerPage, ownerBoardId, request }) => {
-      const feed1 = await createFeed(request, ownerBoardId, { name: 'Grain', unit: 'scoop' });
-      const feed2 = await createFeed(request, ownerBoardId, { name: 'Supplements', unit: 'sachet' });
+      const feed1 = await createFeed(request, ownerBoardId, { name: 'Grain', unit_type: 'fraction', unit_label: 'scoop' });
+      const feed2 = await createFeed(request, ownerBoardId, { name: 'Supplements', unit_type: 'int', unit_label: 'sachet' });
 
       // Reload
       await ownerPage.reload();
