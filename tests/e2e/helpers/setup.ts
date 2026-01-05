@@ -236,11 +236,14 @@ export async function navigateWithBoard(
 export async function waitForControllerReady(page: Page): Promise<void> {
   await page.waitForSelector('[data-testid="controller-view"]', {
     state: 'visible',
-    timeout: 15000,
+    timeout: 8000,
   });
 
-  // Wait for SSE connection to establish and hydrate data
-  await page.waitForTimeout(500);
+  // Wait for data hydration - either cards or empty state
+  await page.waitForSelector('.horse-card, [data-testid="horse-list-empty"]', {
+    state: 'visible',
+    timeout: 5000,
+  });
 }
 
 /**
@@ -250,9 +253,12 @@ export async function waitForControllerReady(page: Page): Promise<void> {
 export async function waitForBoardReady(page: Page): Promise<void> {
   await page.waitForSelector('[data-testid="board-view"]', {
     state: 'visible',
-    timeout: 15000,
+    timeout: 8000,
   });
 
-  // Wait for SSE connection to establish and hydrate data
-  await page.waitForTimeout(500);
+  // Wait for grid to render
+  await page.waitForSelector('[data-testid="swim-lane-grid"]', {
+    state: 'visible',
+    timeout: 5000,
+  });
 }

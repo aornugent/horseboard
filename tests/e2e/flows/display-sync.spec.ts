@@ -72,11 +72,8 @@ test.describe('TV Display View', () => {
     await expect(cell).toBeVisible();
     await cell.click();
 
-    // Wait briefly
-    await ownerPage.waitForTimeout(500);
-
-    // Verify FeedPad does NOT open
-    await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible();
+    // FeedPad should not open in read-only view - use short timeout
+    await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible({ timeout: 1000 });
   });
 });
 

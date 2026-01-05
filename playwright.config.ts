@@ -35,6 +35,9 @@ export default defineConfig({
     // Base URL for all tests
     baseURL: 'http://localhost:5173',
 
+    // Fail faster on broken selectors - 5s default, use explicit timeout for slow ops
+    actionTimeout: 5000,
+
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
 
@@ -48,10 +51,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
+    // Mobile Chrome removed - only viewport difference, no touch-specific tests
   ],
 
   // Run your local dev server before starting the tests

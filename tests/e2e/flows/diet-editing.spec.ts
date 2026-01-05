@@ -20,7 +20,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     // Reload to pick up data
     await ownerPage.reload();
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
   });
 
   /**
@@ -114,7 +114,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     // Reload to pick up data
     await ownerPage.reload();
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
 
     await goToHorseDetail(ownerPage);
 
@@ -150,7 +150,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     // Reload
     await ownerPage.reload();
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 10000 });
+    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
 
     await goToHorseDetail(ownerPage);
 
@@ -201,7 +201,7 @@ test.describe('Diet Editing via FeedPad', () => {
 
     // Reload the page
     await ownerPage.reload();
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 15000 });
+    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
 
     // Navigate back to horse detail
     await goToHorseDetail(ownerPage);

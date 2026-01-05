@@ -18,7 +18,7 @@ test.describe('Device Provisioning', () => {
 
         // TV should show provisioning view with 6-character code
         const provisioningView = tvPage.locator('[data-testid="provisioning-view"]');
-        await expect(provisioningView).toBeVisible({ timeout: 10000 });
+        await expect(provisioningView).toBeVisible({ timeout: 8000 });
 
         const codeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
         await expect(codeDisplay).toBeVisible();
@@ -45,10 +45,10 @@ test.describe('Device Provisioning', () => {
         await ownerPage.locator('[data-testid="provisioning-submit"]').click();
 
         // Modal should close
-        await expect(provisioningModal).not.toBeVisible({ timeout: 10000 });
+        await expect(provisioningModal).not.toBeVisible({ timeout: 8000 });
 
         // 3. TV should automatically receive token and display board
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 8000 });
         await expect(provisioningView).not.toBeVisible();
 
         // 4. Verify TV token persists
@@ -70,7 +70,7 @@ test.describe('Device Provisioning', () => {
 
         await tvPage.goto('/board');
         const codeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
-        await expect(codeDisplay).toBeVisible({ timeout: 10000 });
+        await expect(codeDisplay).toBeVisible({ timeout: 8000 });
         const codeText = (await codeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
 
         // Link it
@@ -80,7 +80,7 @@ test.describe('Device Provisioning', () => {
         await ownerPage.locator('[data-testid="provisioning-submit"]').click();
 
         // Wait for connection
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 8000 });
 
         // Owner unlinks
         const unlinkBtn = ownerPage.locator('button:has-text("Unlink")').first();
@@ -96,7 +96,7 @@ test.describe('Device Provisioning', () => {
         // TV should revert to provisioning
         // Token revoked -> API fails -> revert
         await tvPage.reload();
-        await expect(tvPage.locator('[data-testid="provisioning-view"]')).toBeVisible({ timeout: 15000 });
+        await expect(tvPage.locator('[data-testid="provisioning-view"]')).toBeVisible({ timeout: 8000 });
 
         await tvContext.close();
     });
@@ -123,7 +123,7 @@ test.describe('Device Provisioning', () => {
 
         await tvPage.goto('/board');
         const codeDisplay = tvPage.locator('[data-testid="provisioning-code"]');
-        await expect(codeDisplay).toBeVisible({ timeout: 10000 });
+        await expect(codeDisplay).toBeVisible({ timeout: 8000 });
         const codeText = (await codeDisplay.innerText()).replace(/[\r\n\s-]+/g, '');
 
         // Link
@@ -133,13 +133,13 @@ test.describe('Device Provisioning', () => {
         await ownerPage.locator('[data-testid="provisioning-submit"]').click();
 
         // Wait for connection
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 8000 });
 
         // Reload TV
         await tvPage.reload();
 
         // Should still show board
-        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 10000 });
+        await expect(tvPage.locator(selectors.boardView)).toBeVisible({ timeout: 8000 });
         await expect(tvPage.locator('[data-testid="provisioning-view"]')).not.toBeVisible();
 
         await tvContext.close();
