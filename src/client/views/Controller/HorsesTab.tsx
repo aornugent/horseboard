@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { HorseCard } from '../../components/HorseCard';
+import { HorseCard } from '../../components/HorseCard/HorseCard';
 import { Modal } from '../../components/Modal';
 import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board, canEdit } from '../../stores';
 import { createHorse as apiCreateHorse } from '../../services';

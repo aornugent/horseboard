@@ -1,5 +1,5 @@
 import { signal, computed } from '@preact/signals';
-import { FeedCard } from '../../components/FeedCard';
+import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
 import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';

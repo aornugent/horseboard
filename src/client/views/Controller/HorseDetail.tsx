@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { signal, computed } from '@preact/signals';
-import { FeedPad } from '../../components/FeedPad';
+import { FeedPad } from '../../components/FeedPad/FeedPad';
 import { formatQuantity } from '@shared/fractions';
 import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry, updateHorse as storeUpdateHorse, removeHorse, canEdit } from '../../stores';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';

@@ -1,4 +1,4 @@
-import { SwimLaneGrid } from '../../components/SwimLaneGrid';
+import { SwimLaneGrid } from '../../components/SwimLaneGrid/SwimLaneGrid';
 import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, updateTimeMode, board, setCurrentPage, currentPage, setZoomLevel } from '../../stores';
 import './BoardTab.css';
 

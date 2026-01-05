@@ -1,4 +1,4 @@
-import { SwimLaneGrid } from '../components/SwimLaneGrid';
+import { SwimLaneGrid } from '../components/SwimLaneGrid/SwimLaneGrid';
 import { horses, feeds, effectiveTimeMode, board } from '../stores';
 import './Board.css';
 
