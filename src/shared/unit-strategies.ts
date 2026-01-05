@@ -50,6 +50,9 @@ const FRACTION_ENTRIES: ReadonlyArray<readonly [number, string]> = [
 ] as const;
 
 const FRACTION_MAP: Record<number, string> = Object.fromEntries(FRACTION_ENTRIES);
+const FRACTION_REVERSE_MAP: Record<string, number> = Object.fromEntries(
+    FRACTION_ENTRIES.map(([value, char]) => [char, value])
+);
 const EPSILON = 0.01;
 
 function findFraction(decimal: number): string | null {
@@ -176,9 +179,6 @@ export function getStrategyForType(type: UnitType): UnitStrategy {
     return strategies[type] ?? fractionStrategy;
 }
 
-/**
- * Parse entry_options JSON safely
- */
 export function parseEntryOptions(json: string | null, type: UnitType): EntryOptions {
     if (!json) return null;
     try {
@@ -190,4 +190,45 @@ export function parseEntryOptions(json: string | null, type: UnitType): EntryOpt
     } catch {
         return null;
     }
+}
+
+/**
+ * Parse a formatted quantity back to a number
+ * Handles both fraction strings and decimal strings
+ *
+ * @param input - Formatted string (e.g., "2½", "¾", "1.5")
+ * @returns Parsed number or null if invalid
+ */
+export function parseQuantity(input: string | null | undefined): number | null {
+    if (!input || input.trim() === '') {
+        return null;
+    }
+
+    const trimmed = input.trim();
+
+    // Check for pure fraction using reverse map (O(1) lookup)
+    if (trimmed in FRACTION_REVERSE_MAP) {
+        return FRACTION_REVERSE_MAP[trimmed];
+    }
+
+    // Check for number + fraction (e.g., "2½")
+    // Look for any fraction character at the end
+    for (const [value, char] of FRACTION_ENTRIES) {
+        if (trimmed.endsWith(char)) {
+            const intPart = trimmed.slice(0, -char.length);
+            const parsed = parseInt(intPart, 10);
+            if (!isNaN(parsed)) {
+                return parsed + value;
+            }
+        }
+    }
+
+    // Try parsing as regular number (strip unit if present)
+    const numMatch = trimmed.match(/^(\d+\.?\d*)/);
+    if (numMatch) {
+        const parsed = parseFloat(numMatch[1]);
+        return isNaN(parsed) ? null : parsed;
+    }
+
+    return null;
 }
