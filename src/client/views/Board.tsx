@@ -1,15 +1,15 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid/SwimLaneGrid';
-import { horses, feeds, effectiveTimeMode, board } from '../stores';
+import { horseStore, feedStore, boardStore } from '../stores';
 import './Board.css';
 
 export function Board() {
-  const hasData = horses.value.length > 0;
-  const pairCode = board.value?.pair_code;
+  const hasData = horseStore.items.value.length > 0;
+  const pairCode = boardStore.board.value?.pair_code;
 
   return (
     <div
       class="board-view"
-      data-theme={effectiveTimeMode.value.toLowerCase()}
+      data-theme={boardStore.effective_time_mode.value.toLowerCase()}
       data-testid="board-view"
     >
       <header class="board-header">
@@ -20,16 +20,16 @@ export function Board() {
           </div>
         )}
         <div class="board-time-badge" data-testid="time-mode-badge">
-          {effectiveTimeMode.value}
+          {boardStore.effective_time_mode.value}
         </div>
       </header>
 
       <main class="board-content">
         {hasData ? (
           <SwimLaneGrid
-            horses={horses}
-            feeds={feeds}
-            timeMode={effectiveTimeMode}
+            horses={horseStore.items}
+            feeds={feedStore.items}
+            timeMode={boardStore.effective_time_mode}
             isEditable={false}
           />
         ) : (

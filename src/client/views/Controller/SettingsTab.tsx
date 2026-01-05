@@ -1,6 +1,5 @@
 import {
-  board,
-  timezone,
+  boardStore,
   user,
   authClient,
   permission,
@@ -30,11 +29,11 @@ const TIMEZONES = [
 ];
 
 async function saveTimezone(tz: string) {
-  if (!board.value) return;
+  if (!boardStore.board.value) return;
 
   try {
-    await apiUpdateBoard(board.value.id, { timezone: tz });
-    board.value = { ...board.value, timezone: tz, updated_at: new Date().toISOString() };
+    await apiUpdateBoard(boardStore.board.value.id, { timezone: tz });
+    boardStore.update({ timezone: tz });
   } catch (err) {
     console.error('Failed to update timezone:', err);
   }
@@ -53,11 +52,11 @@ function SectionStaffAccess() {
   const error = useSignal<string | null>(null);
 
   async function handleGenerate() {
-    if (!board.value) return;
+    if (!boardStore.board.value) return;
     loading.value = true;
     error.value = null;
     try {
-      inviteCode.value = await generateInviteCode(board.value.id);
+      inviteCode.value = await generateInviteCode(boardStore.board.value.id);
     } catch (err) {
       error.value = (err as Error).message;
     } finally {
@@ -199,7 +198,7 @@ export function SettingsTab() {
     }
   }
 
-  if (!board.value) {
+  if (!boardStore.board.value) {
     return (
       <div class="settings-tab" data-testid="settings-tab">
         <div class="settings-loading">Loading settings...</div>
@@ -262,13 +261,13 @@ export function SettingsTab() {
           <div class="settings-info-item">
             <span class="settings-info-label">Pair Code</span>
             <span class="settings-info-value" data-testid="board-pair-code">
-              {board.value.pair_code}
+              {boardStore.board.value.pair_code}
             </span>
           </div>
           <div class="settings-info-item">
             <span class="settings-info-label">Board ID</span>
             <span class="settings-info-value settings-info-value-small" data-testid="board-id">
-              {board.value.id.slice(0, 8)}...
+              {boardStore.board.value.id.slice(0, 8)}...
             </span>
           </div>
         </div>
@@ -318,7 +317,7 @@ export function SettingsTab() {
                 <select
                   class="settings-select"
                   data-testid="timezone-selector"
-                  value={timezone.value}
+                  value={boardStore.timezone.value}
                   onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
                   disabled={!canEditBoard}
                 >

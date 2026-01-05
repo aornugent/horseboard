@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { batch } from '@preact/signals';
-import { setBoard, setHorses, setFeeds, setDietEntries } from '../stores';
+import { boardStore, horseStore, feedStore, dietStore } from '../stores';
 import {
   BoardSchema,
   HorseSchema,
@@ -114,10 +114,10 @@ class SSEClient {
   private handleEvent(event: SSEEvent): void {
     // Use batch to minimize re-renders when updating multiple stores
     batch(() => {
-      setBoard(event.data.board, 'sse');
-      setHorses(event.data.horses, 'sse');
-      setFeeds(event.data.feeds, 'sse');
-      setDietEntries(event.data.diet_entries, 'sse');
+      boardStore.set(event.data.board, 'sse');
+      horseStore.set(event.data.horses, 'sse');
+      feedStore.set(event.data.feeds, 'sse');
+      dietStore.set(event.data.diet_entries, 'sse');
     });
   }
 
