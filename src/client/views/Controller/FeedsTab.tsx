@@ -1,7 +1,7 @@
 import { signal, computed } from '@preact/signals';
-import { FeedCard } from '../../components/FeedCard';
+import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
+import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
 import { type UnitType, UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
@@ -22,8 +22,8 @@ const deletingFeed = signal<Feed | null>(null);
 
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  if (!query) return feeds.value;
-  return feeds.value.filter(f => f.name.toLowerCase().includes(query));
+  if (!query) return feedStore.items.value;
+  return feedStore.items.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
 function countHorsesUsingFeed(feedId: string): number {
@@ -67,7 +67,7 @@ async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
 async function handleDeleteFeed(id: string) {
   try {
     await apiDeleteFeed(id);
-    removeFeed(id);
+    feedStore.remove(id);
     deletingFeed.value = null;
   } catch (err) {
     console.error('Failed to delete feed:', err);

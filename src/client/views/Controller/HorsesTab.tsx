@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals';
-import { HorseCard } from '../../components/HorseCard';
+import { HorseCard } from '../../components/HorseCard/HorseCard';
 import { Modal } from '../../components/Modal';
-import { filteredHorses, searchQuery, countActiveFeeds, addHorse, board, canEdit } from '../../stores';
+import { horseStore, dietStore, boardStore, canEdit } from '../../stores';
 import { createHorse as apiCreateHorse } from '../../services';
 import './HorsesTab.css';
 
@@ -14,11 +14,11 @@ const newHorseName = signal('');
 const newHorseNote = signal('');
 
 async function handleCreateHorse(name: string, note: string) {
-  if (!board.value) return;
+  if (!boardStore.board.value) return;
 
   try {
-    const horse = await apiCreateHorse(board.value.id, name, note || null);
-    addHorse(horse);
+    const horse = await apiCreateHorse(boardStore.board.value.id, name, note || null);
+    horseStore.add(horse);
     isAddingHorse.value = false;
     newHorseName.value = '';
     newHorseNote.value = '';
@@ -51,26 +51,26 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
           class="horse-search-input"
           placeholder="Search horses..."
           data-testid="horse-search"
-          value={searchQuery.value}
+          value={horseStore.searchQuery.value}
           onInput={(e) => {
-            searchQuery.value = (e.target as HTMLInputElement).value;
+            horseStore.searchQuery.value = (e.target as HTMLInputElement).value;
           }}
         />
       </div>
 
       <div class="horse-list" data-testid="horse-list">
-        {filteredHorses.value.length === 0 ? (
+        {horseStore.filtered.value.length === 0 ? (
           <div class="horse-list-empty" data-testid="horse-list-empty">
-            {searchQuery.value
+            {horseStore.searchQuery.value
               ? 'No horses match your search'
               : 'No horses yet. Add one to get started!'}
           </div>
         ) : (
-          filteredHorses.value.map((horse) => (
+          horseStore.filtered.value.map((horse) => (
             <HorseCard
               key={horse.id}
               horse={horse}
-              feedCount={countActiveFeeds(horse.id)}
+              feedCount={dietStore.countActiveFeeds(horse.id)}
               onClick={() => onHorseSelect(horse.id)}
             />
           ))

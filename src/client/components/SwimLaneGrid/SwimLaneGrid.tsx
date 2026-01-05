@@ -1,7 +1,7 @@
 import type { Signal } from '@preact/signals';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
 import { TIME_MODE, type Horse, type Feed, type EffectiveTimeMode } from '@shared/resources';
-import { dietByKey } from '../../stores';
+import { dietStore } from '../../stores';
 import './SwimLaneGrid.css';
 
 interface SwimLaneGridProps {
@@ -22,7 +22,7 @@ export function SwimLaneGrid({
   const horseList = horses.value;
   const feedList = feeds.value;
   const mode = timeMode.value;
-  const dietMap = dietByKey.value;
+  const dietMap = dietStore.byKey.value;
 
   return (
     <div class="swim-lane-grid" data-testid="swim-lane-grid">

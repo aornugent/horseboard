@@ -2,30 +2,38 @@ import { Router, Request, Response } from 'express';
 import { UpdateBoardSchema, SetTimeModeSchema, CreateControllerTokenSchema } from '@shared/resources';
 import crypto from 'crypto';
 import { validate } from './middleware';
-import { requirePermission } from '../lib/auth';
+import { authenticate, getBoardPermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 export function createBoardsRouter(ctx: RouteContext): Router {
   const router = Router();
   const { repos, broadcast, expiryScheduler } = ctx;
 
-  router.get('/', requirePermission('view'), (_req: Request, res: Response) => {
+  // GET /api/boards - list all boards
+  router.get('/', authenticate(), (_req: Request, res: Response) => {
     const items = repos.boards.getAll();
     res.json({ success: true, data: items });
   });
 
-  router.get('/:id', requirePermission('view', req => req.params.id), (req: Request, res: Response) => {
+  // GET /api/boards/:id - get a specific board
+  router.get('/:id', authenticate(), (req: Request, res: Response) => {
     const item = repos.boards.getById(req.params.id);
     if (!item) {
-      res.status(404).json({ success: false, error: 'Board not found' });
-      return;
+      return res.status(404).json({ success: false, error: 'Board not found' });
     }
+
+    const permission = getBoardPermission(req, item);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     res.json({ success: true, data: item });
   });
 
-  router.post('/', requirePermission('view'), (req: Request, res: Response) => {
+  // POST /api/boards - create a new board
+  router.post('/', authenticate(), (req: Request, res: Response) => {
     try {
-      const { user_id } = req.authContext!;
+      const { user_id } = req.auth!;
       const payload = { ...req.body, account_id: user_id || null };
       const item = repos.boards.create(payload);
       res.status(201).json({ success: true, data: item });
@@ -35,13 +43,19 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     }
   });
 
-
-
-  router.patch('/:id', requirePermission('edit', req => req.params.id), validate(UpdateBoardSchema), (req: Request, res: Response) => {
+  // PATCH /api/boards/:id - update a board
+  router.patch('/:id', authenticate(), validate(UpdateBoardSchema), (req: Request, res: Response) => {
     const existing = repos.boards.getById(req.params.id);
     if (!existing) {
-      res.status(404).json({ success: false, error: 'Board not found' });
-      return;
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    if (permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Edit permission required' });
     }
 
     const updated = repos.boards.update(req.body, req.params.id);
@@ -49,22 +63,37 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     res.json({ success: true, data: updated });
   });
 
-  router.delete('/:id', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
-    const deleted = repos.boards.delete(req.params.id);
-    if (!deleted) {
-      res.status(404).json({ success: false, error: 'Board not found' });
-      return;
+  // DELETE /api/boards/:id - delete a board
+  router.delete('/:id', authenticate(), (req: Request, res: Response) => {
+    const existing = repos.boards.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
     }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin permission required' });
+    }
+
+    repos.boards.delete(req.params.id);
     res.json({ success: true });
   });
 
-  router.put('/:id/time-mode', requirePermission('edit', req => req.params.id), validate(SetTimeModeSchema), (req: Request, res: Response) => {
+  // PUT /api/boards/:id/time-mode - set time mode
+  router.put('/:id/time-mode', authenticate(), validate(SetTimeModeSchema), (req: Request, res: Response) => {
     const { time_mode, override_until } = req.body;
 
     const existing = repos.boards.getById(req.params.id);
     if (!existing) {
-      res.status(404).json({ success: false, error: 'Board not found' });
-      return;
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    if (permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Edit permission required' });
     }
 
     const updated = repos.boards.update(
@@ -87,7 +116,18 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     res.json({ success: true, data: updated });
   });
 
-  router.post('/:id/tokens', requirePermission('admin', req => req.params.id), validate(CreateControllerTokenSchema), (req: Request, res: Response) => {
+  // POST /api/boards/:id/tokens - create a controller token
+  router.post('/:id/tokens', authenticate(), validate(CreateControllerTokenSchema), (req: Request, res: Response) => {
+    const existing = repos.boards.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin permission required' });
+    }
+
     const randomBytes = crypto.randomBytes(32).toString('hex');
     const tokenValue = `hb_${randomBytes}`;
     const tokenHash = crypto.createHash('sha256').update(tokenValue).digest('hex');
@@ -108,12 +148,34 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     }
   });
 
-  router.get('/:id/tokens', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
+  // GET /api/boards/:id/tokens - list tokens for a board
+  router.get('/:id/tokens', authenticate(), (req: Request, res: Response) => {
+    const existing = repos.boards.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin permission required' });
+    }
+
     const tokens = repos.controllerTokens.getByBoard(req.params.id);
     res.json({ success: true, data: tokens });
   });
 
-  router.post('/:id/invites', requirePermission('admin', req => req.params.id), (req: Request, res: Response) => {
+  // POST /api/boards/:id/invites - create an invite code
+  router.post('/:id/invites', authenticate(), (req: Request, res: Response) => {
+    const existing = repos.boards.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin permission required' });
+    }
+
     try {
       const result = repos.inviteCodes.create(req.params.id, 15);
 
