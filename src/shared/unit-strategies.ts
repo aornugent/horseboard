@@ -232,3 +232,16 @@ export function parseQuantity(input: string | null | undefined): number | null {
 
     return null;
 }
+
+/**
+ * UI Options for unit type selection
+ * Used by FeedsTab and any other UI that needs to present unit choices
+ */
+export const UNIT_TYPE_OPTIONS = [
+    { id: 'scoop', label: 'Scoop', type: 'fraction' as UnitType, unitLabel: 'scoop' },
+    { id: 'ml', label: 'ML', type: 'decimal' as UnitType, unitLabel: 'ml' },
+    { id: 'biscuit', label: 'Biscuit', type: 'int' as UnitType, unitLabel: 'biscuit' },
+    { id: 'sachet', label: 'Sachet', type: 'int' as UnitType, unitLabel: 'sachet' },
+] as const;
+
+export type UnitTypeOptionId = typeof UNIT_TYPE_OPTIONS[number]['id'];

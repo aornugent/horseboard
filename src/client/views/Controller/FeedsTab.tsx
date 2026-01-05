@@ -4,26 +4,20 @@ import { Modal } from '../../components/Modal';
 import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
-import { type UnitType } from '@shared/unit-strategies';
+import { type UnitType, UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
 import './FeedsTab.css';
 
-// Legacy unit definition for UI selection
-// Maps user-friendly selection to underlying strategy configuration
-const LEGACY_UNITS = [
-  { id: 'scoop', label: 'Scoop', type: 'fraction' as UnitType, unitLabel: 'scoop' },
-  { id: 'ml', label: 'ML', type: 'decimal' as UnitType, unitLabel: 'ml' },
-  { id: 'biscuit', label: 'Biscuit', type: 'int' as UnitType, unitLabel: 'biscuit' },
-  { id: 'sachet', label: 'Sachet', type: 'int' as UnitType, unitLabel: 'sachet' },
-];
+// Default unit definition for UI selection
+const DEFAULT_UNIT_ID: UnitTypeOptionId = 'scoop';
 
-const DEFAULT_UNIT_ID = 'scoop';
+
 
 const searchQuery = signal('');
 const isAddingFeed = signal(false);
 const newFeedName = signal('');
-const newFeedUnitId = signal<string>(DEFAULT_UNIT_ID);
+const newFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID);
 const editingFeed = signal<Feed | null>(null);
-const editingFeedUnitId = signal<string>(DEFAULT_UNIT_ID); // Track unit selection during edit
+const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
 const deletingFeed = signal<Feed | null>(null);
 
 const filteredFeeds = computed(() => {
@@ -38,8 +32,8 @@ function countHorsesUsingFeed(feedId: string): number {
   ).length;
 }
 
-// Helper to find legacy unit ID from feed properties
-function getLegacyUnitId(feed: Feed): string {
+// Helper to find unit ID from feed properties
+function getUnitId(feed: Feed): UnitTypeOptionId {
   // Simple heuristic mapping
   if (feed.unit_type === 'fraction' && feed.unit_label === 'scoop') return 'scoop';
   if (feed.unit_type === 'decimal' && feed.unit_label === 'ml') return 'ml';
@@ -48,10 +42,10 @@ function getLegacyUnitId(feed: Feed): string {
   return 'scoop'; // Default fallback
 }
 
-async function handleCreateFeed(name: string, unitId: string) {
+async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
   if (!board.value) return;
 
-  const unitConfig = LEGACY_UNITS.find(u => u.id === unitId) || LEGACY_UNITS[0];
+  const unitConfig = UNIT_TYPE_OPTIONS.find(u => u.id === unitId) || UNIT_TYPE_OPTIONS[0];
 
   try {
     const feed = await apiCreateFeed(
@@ -80,8 +74,8 @@ async function handleDeleteFeed(id: string) {
   }
 }
 
-async function handleSaveFeedEdit(feed: Feed, unitId: string) {
-  const unitConfig = LEGACY_UNITS.find(u => u.id === unitId) || LEGACY_UNITS[0];
+async function handleSaveFeedEdit(feed: Feed, unitId: UnitTypeOptionId) {
+  const unitConfig = UNIT_TYPE_OPTIONS.find(u => u.id === unitId) || UNIT_TYPE_OPTIONS[0];
   try {
     const updated = await apiUpdateFeed(feed.id, {
       name: feed.name,
@@ -141,7 +135,7 @@ export function FeedsTab() {
               horseCount={countHorsesUsingFeed(feed.id)}
               onEdit={canEditBoard ? () => {
                 editingFeed.value = { ...feed };
-                editingFeedUnitId.value = getLegacyUnitId(feed);
+                editingFeedUnitId.value = getUnitId(feed);
               } : undefined}
               onDelete={canEditBoard ? () => { deletingFeed.value = feed; } : undefined}
             />
@@ -176,12 +170,12 @@ export function FeedsTab() {
         <div class="modal-field">
           <label class="modal-label">Unit</label>
           <div class="unit-selector" data-testid="new-feed-unit">
-            {LEGACY_UNITS.map(u => (
+            {UNIT_TYPE_OPTIONS.map(u => (
               <button
                 key={u.id}
                 class={`unit-btn ${newFeedUnitId.value === u.id ? 'active' : ''}`}
                 data-testid={`unit-btn-${u.id}`}
-                onClick={() => { newFeedUnitId.value = u.id; }}
+                onClick={() => { newFeedUnitId.value = u.id as UnitTypeOptionId; }}
               >
                 {u.label}
               </button>
@@ -240,13 +234,13 @@ export function FeedsTab() {
             <div class="modal-field">
               <label class="modal-label">Unit</label>
               <div class="unit-selector" data-testid="edit-feed-unit">
-                {LEGACY_UNITS.map(u => (
+                {UNIT_TYPE_OPTIONS.map(u => (
                   <button
                     key={u.id}
                     class={`unit-btn ${editingFeedUnitId.value === u.id ? 'active' : ''}`}
                     data-testid={`edit-unit-btn-${u.id}`}
                     onClick={() => {
-                      editingFeedUnitId.value = u.id;
+                      editingFeedUnitId.value = u.id as UnitTypeOptionId;
                     }}
                   >
                     {u.label}
