@@ -8,7 +8,11 @@
  * in sync with component implementation.
  */
 
-import { UNITS, TIME_MODES, type Unit, type TimeMode } from '../../src/shared/resources';
+import { TIME_MODES, type LegacyUnit, type TimeMode } from '../../src/shared/resources';
+
+// Legacy units for backward compatibility in tests
+// These match the IDs used in FeedsTab.tsx
+const UNITS = ['scoop', 'ml', 'biscuit', 'sachet'] as const;
 
 // =============================================================================
 // STATIC SELECTORS
@@ -211,9 +215,9 @@ export const selectors = {
  */
 export const unitSelectors = {
   /** Get selector for a unit button in the add feed modal */
-  unitBtn: (unit: Unit) => `[data-testid="unit-btn-${unit}"]`,
+  unitBtn: (unit: LegacyUnit) => `[data-testid="unit-btn-${unit}"]`,
   /** Get selector for a unit button in the edit feed modal */
-  editUnitBtn: (unit: Unit) => `[data-testid="edit-unit-btn-${unit}"]`,
+  editUnitBtn: (unit: LegacyUnit) => `[data-testid="edit-unit-btn-${unit}"]`,
   /** All valid unit values for iteration */
   allUnits: UNITS,
 } as const;
