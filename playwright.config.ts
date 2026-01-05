@@ -12,6 +12,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
 
+  // Global setup to clean database before tests
+  globalSetup: './tests/e2e/global-setup.ts',
+
   // Run tests in files in parallel
   fullyParallel: true,
 
@@ -21,8 +24,8 @@ export default defineConfig({
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
 
-  // Opt out of parallel tests on CI
-  workers: process.env.CI ? 1 : undefined,
+  // Run tests serially - shared SQLite database prevents parallel execution
+  workers: 1,
 
   // Reporter to use
   reporter: 'html',
@@ -31,6 +34,9 @@ export default defineConfig({
   use: {
     // Base URL for all tests
     baseURL: 'http://localhost:5173',
+
+    // Fail faster on broken selectors - 5s default, use explicit timeout for slow ops
+    actionTimeout: 5000,
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -45,15 +51,12 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
+    // Mobile Chrome removed - only viewport difference, no touch-specific tests
   ],
 
   // Run your local dev server before starting the tests
   webServer: {
-    command: 'npm run dev',
+    command: 'NODE_ENV=test npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

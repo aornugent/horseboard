@@ -1,3 +1,7 @@
+import { test, expect } from '../fixtures/auth';
+import { selectors, timeModeSelectors } from '../selectors';
+import { createHorse, createFeed, upsertDiet } from '../helpers/api';
+
 /**
  * E2E Tests for TV Display View and Real-Time Sync
  *
@@ -7,246 +11,179 @@
  * - Real-time sync between controller and display via SSE
  * - Time mode changes syncing to display
  */
-
-import { test, expect, Browser, Page, BrowserContext } from '@playwright/test';
-import { selectors, timeModeSelectors } from '../selectors';
-import {
-  seedTestData,
-  navigateWithBoard,
-  cleanupTestData,
-  type TestData,
-} from '../helpers/setup';
-import { upsertDiet } from '../helpers/api';
-
 test.describe('TV Display View', () => {
-  let testData: TestData;
 
-  test.afterEach(async ({ request }) => {
-    if (testData?.board?.id) {
-      await cleanupTestData(request, testData.board.id);
-    }
-  });
+  test('renders grid with seeded data', async ({ ownerPage, ownerBoardId, request }) => {
+    // Seed 2 horses, 2 feeds via API
+    const horse1 = await createHorse(request, ownerBoardId, { name: 'Thunder' });
+    const horse2 = await createHorse(request, ownerBoardId, { name: 'Lightning' });
+    const feed1 = await createFeed(request, ownerBoardId, { name: 'Oats', unit: 'scoop' });
+    const feed2 = await createFeed(request, ownerBoardId, { name: 'Hay', unit: 'biscuit' });
 
-  test('renders grid with seeded data', async ({ page, request }) => {
-    // Seed 2 horses, 2 feeds, and diet entries
-    testData = await seedTestData(page, request, {
-      horseCount: 2,
-      feedCount: 2,
-      createDietEntries: true,
+    // Seed diet entries
+    await upsertDiet(request, {
+      horse_id: horse1.id,
+      feed_id: feed1.id,
+      am_amount: 1,
+      pm_amount: 1.5
     });
 
     // Navigate to /board (TV display)
-    await navigateWithBoard(page, '/board', testData.board.id);
+    await ownerPage.goto('/board');
 
     // Wait for board view to be ready
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+    await expect(ownerPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
     // Verify grid is visible
-    const grid = page.locator(selectors.swimLaneGrid);
+    const grid = ownerPage.locator(selectors.swimLaneGrid);
     await expect(grid).toBeVisible();
 
     // Verify horse names appear in header
-    for (const horse of testData.horses) {
-      const horseHeader = page.locator(selectors.horseHeader(horse.id));
-      await expect(horseHeader).toBeVisible();
-      await expect(horseHeader).toContainText(horse.name);
-    }
+    await expect(ownerPage.locator(selectors.horseHeader(horse1.id))).toContainText('Thunder');
+    await expect(ownerPage.locator(selectors.horseHeader(horse2.id))).toContainText('Lightning');
 
     // Verify feed names appear in rows
-    for (const feed of testData.feeds) {
-      const feedName = page.locator(selectors.feedName(feed.id));
-      await expect(feedName).toBeVisible();
-      await expect(feedName).toContainText(feed.name);
-    }
+    await expect(ownerPage.locator(selectors.feedName(feed1.id))).toContainText('Oats');
+    await expect(ownerPage.locator(selectors.feedName(feed2.id))).toContainText('Hay');
 
-    // Verify at least one quantity badge is visible
-    // Diet entries were created with am_amount: 1, pm_amount: 1.5
-    const firstBadge = page.locator(
-      selectors.badge(testData.horses[0].id, testData.feeds[0].id)
-    );
-    await expect(firstBadge).toBeVisible();
+    // Verify quantity badge
+    const badge = ownerPage.locator(selectors.badge(horse1.id, feed1.id));
+    await expect(badge).toBeVisible();
   });
 
-  test('is read-only - FeedPad does not open on cell click', async ({ page, request }) => {
-    // Seed data for the test
-    testData = await seedTestData(page, request, {
-      horseCount: 1,
-      feedCount: 1,
-      createDietEntries: true,
+  test('is read-only - FeedPad does not open on cell click', async ({ ownerPage, ownerBoardId, request }) => {
+    // Seed 1 horse, 1 feed
+    const horse = await createHorse(request, ownerBoardId, { name: 'Test Horse' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'Test Feed', unit: 'scoop' });
+
+    // Seed diet
+    await upsertDiet(request, {
+      horse_id: horse.id,
+      feed_id: feed.id,
+      am_amount: 1
     });
 
-    // Navigate to /board (TV display)
-    await navigateWithBoard(page, '/board', testData.board.id);
-
-    // Wait for board view to be ready
-    await expect(page.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
-
-    // Verify grid is visible
-    await expect(page.locator(selectors.swimLaneGrid)).toBeVisible();
+    // Navigate to /board
+    await ownerPage.goto('/board');
+    await expect(ownerPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
     // Click on a cell
-    const cell = page.locator(
-      selectors.cell(testData.horses[0].id, testData.feeds[0].id)
-    );
+    const cell = ownerPage.locator(selectors.cell(horse.id, feed.id));
     await expect(cell).toBeVisible();
     await cell.click();
 
-    // Wait briefly for any potential FeedPad to appear
-    await page.waitForTimeout(500);
-
-    // Verify FeedPad does NOT open
-    const feedPad = page.locator(selectors.feedPad);
-    await expect(feedPad).not.toBeVisible();
+    // FeedPad should not open in read-only view - use short timeout
+    await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible({ timeout: 1000 });
   });
 });
 
 test.describe('Real-Time Sync', () => {
-  let testData: TestData;
-
-  test.afterEach(async ({ request }) => {
-    if (testData?.board?.id) {
-      await cleanupTestData(request, testData.board.id);
-    }
-  });
-
-  test('diet change in controller syncs to display', async ({ page, request, browser }) => {
-    // Seed data
-    testData = await seedTestData(page, request, {
-      horseCount: 1,
-      feedCount: 1,
-      createDietEntries: true, // Creates with am_amount: 1, pm_amount: 1.5
+  test('diet change in controller syncs to display', async ({ ownerPage, ownerBoardId, request, browser }) => {
+    // Seed data with initial values we'll change
+    const horse = await createHorse(request, ownerBoardId, { name: 'Sync Horse' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'Sync Feed', unit: 'scoop' });
+    await upsertDiet(request, {
+      horse_id: horse.id,
+      feed_id: feed.id,
+      am_amount: 1,
+      pm_amount: 1
     });
 
-    // Create two separate browser contexts for display and controller
+    // Create a separate context for the Display (TV)
     const displayContext = await browser.newContext();
-    const controllerContext = await browser.newContext();
+    const displayPage = await displayContext.newPage();
 
     try {
-      const displayPage = await displayContext.newPage();
-      const controllerPage = await controllerContext.newPage();
-
-      // Set up display (/board)
+      // Set up display (/board) with same boardId
       await displayPage.goto('/');
       await displayPage.evaluate(
         ({ key, value }) => localStorage.setItem(key, value),
-        { key: 'horseboard_board_id', value: testData.board.id }
+        { key: 'hb_board_id', value: ownerBoardId }
       );
       await displayPage.goto('/board');
       await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
-      // Verify initial badge value on display
-      const displayBadge = displayPage.locator(
-        selectors.badge(testData.horses[0].id, testData.feeds[0].id)
-      );
-      await expect(displayBadge).toBeVisible();
+      const displayBadge = displayPage.locator(selectors.badge(horse.id, feed.id));
 
-      // Set up controller
-      await controllerPage.goto('/');
-      await controllerPage.evaluate(
-        ({ key, value }) => localStorage.setItem(key, value),
-        { key: 'horseboard_board_id', value: testData.board.id }
-      );
-      await controllerPage.goto('/controller');
-      await expect(controllerPage.locator('[data-testid="controller-view"]')).toBeVisible({
-        timeout: 15000,
-      });
+      // --- Update AM slot to 2 ---
+      await ownerPage.reload();
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
+      await ownerPage.locator(selectors.horseCard(horse.id)).click();
 
-      // Navigate to horse detail in controller
-      const horseCard = controllerPage.locator(selectors.horseCard(testData.horses[0].id));
-      await expect(horseCard).toBeVisible();
-      await horseCard.click();
-      await expect(controllerPage.locator(selectors.horseDetail)).toBeVisible();
+      await ownerPage.locator(selectors.feedTileAM(feed.id)).click();
+      await expect(ownerPage.locator(selectors.feedPad)).toBeVisible();
+      await ownerPage.locator(selectors.presetTwo).click();
+      await ownerPage.locator(selectors.feedPadConfirm).click();
+      await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible();
 
-      // Open FeedPad and change the AM value to 2
-      const feedTileAM = controllerPage.locator(selectors.feedTileAM(testData.feeds[0].id));
-      await expect(feedTileAM).toBeVisible();
-      await feedTileAM.click();
+      // --- Update PM slot to ½ (using preset, no stepper needed) ---
+      await ownerPage.locator(selectors.feedTilePM(feed.id)).click();
+      await expect(ownerPage.locator(selectors.feedPad)).toBeVisible();
+      await ownerPage.locator(selectors.presetHalf).click();
+      await ownerPage.locator(selectors.feedPadConfirm).click();
+      await expect(ownerPage.locator(selectors.feedPad)).not.toBeVisible();
 
-      const feedPad = controllerPage.locator(selectors.feedPad);
-      await expect(feedPad).toBeVisible();
+      // --- Force AM mode and verify display shows 2 ---
+      await ownerPage.locator(selectors.horseDetailBack).click();
+      await ownerPage.locator(selectors.tabBoard).click();
+      await expect(ownerPage.locator(selectors.boardTab)).toBeVisible();
+      await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+      await ownerPage.locator(timeModeSelectors.am).click();
 
-      // Set value to 2
-      const presetTwo = controllerPage.locator(selectors.presetTwo);
-      await presetTwo.click();
+      await expect(displayBadge).toContainText('2', { timeout: 5000 });
 
-      // Confirm
-      await controllerPage.locator(selectors.feedPadConfirm).click();
-      await expect(feedPad).not.toBeVisible();
+      // --- Force PM mode and verify display shows ½ ---
+      await ownerPage.locator(timeModeSelectors.pm).click();
+      await expect(displayBadge).toContainText('½', { timeout: 5000 });
 
-      // Wait up to 3 seconds for the change to sync to display
-      await expect(displayBadge).toContainText('2', { timeout: 3000 });
     } finally {
       await displayContext.close();
-      await controllerContext.close();
     }
   });
 
-  test('time mode change in controller syncs to display', async ({ page, request, browser }) => {
-    // Seed minimal data
-    testData = await seedTestData(page, request, {
-      horseCount: 1,
-      feedCount: 1,
-      createDietEntries: true,
-    });
+  test('time mode change in controller syncs to display', async ({ ownerPage, ownerBoardId, request, browser }) => {
+    // Seed minimal data for grid to render
+    const horse = await createHorse(request, ownerBoardId, { name: 'H' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'F', unit: 'scoop' });
+    await upsertDiet(request, { horse_id: horse.id, feed_id: feed.id, am_amount: 1 });
 
-    // Create two separate browser contexts for display and controller
     const displayContext = await browser.newContext();
-    const controllerContext = await browser.newContext();
+    const displayPage = await displayContext.newPage();
 
     try {
-      const displayPage = await displayContext.newPage();
-      const controllerPage = await controllerContext.newPage();
-
-      // Set up display (/board)
+      // Set up display
       await displayPage.goto('/');
       await displayPage.evaluate(
         ({ key, value }) => localStorage.setItem(key, value),
-        { key: 'horseboard_board_id', value: testData.board.id }
+        { key: 'hb_board_id', value: ownerBoardId }
       );
       await displayPage.goto('/board');
       await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
 
-      // Note the current time mode badge on display
+      // Get initial mode
       const timeModeBadge = displayPage.locator(selectors.timeModeBadge);
       await expect(timeModeBadge).toBeVisible();
       const initialMode = await timeModeBadge.textContent();
 
-      // Set up controller
-      await controllerPage.goto('/');
-      await controllerPage.evaluate(
-        ({ key, value }) => localStorage.setItem(key, value),
-        { key: 'horseboard_board_id', value: testData.board.id }
-      );
-      await controllerPage.goto('/controller');
-      await expect(controllerPage.locator('[data-testid="controller-view"]')).toBeVisible({
-        timeout: 15000,
-      });
+      // Switch mode in Controller - time mode is now on Board tab
+      await ownerPage.reload();
+      await ownerPage.locator(selectors.tabBoard).click();
+      await expect(ownerPage.locator(selectors.boardTab)).toBeVisible();
 
-      // Navigate to Settings tab using the tab navigation button
-      const settingsNavTab = controllerPage.locator('[data-testid="tab-settings"]');
-      await expect(settingsNavTab).toBeVisible();
-      await settingsNavTab.click();
+      // Expand the display controls drawer
+      await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
 
-      // Wait for settings content to be visible
-      await expect(controllerPage.locator(selectors.settingsTab)).toBeVisible();
-
-      // Verify time mode selector is visible
-      const timeModeSelector = controllerPage.locator(selectors.timeModeSelector);
-      await expect(timeModeSelector).toBeVisible();
-
-      // Change time mode - toggle to the opposite of current
-      // If current is AM, switch to PM; if PM or AUTO, switch to AM
+      // Determine new mode and click
       const newMode = initialMode?.includes('AM') ? 'PM' : 'AM';
-      const newModeBtn = controllerPage.locator(
-        timeModeSelectors.timeMode(newMode as 'AM' | 'PM')
-      );
-      await newModeBtn.click();
+      await ownerPage.locator(timeModeSelectors.timeMode(newMode as 'AM' | 'PM')).click();
 
-      // Wait up to 3 seconds for the change to sync to display
-      await expect(timeModeBadge).toContainText(newMode, { timeout: 3000 });
+      // Wait for sync
+      await expect(timeModeBadge).toContainText(newMode, { timeout: 5000 });
+
     } finally {
       await displayContext.close();
-      await controllerContext.close();
     }
   });
 });

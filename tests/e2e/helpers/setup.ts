@@ -19,7 +19,7 @@ import {
 } from './api';
 
 // Storage key used by the app (from App.tsx)
-const STORAGE_KEY = 'horseboard_board_id';
+const STORAGE_KEY = 'hb_board_id';
 
 // =============================================================================
 // TYPES
@@ -192,20 +192,34 @@ export async function clearBoardFromStorage(page: Page): Promise<void> {
   );
 }
 
+// Storage key for permission (from api.ts)
+const PERMISSION_KEY = 'hb_permission';
+
 /**
  * Navigate to a page with the board ID set in localStorage.
  * This is the recommended way to navigate after seeding data.
+ *
+ * @param permission - Permission level to set in localStorage (default: 'admin' for owner fixtures)
  */
 export async function navigateWithBoard(
   page: Page,
   path: string,
-  boardId: string
+  boardId: string,
+  permission: 'view' | 'edit' | 'admin' = 'admin'
 ): Promise<void> {
   // First navigate to the base URL to have access to localStorage
   await page.goto('/');
 
   // Set the board ID in localStorage
   await injectBoardId(page, boardId);
+
+  // Set the permission in localStorage (admin for owner fixtures)
+  await page.evaluate(
+    ({ key, value }) => {
+      localStorage.setItem(key, value);
+    },
+    { key: PERMISSION_KEY, value: permission }
+  );
 
   // Now navigate to the actual destination
   await page.goto(path);
@@ -222,11 +236,14 @@ export async function navigateWithBoard(
 export async function waitForControllerReady(page: Page): Promise<void> {
   await page.waitForSelector('[data-testid="controller-view"]', {
     state: 'visible',
-    timeout: 15000,
+    timeout: 8000,
   });
 
-  // Wait for SSE connection to establish and hydrate data
-  await page.waitForTimeout(500);
+  // Wait for data hydration - either cards or empty state
+  await page.waitForSelector('.horse-card, [data-testid="horse-list-empty"]', {
+    state: 'visible',
+    timeout: 5000,
+  });
 }
 
 /**
@@ -236,9 +253,12 @@ export async function waitForControllerReady(page: Page): Promise<void> {
 export async function waitForBoardReady(page: Page): Promise<void> {
   await page.waitForSelector('[data-testid="board-view"]', {
     state: 'visible',
-    timeout: 15000,
+    timeout: 8000,
   });
 
-  // Wait for SSE connection to establish and hydrate data
-  await page.waitForTimeout(500);
+  // Wait for grid to render
+  await page.waitForSelector('[data-testid="swim-lane-grid"]', {
+    state: 'visible',
+    timeout: 5000,
+  });
 }

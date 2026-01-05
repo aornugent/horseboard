@@ -14,6 +14,9 @@ import {
   type Feed,
   type DietEntry,
   type Board,
+  ControllerTokenSchema,
+  CreateControllerTokenSchema,
+  type ControllerToken,
 } from '@shared/resources';
 
 type DbRow = Record<string, unknown>;
@@ -51,6 +54,23 @@ export interface BoardsRepository {
   create(data: unknown): Board;
   update(data: unknown, id: string): Board | null;
   delete(id: string): boolean;
+  getByAccount(accountId: string): Board[];
+}
+
+export interface ControllerTokensRepository {
+  getById(id: string): ControllerToken | null;
+  getByHash(hash: string): ControllerToken | null;
+  getByBoard(boardId: string): ControllerToken[];
+  create(data: unknown, boardId: string, tokenHash: string): ControllerToken;
+  updateLastUsed(id: string): void;
+  delete(id: string): boolean;
+}
+
+export interface InviteCodesRepository {
+  create(boardId: string, expiresInMinutes: number): { code: string; expires_at: string };
+  get(code: string): { board_id: string; expires_at: string } | null;
+  delete(code: string): void;
+  cleanup(): void;
 }
 
 interface PairCodeConfig {
@@ -84,7 +104,7 @@ export function generatePairCode(
   if (attempt >= config.maxAttempts) {
     throw new Error(
       `Failed to generate unique pair code after ${config.maxAttempts} attempts. ` +
-        `ID space may be exhausted or database may be experiencing issues.`
+      `ID space may be exhausted or database may be experiencing issues.`
     );
   }
 
@@ -315,6 +335,76 @@ export function createDietRepository(db: Database.Database): DietRepository {
   };
 }
 
+export function createControllerTokensRepository(
+  db: Database.Database
+): ControllerTokensRepository {
+  const columns = getSchemaColumns(ControllerTokenSchema);
+  const selectCols = columns.join(', ');
+
+  const stmts = {
+    getById: db.prepare(`SELECT ${selectCols} FROM controller_tokens WHERE id = ?`),
+    getByHash: db.prepare(`SELECT ${selectCols} FROM controller_tokens WHERE token_hash = ?`),
+    getByBoard: db.prepare(
+      `SELECT ${selectCols} FROM controller_tokens WHERE board_id = ? ORDER BY created_at DESC`
+    ),
+    delete: db.prepare('DELETE FROM controller_tokens WHERE id = ?'),
+    create: db.prepare(
+      `INSERT INTO controller_tokens (id, board_id, token_hash, name, permission, expires_at, type)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ),
+    updateLastUsed: db.prepare(
+      `UPDATE controller_tokens SET last_used_at = datetime('now') WHERE id = ?`
+    ),
+  };
+
+  function toControllerToken(row: DbRow | undefined): ControllerToken | null {
+    if (!row) return null;
+    return row as ControllerToken;
+  }
+
+  return {
+    getById(id: string): ControllerToken | null {
+      return toControllerToken(stmts.getById.get(id) as DbRow | undefined);
+    },
+
+    getByHash(hash: string): ControllerToken | null {
+      return toControllerToken(stmts.getByHash.get(hash) as DbRow | undefined);
+    },
+
+    getByBoard(boardId: string): ControllerToken[] {
+      return (stmts.getByBoard.all(boardId) as DbRow[])
+        .map(toControllerToken)
+        .filter((t): t is ControllerToken => t !== null);
+    },
+
+    create(data: unknown, boardId: string, tokenHash: string): ControllerToken {
+      const parsed = CreateControllerTokenSchema.parse(data);
+      const id = generateId('ct');
+
+      stmts.create.run(
+        id,
+        boardId,
+        tokenHash,
+        parsed.name,
+        parsed.permission,
+        parsed.expires_at || null,
+        parsed.type
+      );
+
+      return this.getById(id) as ControllerToken;
+    },
+
+    updateLastUsed(id: string): void {
+      stmts.updateLastUsed.run(id);
+    },
+
+    delete(id: string): boolean {
+      const result = stmts.delete.run(id);
+      return result.changes > 0;
+    },
+  };
+}
+
 export function createBoardsRepository(db: Database.Database): BoardsRepository {
   const columns = getSchemaColumns(BoardSchema);
   const selectCols = columns.join(', ');
@@ -329,10 +419,12 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
     getByPairCode: db.prepare(`SELECT ${selectCols} FROM boards WHERE pair_code = ?`),
     delete: db.prepare('DELETE FROM boards WHERE id = ?'),
     update: db.prepare(`UPDATE boards SET ${updateSetClause} WHERE id = ?`),
+    getByAccount: db.prepare(`SELECT ${selectCols} FROM boards WHERE account_id = ?`),
   };
 
   const CreateBoardSchema = UpdateBoardSchema.extend({
     timezone: UpdateBoardSchema.shape.timezone.default('Australia/Sydney'),
+    account_id: z.string().optional().nullable(),
   });
 
   return {
@@ -377,6 +469,46 @@ export function createBoardsRepository(db: Database.Database): BoardsRepository 
       const result = stmts.delete.run(id);
       return result.changes > 0;
     },
+
+    getByAccount(accountId: string): Board[] {
+      return (stmts.getByAccount.all(accountId) as DbRow[])
+        .map(toBoard)
+        .filter((b): b is Board => b !== null);
+    },
+  };
+}
+
+export function createInviteCodesRepository(db: Database.Database): InviteCodesRepository {
+  const stmts = {
+    create: db.prepare(
+      `INSERT INTO invite_codes (code, board_id, expires_at) VALUES (?, ?, ?)`
+    ),
+    get: db.prepare(`SELECT board_id, expires_at FROM invite_codes WHERE code = ?`),
+    delete: db.prepare(`DELETE FROM invite_codes WHERE code = ?`),
+    cleanup: db.prepare(`DELETE FROM invite_codes WHERE expires_at < datetime('now')`),
+  };
+
+  return {
+    create(boardId: string, expiresInMinutes: number) {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString();
+
+      stmts.create.run(code, boardId, expiresAt);
+      return { code, expires_at: expiresAt };
+    },
+
+    get(code: string) {
+      const row = stmts.get.get(code) as { board_id: string; expires_at: string } | undefined;
+      return row || null;
+    },
+
+    delete(code: string) {
+      stmts.delete.run(code);
+    },
+
+    cleanup() {
+      stmts.cleanup.run();
+    },
   };
 }
 
@@ -400,11 +532,11 @@ export class SSEManager {
     });
   }
 
-  broadcast(boardId: string, type: string, data: unknown = null): void {
+  broadcast(boardId: string, data: unknown = null): void {
     const clients = this.clients.get(boardId);
     if (!clients) return;
 
-    const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
+    const message = JSON.stringify({ data, timestamp: new Date().toISOString() });
 
     for (const client of clients) {
       client.write(`data: ${message}\n\n`);
@@ -420,6 +552,20 @@ export class SSEManager {
           clients.delete(client);
         }
       }
+    }
+  }
+
+  /**
+   * Send revocation event to all clients of a board
+   * Used when a display token is unlinked
+   */
+  sendRevoked(boardId: string): void {
+    const clients = this.clients.get(boardId);
+    if (!clients) return;
+
+    const event = JSON.stringify({ type: 'revoked' });
+    for (const client of clients) {
+      client.write(`event: revoked\ndata: ${event}\n\n`);
     }
   }
 }

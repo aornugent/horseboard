@@ -5,7 +5,11 @@ import { createBoardsRouter } from './boards';
 import { createHorsesRouter } from './horses';
 import { createFeedsRouter } from './feeds';
 import { createDietRouter } from './diet';
+import { createUsersRouter } from './users';
 import { createBootstrapRouter, createSSEHandler, createHealthRouter } from './bootstrap';
+
+import { createDevicesRouter } from './devices';
+import { createInvitesRouter } from './invites';
 
 export type { RouteContext } from './types';
 
@@ -15,6 +19,9 @@ export type { RouteContext } from './types';
 export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager): void {
   // Boards routes
   app.use('/api/boards', createBoardsRouter(ctx));
+
+  // Users routes
+  app.use('/api/user', createUsersRouter(ctx));
 
   // Horses routes (board-scoped and standalone)
   const horsesRouters = createHorsesRouter(ctx);
@@ -29,12 +36,20 @@ export function mountRoutes(app: Application, ctx: RouteContext, sse: SSEManager
   // Diet routes
   app.use('/api/diet', createDietRouter(ctx));
 
-  // Bootstrap routes
-  app.use('/api/bootstrap', createBootstrapRouter(ctx));
+  // Pair endpoint (for code-based pairing)
+  app.use('/api', createBootstrapRouter(ctx));
 
   // Health endpoint
   app.use('/api/health', createHealthRouter(ctx));
 
   // SSE endpoint (mounted on boards router path)
   app.get('/api/boards/:boardId/events', createSSEHandler(ctx, sse));
+
+
+
+  // Devices routes
+  app.use('/api/devices', createDevicesRouter(ctx, sse));
+
+  // Invites routes
+  app.use('/api/invites', createInvitesRouter(ctx));
 }
