@@ -1,7 +1,7 @@
 import { signal, computed } from '@preact/signals';
-import { FeedCard } from '../../components/FeedCard';
+import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
+import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
 import './FeedsTab.css';
@@ -17,22 +17,22 @@ const deletingFeed = signal<Feed | null>(null);
 // ... (keep computed and helpers) ...
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  if (!query) return feeds.value;
-  return feeds.value.filter(f => f.name.toLowerCase().includes(query));
+  if (!query) return feedStore.items.value;
+  return feedStore.items.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
 function countHorsesUsingFeed(feedId: string): number {
-  return dietEntries.value.filter(
+  return dietStore.items.value.filter(
     entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount)
   ).length;
 }
 
 async function handleCreateFeed(name: string, unit: Unit) {
-  if (!board.value) return;
+  if (!boardStore.board.value) return;
 
   try {
-    const feed = await apiCreateFeed(board.value.id, name, unit);
-    addFeed(feed);
+    const feed = await apiCreateFeed(boardStore.board.value.id, name, unit);
+    feedStore.add(feed);
     isAddingFeed.value = false;
     newFeedName.value = '';
     newFeedUnit.value = DEFAULT_UNIT;
@@ -44,7 +44,7 @@ async function handleCreateFeed(name: string, unit: Unit) {
 async function handleDeleteFeed(id: string) {
   try {
     await apiDeleteFeed(id);
-    removeFeed(id);
+    feedStore.remove(id);
     deletingFeed.value = null;
   } catch (err) {
     console.error('Failed to delete feed:', err);
@@ -54,7 +54,7 @@ async function handleDeleteFeed(id: string) {
 async function handleSaveFeedEdit(feed: Feed) {
   try {
     const updated = await apiUpdateFeed(feed.id, { name: feed.name, unit: feed.unit });
-    updateFeed(feed.id, updated);
+    feedStore.update(feed.id, updated);
     editingFeed.value = null;
   } catch (err) {
     console.error('Failed to update feed:', err);

@@ -1,1 +1,0 @@
-export { FeedPad } from './FeedPad';
