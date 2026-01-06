@@ -1,16 +1,48 @@
-import { test, expect } from './fixtures/auth';
-import { createHorse, createFeed, upsertDiet } from './helpers/api';
+/**
+ * E2E Tests for Display Pagination & Orientation
+ *
+ * Tests the grid orientation toggle and 2D pagination system for TV displays.
+ * Consolidated from grid-orientation.spec.ts and board-orientation.spec.ts.
+ */
+import { test, expect } from '../fixtures/auth';
+import { selectors } from '../selectors';
+import { createHorse, createFeed, upsertDiet } from '../helpers/api';
 
-test.describe('Grid Orientation', () => {
+test.describe('Orientation Toggle', () => {
+    test('displays toggle in display controls', async ({ ownerPage }) => {
+        await ownerPage.locator(selectors.tabBoard).click();
+        await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await expect(ownerPage.locator(selectors.orientationToggle)).toBeVisible();
+    });
 
-    test('toggles orientation between Horses and Feeds', async ({ ownerPage: page, request, ownerBoardId }) => {
+    test('horse-major is default', async ({ ownerPage }) => {
+        await ownerPage.locator(selectors.tabBoard).click();
+        await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await expect(ownerPage.locator(selectors.orientationHorseMajor)).toHaveClass(/active/);
+    });
+
+    test('switching resets page to 0', async ({ ownerPage, ownerBoardId, request }) => {
+        for (let i = 0; i < 8; i++) {
+            const h = await createHorse(request, ownerBoardId, { name: `H${i}` });
+            const f = await createFeed(request, ownerBoardId, { name: `F${i}`, unit_label: 'scoop' });
+            await upsertDiet(request, { horse_id: h.id, feed_id: f.id, am_amount: 1 });
+        }
+        await ownerPage.reload();
+        await ownerPage.locator(selectors.tabBoard).click();
+        await ownerPage.locator(selectors.nextPageBtn).click();
+        await expect(ownerPage.locator(selectors.boardPageIndicator)).toContainText('2');
+
+        await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await ownerPage.locator(selectors.orientationFeedMajor).click();
+        await expect(ownerPage.locator(selectors.boardPageIndicator)).toContainText('1');
+    });
+
+    test('toggles orientation and updates grid headers', async ({ ownerPage: page, request, ownerBoardId }) => {
         // Setup Data
         const horse = await createHorse(request, ownerBoardId, { name: 'Thunder' });
         const feed = await createFeed(request, ownerBoardId, { name: 'Morning Hay', unit_type: 'int', rank: 1 });
-        // Must create diet entry for sparse filtering to show feed in grid
         await upsertDiet(request, { horse_id: horse.id, feed_id: feed.id, am_amount: 1 });
 
-        // Reload page to fetch new data
         await page.reload();
         await expect(page.getByTestId('controller-view')).toBeVisible();
 
@@ -25,39 +57,27 @@ test.describe('Grid Orientation', () => {
         // Enable Match TV so preview follows board changes
         await page.click('[data-testid="match-tv-toggle"]');
 
-        // Default: Horses
+        // Default: Horses (verify active class and header)
         await expect(page.getByTestId('orientation-horse-major')).toHaveClass(/active/);
-
-        // Verify headers are horses
-        // In horse-major, column headers are horses.
-        // "Thunder" should be visible in a header.
-        // Wait, createHorse returns ID. I don't know ID.
-        // But text content should be 'Thunder'.
         await expect(page.locator('.horse-header', { hasText: 'Thunder' })).toBeVisible();
 
         // Switch to Feeds
         await page.click('[data-testid="orientation-feed-major"]');
 
-        // Verify active class
+        // Verify active class switches
         await expect(page.getByTestId('orientation-feed-major')).toHaveClass(/active/);
         await expect(page.getByTestId('orientation-horse-major')).not.toHaveClass(/active/);
 
-        // Verify headers are feeds
+        // Verify headers now show feeds
         await expect(page.locator('.horse-header', { hasText: 'Morning Hay' })).toBeVisible();
-        // In feed-major, column headers are feeds. Class name might still be 'horse-header' if I didn't change it in SwimLaneGrid.
-        // SwimLaneGrid: className="horse-header ..."
-        // Yes, class name is static 'horse-header'.
     });
 });
 
 test.describe('TV Display Pagination', () => {
     test('shows page badge with current and total', async ({ ownerPage: page, request, ownerBoardId }) => {
-        // Setup: Create enough horses for 2+ pages
         const feed = await createFeed(request, ownerBoardId, { name: 'Oats' });
         const names = Array.from({ length: 10 }, (_, i) => `Horse${i}`);
         const horses = await Promise.all(names.map(n => createHorse(request, ownerBoardId, { name: n })));
-        await Promise.all(horses.map(h => createFeed(request, ownerBoardId, { name: `F_${h.id}` }))); // Ensure diet isn't empty?
-        // Wait, failing test from plan uses upsertDiet
         await Promise.all(horses.map(h => upsertDiet(request, {
             horse_id: h.id, feed_id: feed.id, am_amount: 1
         })));
@@ -69,7 +89,6 @@ test.describe('TV Display Pagination', () => {
     });
 
     test('shows breadcrumb when rows overflow', async ({ ownerPage: page, request, ownerBoardId }) => {
-        // Create 1 horse with many feeds (to trigger row overflow)
         const horse = await createHorse(request, ownerBoardId, { name: 'TestHorse' });
         const feeds = await Promise.all(
             Array.from({ length: 15 }, (_, i) =>
@@ -88,7 +107,6 @@ test.describe('TV Display Pagination', () => {
 
     test('2D pagination advances rows first then columns (down-then-across)', async ({ ownerPage: page, request, ownerBoardId, browser }) => {
         // Create enough horses and feeds to require both column and row pagination
-        // 8 horses (2 column pages at pageSize 6), 12 feeds (2 row pages at rowPageSize 10)
         const horses = await Promise.all(
             Array.from({ length: 8 }, (_, i) => createHorse(request, ownerBoardId, { name: `H${i}` }))
         );
@@ -112,19 +130,37 @@ test.describe('TV Display Pagination', () => {
             // Page 1: Col 0, Row 0 - should see breadcrumb for row overflow
             await expect(displayPage.getByTestId('breadcrumb-more')).toBeVisible();
 
-            // After first page advance: should still be on column 0, row 1 (down first)
             // Controller advances page
             await page.reload();
             await page.click('[data-testid="tab-board"]');
             await page.click('[data-testid="toggle-display-controls"]');
-
-            // Need to match TV first to ensure controller next button advances TV page?
-            // "Match mode syncs controller to TV page" - actually calling next-page-btn ALWAYS updates boardStore.current_page
-            // So we don't strictly need to match, but we need to click next.
             await page.click('[data-testid="next-page-btn"]');
 
             // Breadcrumb should be gone (last row page for this column)
             await expect(displayPage.getByTestId('breadcrumb-more')).not.toBeVisible();
+        } finally {
+            await displayCtx.close();
+        }
+    });
+
+    test('feed-major shows feeds as columns on TV', async ({ ownerPage, ownerBoardId, request, browser }) => {
+        const h = await createHorse(request, ownerBoardId, { name: 'TestHorse' });
+        const f = await createFeed(request, ownerBoardId, { name: 'TestFeed', unit_label: 'scoop' });
+        await upsertDiet(request, { horse_id: h.id, feed_id: f.id, am_amount: 1 });
+
+        const displayCtx = await browser.newContext();
+        const displayPage = await displayCtx.newPage();
+        try {
+            await displayPage.goto('/');
+            await displayPage.evaluate(({ k, v }) => localStorage.setItem(k, v), { k: 'hb_board_id', v: ownerBoardId });
+            await displayPage.goto('/board');
+            await expect(displayPage.locator(selectors.boardView)).toBeVisible();
+
+            await ownerPage.locator(selectors.tabBoard).click();
+            await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+            await ownerPage.locator(selectors.orientationFeedMajor).click();
+
+            await expect(displayPage.locator(selectors.gridHeader)).toContainText('TestFeed');
         } finally {
             await displayCtx.close();
         }

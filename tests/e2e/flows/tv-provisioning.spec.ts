@@ -1,6 +1,6 @@
-import { test, expect } from './fixtures/auth';
-import { selectors } from './selectors';
-import { deleteBoard } from './helpers/api';
+import { test, expect } from '../fixtures/auth';
+import { selectors } from '../selectors';
+import { deleteBoard } from '../helpers/api';
 
 /**
  * Device Provisioning Tests
