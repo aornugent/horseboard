@@ -5,10 +5,9 @@ import {
     BoardTab,
     FeedsTab,
     SettingsTab,
-    ReferenceTab,
 } from './Controller';
 
-type ControllerTab = 'horses' | 'feeds' | 'board' | 'reference' | 'settings';
+type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings';
 
 const activeTab = signal<ControllerTab>('horses');
 const selectedHorseId = signal<string | null>(null);
@@ -32,7 +31,6 @@ export function ControllerView() {
                         )}
                         {activeTab.value === 'feeds' && <FeedsTab />}
                         {activeTab.value === 'board' && <BoardTab />}
-                        {activeTab.value === 'reference' && <ReferenceTab />}
                         {activeTab.value === 'settings' && <SettingsTab />}
                     </div>
 
@@ -62,14 +60,6 @@ export function ControllerView() {
                             <span>Preview</span>
                         </button>
                         <button
-                            class={`tab-btn ${activeTab.value === 'reference' ? 'active' : ''}`}
-                            data-testid="tab-reference"
-                            onClick={() => (activeTab.value = 'reference')}
-                        >
-                            <TabIcon type="reference" />
-                            <span>Ref</span>
-                        </button>
-                        <button
                             class={`tab-btn ${activeTab.value === 'settings' ? 'active' : ''}`}
                             data-testid="tab-settings"
                             onClick={() => (activeTab.value = 'settings')}
@@ -85,7 +75,7 @@ export function ControllerView() {
 }
 
 interface TabIconProps {
-    type: 'horses' | 'feeds' | 'board' | 'reference' | 'settings';
+    type: 'horses' | 'feeds' | 'board' | 'settings';
 }
 
 function TabIcon({ type }: TabIconProps) {
@@ -107,16 +97,6 @@ function TabIcon({ type }: TabIconProps) {
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M3 9h18" />
                 <path d="M9 21V9" />
-            </svg>
-        ),
-        reference: (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 6h13" />
-                <path d="M8 12h13" />
-                <path d="M8 18h13" />
-                <path d="M3 6h.01" />
-                <path d="M3 12h.01" />
-                <path d="M3 18h.01" />
             </svg>
         ),
         settings: (

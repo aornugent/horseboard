@@ -55,7 +55,3 @@ test.describe('Orientation Toggle', () => {
         }
     });
 });
-
-// NOTE: Pagination controls are now always visible (disabled when single page).
-// Breadcrumb overflow test coverage is in the breadcrumb-overflow.spec.ts or verified via unit tests.
-// Reference view tests are in reference-view.spec.ts.

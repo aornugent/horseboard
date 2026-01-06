@@ -73,7 +73,8 @@ export function computeGrid(input: GridInput): GridOutput {
             cells: [],
             totalColumnPages,
             totalRowPages: 0,
-            hasMoreRows: false
+            hasMoreRows: false,
+            remainingRows: 0
         };
     }
 
@@ -178,5 +179,19 @@ export function computeGrid(input: GridInput): GridOutput {
         totalRowPages,
         hasMoreRows,
         remainingRows
+    };
+}
+
+export function getTotal2DPages(totalColumnPages: number, totalRowPages: number): number {
+    return totalColumnPages * totalRowPages;
+}
+
+export function get2DPageCoords(
+    pageIndex: number,
+    totalRowPages: number
+): { columnPage: number; rowPage: number } {
+    return {
+        columnPage: Math.floor(pageIndex / totalRowPages),
+        rowPage: pageIndex % totalRowPages
     };
 }

@@ -1,23 +1,45 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid/SwimLaneGrid';
 import { horseStore, feedStore, boardStore, dietStore } from '../stores';
-import { computeGrid } from '../../shared/grid-logic';
+import { computeGrid, get2DPageCoords } from '../../shared/grid-logic';
 import './Board.css';
 
 export function Board() {
+  /* Pagination Logic */
+  const activeHorses = horseStore.items.value.filter(h => !h.archived);
+  const feeds = feedStore.items.value;
+  const orientation = boardStore.orientation.value;
+
+  const primaryCount = orientation === 'horse-major' ? activeHorses.length : feeds.length;
+  const secondaryCount = orientation === 'horse-major' ? feeds.length : activeHorses.length;
+  const rowPageSize = boardStore.rowPageSize.value || 10;
+
+  const totalRowPages = Math.ceil(secondaryCount / rowPageSize) || 1;
+  const totalColPages = Math.ceil(primaryCount / (boardStore.pageSize.value || 6)) || 1;
+  const totalPages = totalColPages * totalRowPages;
+
+  // Calculate 2D coordinates from linear page index
+  const { columnPage, rowPage } = get2DPageCoords(
+    boardStore.current_page.value || 0,
+    totalRowPages
+  );
+
   const grid = computeGrid({
     horses: horseStore.items.value,
     feeds: feedStore.items.value,
     diet: dietStore.items.value,
     orientation: boardStore.orientation.value,
     timeMode: boardStore.effective_time_mode.value,
-    page: boardStore.current_page.value,
+    page: columnPage,
     pageSize: boardStore.pageSize.value,
-    rowPage: 0, // TODO: Implement row pagination/cycling for TV
-    rowPageSize: boardStore.rowPageSize.value
+    rowPage: rowPage,
+    rowPageSize: rowPageSize
   });
 
-  const hasData = grid.columns.length > 0;
   const pairCode = boardStore.board.value?.pair_code;
+  const hasData = grid.columns.length > 0;
+
+  /* Badge Rendering Uses Calculated Values */
+  const currentPage = (boardStore.current_page.value || 0) + 1;
 
   return (
     <div
@@ -32,8 +54,13 @@ export function Board() {
             <span class="board-pair-code-value">{pairCode}</span>
           </div>
         )}
-        <div class="board-time-badge" data-testid="time-mode-badge">
-          {boardStore.effective_time_mode.value}
+        <div class="board-badges">
+          <div class="board-page-badge" data-testid="page-badge">
+            Page {currentPage} / {totalPages}
+          </div>
+          <div class="board-time-badge" data-testid="time-mode-badge">
+            {boardStore.effective_time_mode.value}
+          </div>
         </div>
       </header>
 

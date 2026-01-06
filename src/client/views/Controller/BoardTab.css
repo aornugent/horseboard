@@ -5,6 +5,9 @@
   flex-direction: column;
   height: 100%;
   padding: 1rem;
+  overflow-y: auto;
+  padding-bottom: 5rem;
+  /* Space for fixed controller tabs */
 }
 
 .board-tab-header {
@@ -51,13 +54,17 @@
   border: 2px solid var(--color-bg-secondary);
   border-radius: 12px;
   overflow: hidden;
+}
+
+.board-preview.theme-transition {
   transition: background-color 3s ease;
 }
 
 .board-preview-content {
   transform: scale(0.6);
   transform-origin: top left;
-  width: 166.67%; /* 100% / 0.6 to compensate for scale */
+  width: 166.67%;
+  /* 100% / 0.6 to compensate for scale */
   min-height: 100%;
 }
 
@@ -65,7 +72,8 @@
 @media (min-width: 768px) {
   .board-preview-content {
     transform: scale(0.7);
-    width: 142.86%; /* 100% / 0.7 */
+    width: 142.86%;
+    /* 100% / 0.7 */
   }
 }
 
@@ -193,4 +201,96 @@
   .board-control-option {
     min-height: 44px;
   }
+}
+
+/* Header Controls */
+.header-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.header-control-btn {
+  background: var(--color-bg-secondary);
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-control-btn:hover {
+  background: var(--color-bg-active);
+}
+
+/* Match TV Toggle */
+.match-tv-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.match-tv-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Switch Component */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-bg-secondary);
+  transition: .4s;
+  border: 1px solid var(--color-border);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked+.slider {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+input:focus+.slider {
+  box-shadow: 0 0 1px var(--color-accent);
+}
+
+input:checked+.slider:before {
+  transform: translateX(20px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
 }

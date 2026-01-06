@@ -31,12 +31,24 @@ test.describe('Controller Smoke Tests', () => {
     await toggleBtn.click();
     await expect(drawer).toBeVisible();
 
-    // Verify drawer contains expected controls
+    // Time/Zoom now in overflow menu
+    await expect(ownerPage.locator(selectors.timeModeSelector)).not.toBeVisible();
+    await ownerPage.click('[data-testid="overflow-menu-btn"]');
     await expect(ownerPage.locator(selectors.timeModeSelector)).toBeVisible();
     await expect(ownerPage.locator(selectors.zoomSelector)).toBeVisible();
 
     await toggleBtn.click();
     await expect(drawer).not.toBeVisible();
+  });
+
+  test('settings tab shows display defaults for owner', async ({ ownerPage }) => {
+    await ownerPage.locator('[data-testid="tab-settings"]').click();
+    await expect(ownerPage.locator(selectors.settingsTab)).toBeVisible();
+
+    // Owner sees display defaults section
+    await expect(ownerPage.getByTestId('display-defaults-section')).toBeVisible();
+    await expect(ownerPage.getByTestId('default-orientation-selector')).toBeVisible();
+    await expect(ownerPage.getByTestId('default-zoom-selector')).toBeVisible();
   });
 
   test('settings tab shows board pair code and timezone selector', async ({ ownerPage }) => {

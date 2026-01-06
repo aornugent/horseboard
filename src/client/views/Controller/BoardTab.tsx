@@ -61,12 +61,75 @@ async function changeOrientation(orientation: BoardOrientation) {
 
 export function BoardTab() {
   const showControls = useSignal(false);
+  const matchTV = useSignal(false);
+  const showOverflow = useSignal(false);
+
+  // Local state for independent viewing
+  const localTimeMode = useSignal<'AM' | 'PM'>('AM'); // Defaults will be synced on mount/match-off
+  const localOrientation = useSignal<BoardOrientation>('horse-major');
+
+  // Sync local state to board when enabling independent mode (unmatching)
+  // or on initial load if needed (though we can just default to board values)
+  // Actually, simpler:
+  // Effective values used for rendering the grid:
+  const effectiveTimeMode = matchTV.value ? boardStore.effective_time_mode.value : localTimeMode.value;
+  const effectiveOrientation = matchTV.value ? boardStore.orientation.value : localOrientation.value;
+
+  // Initialize local state from board when component mounts
+  // or when switching matchTV off? 
+  // For now, let's just initialize signals with current board values.
+  // We can't do this in render easily without effects, but signals are fine.
+  // Let's use an effect to sync ONE WAY when matchTV is enabled? 
+  // No, if matchTV is enabled, we just read from boardStore.
+  // When matchTV *becomes* disabled, it might be nice to start from current board state.
+  // We can handle that in the toggle handler.
+
+  const toggleMatchTV = () => {
+    const newValue = !matchTV.value;
+    if (!newValue) {
+      // Switching TO independent mode: copy current board state
+      localTimeMode.value = boardStore.effective_time_mode.value;
+      localOrientation.value = boardStore.orientation.value;
+    }
+    matchTV.value = newValue;
+  };
+
+  const toggleLocalTimeMode = () => {
+    localTimeMode.value = localTimeMode.value === TIME_MODE.AM ? TIME_MODE.PM : TIME_MODE.AM;
+  };
+
+  const toggleLocalOrientation = () => {
+    localOrientation.value = localOrientation.value === 'horse-major' ? 'feed-major' : 'horse-major';
+  };
 
   return (
     <div class="board-tab" data-testid="board-tab">
       <div class="board-tab-header">
         <h2 class="board-tab-title">Board Preview</h2>
-        <span class="board-tab-badge">{boardStore.effective_time_mode.value}</span>
+
+        {!matchTV.value && (
+          <div class="header-controls">
+            <button
+              class="header-control-btn"
+              onClick={toggleLocalTimeMode}
+              data-testid="header-time-toggle"
+            >
+              {effectiveTimeMode}
+            </button>
+            <button
+              class="header-control-btn"
+              onClick={toggleLocalOrientation}
+              data-testid="header-flip-btn"
+              title="Flip Orientation"
+            >
+              ⇄
+            </button>
+          </div>
+        )}
+
+        {matchTV.value && (
+          <span class="board-tab-badge">{effectiveTimeMode}</span>
+        )}
       </div>
 
       <div class="board-controls">
@@ -89,41 +152,30 @@ export function BoardTab() {
       </div>
 
       <div class="board-label">
-        <span class="board-label-text">Read-Only TV Preview</span>
+        <span class="board-label-text">{matchTV.value ? 'Synced with TV' : 'Independent View'}</span>
       </div>
 
-      <div
-        class="board-preview"
-        data-theme={boardStore.effective_time_mode.value.toLowerCase()}
-      >
-        <div class="board-preview-content">
-          {(() => {
-            const grid = computeGrid({
-              horses: horseStore.items.value,
-              feeds: feedStore.items.value,
-              diet: dietStore.items.value,
-              orientation: boardStore.orientation.value,
-              timeMode: boardStore.effective_time_mode.value,
-              page: boardStore.current_page.value,
-              pageSize: boardStore.pageSize.value,
-              // TV uses row pagination but controller preview should match TV
-              // For now, pass defaults or implement row pagination in controller too if needed
-              // Assuming TV defaults (rowPage: 0, rowPageSize: Infinity or TV size?)
-              // TV UX says: "The TV automatically pages through rows if they overflow"
-              // Preview might just show first page for now?
-            });
+      <div class="board-preview">
+        {(() => {
+          const grid = computeGrid({
+            horses: horseStore.items.value,
+            feeds: feedStore.items.value,
+            diet: dietStore.items.value,
+            orientation: effectiveOrientation,
+            timeMode: effectiveTimeMode,
+            page: 0,
+            pageSize: Infinity, // Unpaginated for infinite scroll
+          });
 
-            return (
-              <SwimLaneGrid
-                columns={grid.columns}
-                rows={grid.rows}
-                cells={grid.cells}
-                isEditable={false} // Controller is read-only
-              // onCellClick?
-              />
-            );
-          })()}
-        </div>
+          return (
+            <SwimLaneGrid
+              columns={grid.columns}
+              rows={grid.rows}
+              cells={grid.cells}
+              isEditable={false}
+            />
+          );
+        })()}
       </div>
 
       <div class="board-display-controls">
@@ -138,47 +190,17 @@ export function BoardTab() {
 
         {showControls.value && (
           <div class="board-controls-drawer" data-testid="display-controls-drawer">
-            <div class="board-control-group" data-testid="time-mode-selector">
-              <label class="board-control-label">Time Mode</label>
-              <div class="board-control-buttons">
-                {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
-                  <button
-                    key={mode}
-                    class={`board-control-option ${boardStore.configured_mode.value === mode ? 'active' : ''}`}
-                    onClick={() => changeTimeMode(mode)}
-                    data-testid={`time-mode-${mode.toLowerCase()}`}
-                    title={TIME_MODE_CONFIG[mode].description}
-                  >
-                    {TIME_MODE_CONFIG[mode].label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div class="board-control-group" data-testid="zoom-selector">
-              <label class="board-control-label">Zoom</label>
-              <div class="board-control-buttons">
-                <button
-                  class={`board-control-option ${boardStore.zoom_level.value === 1 ? 'active' : ''}`}
-                  onClick={() => changeZoom(1)}
-                  data-testid="zoom-level-1"
-                >
-                  S
-                </button>
-                <button
-                  class={`board-control-option ${boardStore.zoom_level.value === 2 ? 'active' : ''}`}
-                  onClick={() => changeZoom(2)}
-                  data-testid="zoom-level-2"
-                >
-                  M
-                </button>
-                <button
-                  class={`board-control-option ${boardStore.zoom_level.value === 3 ? 'active' : ''}`}
-                  onClick={() => changeZoom(3)}
-                  data-testid="zoom-level-3"
-                >
-                  L
-                </button>
+            <div class="board-control-group">
+              <div class="match-tv-control">
+                <label class="switch" data-testid="match-tv-toggle">
+                  <input
+                    type="checkbox"
+                    checked={matchTV.value}
+                    onChange={toggleMatchTV}
+                  />
+                  <span class="slider round"></span>
+                </label>
+                <span class="match-tv-label">Match TV Display</span>
               </div>
             </div>
 
@@ -197,6 +219,62 @@ export function BoardTab() {
                 >Feeds</button>
               </div>
             </div>
+
+            <button
+              class="overflow-menu-btn"
+              onClick={() => showOverflow.value = !showOverflow.value}
+              data-testid="overflow-menu-btn"
+            >
+              ⋮
+            </button>
+
+            {showOverflow.value && (
+              <>
+                <div class="board-control-group" data-testid="time-mode-selector">
+                  <label class="board-control-label">Time Mode</label>
+                  <div class="board-control-buttons">
+                    {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
+                      <button
+                        key={mode}
+                        class={`board-control-option ${boardStore.configured_mode.value === mode ? 'active' : ''}`}
+                        onClick={() => changeTimeMode(mode)}
+                        data-testid={`time-mode-${mode.toLowerCase()}`}
+                        title={TIME_MODE_CONFIG[mode].description}
+                      >
+                        {TIME_MODE_CONFIG[mode].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div class="board-control-group" data-testid="zoom-selector">
+                  <label class="board-control-label">Zoom</label>
+                  <div class="board-control-buttons">
+                    <button
+                      class={`board-control-option ${boardStore.zoom_level.value === 1 ? 'active' : ''}`}
+                      onClick={() => changeZoom(1)}
+                      data-testid="zoom-level-1"
+                    >
+                      S
+                    </button>
+                    <button
+                      class={`board-control-option ${boardStore.zoom_level.value === 2 ? 'active' : ''}`}
+                      onClick={() => changeZoom(2)}
+                      data-testid="zoom-level-2"
+                    >
+                      M
+                    </button>
+                    <button
+                      class={`board-control-option ${boardStore.zoom_level.value === 3 ? 'active' : ''}`}
+                      onClick={() => changeZoom(3)}
+                      data-testid="zoom-level-3"
+                    >
+                      L
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

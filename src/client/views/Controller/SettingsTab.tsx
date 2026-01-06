@@ -44,6 +44,28 @@ async function handleSignOut() {
   window.location.reload();
 }
 
+import { updateOrientation as apiUpdateOrientation } from '../../services';
+
+async function changeOrientation(orientation: 'horse-major' | 'feed-major') {
+  if (!boardStore.board.value) return;
+  try {
+    await apiUpdateOrientation(boardStore.board.value.id, orientation);
+    boardStore.setOrientation(orientation);
+  } catch (err) {
+    console.error('Failed to update orientation:', err);
+  }
+}
+
+async function changeZoom(level: 1 | 2 | 3) {
+  if (!boardStore.board.value) return;
+  try {
+    await apiUpdateBoard(boardStore.board.value.id, { zoom_level: level });
+    boardStore.setZoomLevel(level);
+  } catch (err) {
+    console.error('Failed to update zoom:', err);
+  }
+}
+
 import { generateInviteCode } from '../../services';
 
 function SectionStaffAccess() {
@@ -332,6 +354,40 @@ export function SettingsTab() {
           </section>
 
           <SectionPermissions />
+
+          <section class="settings-section" data-testid="display-defaults-section">
+            <h3 class="settings-section-title">Display Defaults</h3>
+            <p class="settings-section-description">
+              Configure default orientation and zoom for TV displays
+            </p>
+
+            <div class="settings-control-group">
+              <label class="settings-subsection-title">Default Orientation</label>
+              <div class="settings-segmented" data-testid="default-orientation-selector">
+                <button
+                  class={boardStore.orientation.value === 'horse-major' ? 'active' : ''}
+                  onClick={() => changeOrientation('horse-major')}
+                >
+                  Horses
+                </button>
+                <button
+                  class={boardStore.orientation.value === 'feed-major' ? 'active' : ''}
+                  onClick={() => changeOrientation('feed-major')}
+                >
+                  Feeds
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-control-group">
+              <label class="settings-subsection-title">Default Zoom</label>
+              <div class="settings-segmented" data-testid="default-zoom-selector">
+                <button class={boardStore.zoom_level.value === 1 ? 'active' : ''} onClick={() => changeZoom(1)}>S</button>
+                <button class={boardStore.zoom_level.value === 2 ? 'active' : ''} onClick={() => changeZoom(2)}>M</button>
+                <button class={boardStore.zoom_level.value === 3 ? 'active' : ''} onClick={() => changeZoom(3)}>L</button>
+              </div>
+            </div>
+          </section>
         </>
       )}
 

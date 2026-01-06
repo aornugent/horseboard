@@ -305,4 +305,34 @@ describe('edge cases', () => {
         const r = computeGrid({ horses, feeds, diet: d, orientation: 'horse-major', timeMode: 'AM', page: 0, pageSize: 10 });
         assert.strictEqual(r.rows.length, 0);
     });
+    test('empty page returns complete GridOutput shape including remainingRows', async () => {
+        const r = computeGrid({
+            horses, feeds, diet,
+            orientation: 'horse-major', timeMode: 'AM',
+            page: 99, pageSize: 2
+        });
+        assert.strictEqual(r.remainingRows, 0);
+    });
+});
+
+describe('2D pagination helpers', () => {
+    test('getTotal2DPages returns product of column and row pages', async () => {
+        const { getTotal2DPages } = await import('../../src/shared/grid-logic.js');
+        assert.strictEqual(getTotal2DPages(3, 2), 6);
+        assert.strictEqual(getTotal2DPages(1, 1), 1);
+    });
+
+    test('get2DPageCoords advances rows first (down-then-across)', async () => {
+        const { get2DPageCoords } = await import('../../src/shared/grid-logic.js');
+        assert.deepStrictEqual(get2DPageCoords(0, 2), { columnPage: 0, rowPage: 0 });
+        assert.deepStrictEqual(get2DPageCoords(1, 2), { columnPage: 0, rowPage: 1 });
+        assert.deepStrictEqual(get2DPageCoords(2, 2), { columnPage: 1, rowPage: 0 });
+        assert.deepStrictEqual(get2DPageCoords(3, 2), { columnPage: 1, rowPage: 1 });
+    });
+
+    test('get2DPageCoords handles single row page', async () => {
+        const { get2DPageCoords } = await import('../../src/shared/grid-logic.js');
+        assert.deepStrictEqual(get2DPageCoords(0, 1), { columnPage: 0, rowPage: 0 });
+        assert.deepStrictEqual(get2DPageCoords(2, 1), { columnPage: 2, rowPage: 0 });
+    });
 });

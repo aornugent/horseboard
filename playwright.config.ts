@@ -27,8 +27,8 @@ export default defineConfig({
   // Run tests serially - shared SQLite database prevents parallel execution
   workers: 1,
 
-  // Reporter to use
-  reporter: 'html',
+  // List reporter - console output only, no artifacts
+  reporter: 'list',
 
   // Stop after first failure for fast feedback
   maxFailures: 5,

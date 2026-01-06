@@ -5,8 +5,10 @@
   display: flex;
   flex-direction: column;
   background: var(--color-bg-primary);
-  transition: background-color 3s ease;
+  transition: background-color 500ms ease, color 500ms ease;
 }
+
+/* Removed .board-view.theme-transition - transition now always applies */
 
 .board-header {
   display: flex;
@@ -134,4 +136,25 @@
   .board-empty-code-value {
     font-size: 6rem;
   }
+
+  .board-page-badge {
+    font-size: 1.25rem;
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+.board-badges {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.board-page-badge {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
 }

@@ -68,18 +68,7 @@ All primary variants must have test coverage. Gaps must be explicitly justified.
 
 ## Task Structure
 
-### Task N: [Component / Feature Name]
-
-**Specification Level:** [Final | Test-Specified | Procedural]
-
-**Intent:** Why this task exists and what must not change.
-
-**Files:**
-* Create: ...
-* Modify: ...
-* Test: ...
-
-
+Include this once per plan:
 **Specification Levels**
 
 - **Locked**  
@@ -95,6 +84,20 @@ All primary variants must have test coverage. Gaps must be explicitly justified.
 - **Mechanical**  
   Follow the steps exactly.  
   No design or interpretation required.
+
+
+### Task N: [Component / Feature Name]
+
+**Specification Level:** [Final | Test-Specified | Procedural]
+
+**Intent:** Why this task exists and what must not change.
+
+**Files:**
+* Create: ...
+* Modify: ...
+* Test: ...
+
+
 
 ---
 
@@ -182,15 +185,8 @@ npm run test:e2e -- -g "specific behavior"
 - If uncertainty is discovered during execution, STOP and return to /plan.
 - Do not leave transitional comments (“simplified”, “moved”, “for now”).
 - Final code must read as inevitable, not evolutionary.
-
-## Remember
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- DRY, YAGNI, TDD, frequent commits
+- Do not plan commits, they will be handled as part of the /finishing workflow
 
 ## Execution Handoff
 
-After saving the plan, state:
-
-**"Plan complete and saved to `artifact:implementation-plan.md`. Ready for /executing workflow."**
+**"Plan complete. Ready for /executing workflow."**
