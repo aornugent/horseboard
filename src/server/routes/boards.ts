@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { UpdateBoardSchema, SetTimeModeSchema, CreateControllerTokenSchema } from '@shared/resources';
+import { UpdateBoardSchema, SetTimeModeSchema, SetOrientationSchema, CreateControllerTokenSchema } from '@shared/resources';
 import crypto from 'crypto';
 import { validate } from './middleware';
 import { authenticate, getBoardPermission } from '../lib/auth';
@@ -115,6 +115,33 @@ export function createBoardsRouter(ctx: RouteContext): Router {
     broadcast(req.params.id);
     res.json({ success: true, data: updated });
   });
+
+  // PUT /api/boards/:id/orientation - set orientation
+  router.put('/:id/orientation', authenticate(), validate(SetOrientationSchema), (req: Request, res: Response) => {
+    const { orientation } = req.body;
+
+    const existing = repos.boards.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Board not found' });
+    }
+
+    const permission = getBoardPermission(req, existing);
+    if (permission === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    if (permission === 'view') {
+      return res.status(403).json({ success: false, error: 'Edit permission required' });
+    }
+
+    const updated = repos.boards.update(
+      { orientation, current_page: 0 }, // Reset page on orientation change
+      req.params.id
+    );
+
+    broadcast(req.params.id);
+    res.json({ success: true, data: updated });
+  });
+
 
   // POST /api/boards/:id/tokens - create a controller token
   router.post('/:id/tokens', authenticate(), validate(CreateControllerTokenSchema), (req: Request, res: Response) => {

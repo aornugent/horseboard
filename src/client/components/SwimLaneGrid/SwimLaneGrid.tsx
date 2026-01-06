@@ -1,96 +1,101 @@
-import type { Signal } from '@preact/signals';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
-import { TIME_MODE, type Horse, type Feed, type EffectiveTimeMode } from '@shared/resources';
-import { dietStore } from '../../stores';
+import type { GridItem, GridCell } from '../../../shared/grid-logic';
 import './SwimLaneGrid.css';
 
 interface SwimLaneGridProps {
-  horses: Signal<Horse[]>;
-  feeds: Signal<Feed[]>;
-  timeMode: Signal<EffectiveTimeMode>;
+  columns: GridItem[];
+  rows: GridItem[];
+  cells: GridCell[][];
   isEditable: boolean;
-  onCellClick?: (horseId: string, feedId: string) => void;
+  onCellClick?: (colId: string, rowId: string) => void;
 }
 
 export function SwimLaneGrid({
-  horses,
-  feeds,
-  timeMode,
+  columns,
+  rows,
+  cells,
   isEditable,
   onCellClick,
 }: SwimLaneGridProps) {
-  const horseList = horses.value;
-  const feedList = feeds.value;
-  const mode = timeMode.value;
-  const dietMap = dietStore.byKey.value;
-
   return (
     <div class="swim-lane-grid" data-testid="swim-lane-grid">
-      {/* Header row: Horse names */}
+      {/* Header row */}
       <div class="grid-header" data-testid="grid-header">
         <div class="corner-cell" />
-        {horseList.map((horse, idx) => (
+        {columns.map((col, idx) => (
           <div
-            key={horse.id}
+            key={col.id}
             class={`horse-header ${idx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'}`}
-            data-testid={`horse-header-${horse.id}`}
+            data-testid={`column-header-${col.id}`}
           >
-            {horse.name}
+            {col.name}
           </div>
         ))}
       </div>
 
-      {/* Body: Feed rows */}
-      {feedList.map((feed) => (
-        <div key={feed.id} class="feed-row" data-testid={`feed-row-${feed.id}`}>
-          <div class="feed-name" data-testid={`feed-name-${feed.id}`}>
-            {feed.name}
+      {/* Body: Rows */}
+      {rows.map((row, rowIdx) => (
+        <div key={row.id} class="feed-row" data-testid={`row-${row.id}`}>
+          <div class="feed-name" data-testid={`row-header-${row.id}`}>
+            {row.name}
           </div>
-          {horseList.map((horse, idx) => {
-            const entry = dietMap.get(`${horse.id}:${feed.id}`);
-            const value = mode === TIME_MODE.AM ? entry?.am_amount : entry?.pm_amount;
-            const variant = mode === TIME_MODE.AM ? entry?.am_variant : entry?.pm_variant;
-            const hasValue = (value !== null && value !== undefined && value !== 0) || !!variant; // variant might be "Small" with value 1 or something
+          {columns.map((col, colIdx) => {
+            const cell = cells[colIdx][rowIdx];
+            const hasValue = (cell.value !== null && cell.value !== undefined && cell.value !== 0) || !!cell.variant;
 
-            const strategy = getStrategyForType(feed.unit_type);
-            const options = parseEntryOptions(feed.entry_options, feed.unit_type);
-            const displayText = strategy.formatDisplay(value ?? null, variant ?? null, options, feed.unit_label);
+            // Format display text using unitConfig if available on either axis
+            const unitConfig = row.unitConfig || col.unitConfig;
+            let displayText = '';
+
+            if (unitConfig) {
+              const strategy = getStrategyForType(unitConfig.unit_type as any);
+              const options = parseEntryOptions(unitConfig.entry_options, unitConfig.unit_type as any);
+              displayText = strategy.formatDisplay(cell.value, cell.variant, options, unitConfig.unit_label);
+            } else {
+              // Fallback if no config (shouldn't happen for feeds)
+              displayText = cell.variant || (cell.value?.toString() ?? '');
+            }
 
             return (
               <div
-                key={horse.id}
-                class={`grid-cell ${idx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'} ${isEditable ? 'grid-cell--editable' : ''}`}
-                data-testid={`cell-${horse.id}-${feed.id}`}
-                onClick={() => isEditable && onCellClick?.(horse.id, feed.id)}
+                key={col.id}
+                // Use rowIdx for alternating colors to match original design which alternated by column?
+                // Original: horseList.map((horse, idx) => className={idx % 2 ...})
+                // Columns are Horses in horse-major.
+                // So columns should alternate colors?
+                // Yes, existing code alternated columns.
+                class={`grid-cell ${colIdx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'} ${isEditable ? 'grid-cell--editable' : ''}`}
+                data-testid={`cell-${col.id}-${row.id}`}
+                onClick={() => isEditable && onCellClick?.(col.id, row.id)}
               >
-                {/* Scoop Badge: rounded square container */}
+                {/* Badge Container */}
                 {hasValue && (
-                  <div class="scoop-badge" data-testid={`badge-${horse.id}-${feed.id}`}>
+                  <div class="scoop-badge" data-testid={`badge-${col.id}-${row.id}`}>
                     <span class="badge-value">
                       {displayText}
                     </span>
                   </div>
                 )}
-                {/* Zero/null renders as strictly blank (no dash, no "0") */}
               </div>
             );
           })}
         </div>
       ))}
 
-      {/* Footer: Horse notes */}
+      {/* Footer: Notes (Only if columns have notes, e.g. Horses) */}
       <div class="grid-footer" data-testid="grid-footer">
         <div class="corner-cell" />
-        {horseList.map((horse, idx) => (
+        {columns.map((col, idx) => (
           <div
-            key={horse.id}
+            key={col.id}
             class={`horse-note ${idx % 2 === 0 ? 'swim-lane-primary' : 'swim-lane-alt'}`}
-            data-testid={`note-${horse.id}`}
+            data-testid={`note-${col.id}`}
           >
-            {horse.note}
+            {col.note || ''}
           </div>
         ))}
       </div>
     </div>
   );
 }
+

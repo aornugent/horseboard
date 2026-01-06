@@ -1,10 +1,12 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid/SwimLaneGrid';
-import { horseStore, feedStore, boardStore } from '../../stores';
+import { horseStore, feedStore, boardStore, dietStore } from '../../stores';
 import './BoardTab.css';
 
-import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode } from '../../services';
-import { TIME_MODE, TIME_MODE_CONFIG, type TimeMode } from '../../../shared/resources';
+import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode, updateOrientation as apiUpdateOrientation } from '../../services';
+import { TIME_MODE, TIME_MODE_CONFIG, type TimeMode, type BoardOrientation } from '../../../shared/resources';
 import { useSignal } from '@preact/signals';
+import { computeGrid } from '../../../shared/grid-logic';
+
 
 async function changePage(delta: number) {
   if (!boardStore.board.value) return;
@@ -43,6 +45,20 @@ async function changeZoom(level: 1 | 2 | 3) {
   }
 }
 
+async function changeOrientation(orientation: BoardOrientation) {
+  if (!boardStore.board.value) return;
+  try {
+    await apiUpdateOrientation(boardStore.board.value.id, orientation);
+    boardStore.setOrientation(orientation);
+  } catch (err) {
+    console.error('Failed to update orientation:', err);
+  }
+}
+
+
+
+
+
 export function BoardTab() {
   const showControls = useSignal(false);
 
@@ -62,7 +78,7 @@ export function BoardTab() {
         >
           ◀ Previous
         </button>
-        <span class="board-page-indicator">Page {(boardStore.current_page.value || 0) + 1}</span>
+        <span class="board-page-indicator" data-testid="page-indicator">Page {(boardStore.current_page.value || 0) + 1}</span>
         <button
           class="board-control-btn"
           onClick={() => changePage(1)}
@@ -81,12 +97,32 @@ export function BoardTab() {
         data-theme={boardStore.effective_time_mode.value.toLowerCase()}
       >
         <div class="board-preview-content">
-          <SwimLaneGrid
-            horses={horseStore.items}
-            feeds={feedStore.items}
-            timeMode={boardStore.effective_time_mode}
-            isEditable={false}
-          />
+          {(() => {
+            const grid = computeGrid({
+              horses: horseStore.items.value,
+              feeds: feedStore.items.value,
+              diet: dietStore.items.value,
+              orientation: boardStore.orientation.value,
+              timeMode: boardStore.effective_time_mode.value,
+              page: boardStore.current_page.value,
+              pageSize: boardStore.pageSize.value,
+              // TV uses row pagination but controller preview should match TV
+              // For now, pass defaults or implement row pagination in controller too if needed
+              // Assuming TV defaults (rowPage: 0, rowPageSize: Infinity or TV size?)
+              // TV UX says: "The TV automatically pages through rows if they overflow"
+              // Preview might just show first page for now?
+            });
+
+            return (
+              <SwimLaneGrid
+                columns={grid.columns}
+                rows={grid.rows}
+                cells={grid.cells}
+                isEditable={false} // Controller is read-only
+              // onCellClick?
+              />
+            );
+          })()}
         </div>
       </div>
 
@@ -143,6 +179,22 @@ export function BoardTab() {
                 >
                   L
                 </button>
+              </div>
+            </div>
+
+            <div class="board-control-group" data-testid="orientation-toggle">
+              <label class="board-control-label">Orientation</label>
+              <div class="board-control-buttons">
+                <button
+                  class={`board-control-option ${boardStore.orientation.value === 'horse-major' ? 'active' : ''}`}
+                  onClick={() => changeOrientation('horse-major')}
+                  data-testid="orientation-horse-major"
+                >Horses</button>
+                <button
+                  class={`board-control-option ${boardStore.orientation.value === 'feed-major' ? 'active' : ''}`}
+                  onClick={() => changeOrientation('feed-major')}
+                  data-testid="orientation-feed-major"
+                >Feeds</button>
               </div>
             </div>
           </div>

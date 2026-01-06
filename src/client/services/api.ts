@@ -1,4 +1,4 @@
-import type { Board, Horse, Feed, DietEntry, TimeMode } from '@shared/resources';
+import type { Board, Horse, Feed, DietEntry, TimeMode, BoardOrientation } from '@shared/resources';
 import type { UnitType } from '@shared/unit-strategies';
 import { signal } from '@preact/signals';
 import { setPermission as setPermissionStore } from '../stores';
@@ -282,7 +282,22 @@ export async function updateBoard(
   return result.data;
 }
 
+export async function updateOrientation(
+  board_id: string,
+  orientation: BoardOrientation
+): Promise<Board> {
+  const result = await request<ApiResponse<Board>>(`/api/boards/${board_id}/orientation`, {
+    method: 'PUT',
+    body: JSON.stringify({ orientation }),
+  });
+  if (!result.data) {
+    throw new ApiError('Failed to update orientation', 500);
+  }
+  return result.data;
+}
+
 export async function upsertDiet(
+
   horse_id: string,
   feed_id: string,
   am_amount?: number | null,

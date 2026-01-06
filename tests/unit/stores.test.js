@@ -457,7 +457,19 @@ describe('createBoardStore', () => {
       assert.equal(store.board.value.current_page, 2);
       assert.equal(store.current_page.value, 2);
     });
+
+    test('setOrientation updates orientation and resets page', () => {
+      const store = createBoardStore();
+      store.set(mockBoard({ orientation: 'horse-major', current_page: 2 }));
+
+      store.setOrientation('feed-major');
+
+      assert.equal(store.board.value.orientation, 'feed-major');
+      assert.equal(store.orientation.value, 'feed-major');
+      assert.equal(store.board.value.current_page, 0); // Should reset
+    });
   });
+
 
   describe('reconciliation', () => {
     test('SSE source always replaces board', () => {

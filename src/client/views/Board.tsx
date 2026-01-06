@@ -1,9 +1,23 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid/SwimLaneGrid';
-import { horseStore, feedStore, boardStore } from '../stores';
+import { horseStore, feedStore, boardStore, dietStore } from '../stores';
+import { computeGrid } from '../../shared/grid-logic';
 import './Board.css';
 
 export function Board() {
-  const hasData = horseStore.items.value.length > 0;
+  const grid = computeGrid({
+    horses: horseStore.items.value,
+    feeds: feedStore.items.value,
+    diet: dietStore.items.value,
+    orientation: boardStore.orientation.value,
+    timeMode: boardStore.effective_time_mode.value,
+    page: boardStore.current_page.value,
+    pageSize: boardStore.pageSize.value,
+    // TODO: Implement row pagination/cycling for TV
+    rowPage: 0,
+    rowPageSize: 10 // Arbitrary default for TV or calculate based on screen height?
+  });
+
+  const hasData = grid.columns.length > 0;
   const pairCode = boardStore.board.value?.pair_code;
 
   return (
@@ -26,12 +40,19 @@ export function Board() {
 
       <main class="board-content">
         {hasData ? (
-          <SwimLaneGrid
-            horses={horseStore.items}
-            feeds={feedStore.items}
-            timeMode={boardStore.effective_time_mode}
-            isEditable={false}
-          />
+          <>
+            <SwimLaneGrid
+              columns={grid.columns}
+              rows={grid.rows}
+              cells={grid.cells}
+              isEditable={false}
+            />
+            {grid.hasMoreRows && (
+              <div class="breadcrumb-more" data-testid="breadcrumb-more">
+                ↓ {grid.totalRowPages - 1} more below
+              </div>
+            )}
+          </>
         ) : (
           <div class="board-empty" data-testid="board-empty">
             <div class="board-empty-content">

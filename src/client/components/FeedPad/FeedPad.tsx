@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
-import { getStrategyForType, parseEntryOptions, type UnitType, type EntryOptions } from '@shared/unit-strategies';
+import { getStrategyForType, parseEntryOptions, type UnitType } from '@shared/unit-strategies';
 import './FeedPad.css';
 
 interface FeedPadProps {

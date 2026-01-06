@@ -5,9 +5,10 @@ import {
     BoardTab,
     FeedsTab,
     SettingsTab,
+    ReferenceTab,
 } from './Controller';
 
-type ControllerTab = 'horses' | 'feeds' | 'board' | 'settings';
+type ControllerTab = 'horses' | 'feeds' | 'board' | 'reference' | 'settings';
 
 const activeTab = signal<ControllerTab>('horses');
 const selectedHorseId = signal<string | null>(null);
@@ -31,6 +32,7 @@ export function ControllerView() {
                         )}
                         {activeTab.value === 'feeds' && <FeedsTab />}
                         {activeTab.value === 'board' && <BoardTab />}
+                        {activeTab.value === 'reference' && <ReferenceTab />}
                         {activeTab.value === 'settings' && <SettingsTab />}
                     </div>
 
@@ -57,7 +59,15 @@ export function ControllerView() {
                             onClick={() => (activeTab.value = 'board')}
                         >
                             <TabIcon type="board" />
-                            <span>Board</span>
+                            <span>Preview</span>
+                        </button>
+                        <button
+                            class={`tab-btn ${activeTab.value === 'reference' ? 'active' : ''}`}
+                            data-testid="tab-reference"
+                            onClick={() => (activeTab.value = 'reference')}
+                        >
+                            <TabIcon type="reference" />
+                            <span>Ref</span>
                         </button>
                         <button
                             class={`tab-btn ${activeTab.value === 'settings' ? 'active' : ''}`}
@@ -75,7 +85,7 @@ export function ControllerView() {
 }
 
 interface TabIconProps {
-    type: 'horses' | 'feeds' | 'board' | 'settings';
+    type: 'horses' | 'feeds' | 'board' | 'reference' | 'settings';
 }
 
 function TabIcon({ type }: TabIconProps) {
@@ -99,6 +109,16 @@ function TabIcon({ type }: TabIconProps) {
                 <path d="M9 21V9" />
             </svg>
         ),
+        reference: (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 6h13" />
+                <path d="M8 12h13" />
+                <path d="M8 18h13" />
+                <path d="M3 6h.01" />
+                <path d="M3 12h.01" />
+                <path d="M3 18h.01" />
+            </svg>
+        ),
         settings: (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3" />
@@ -109,3 +129,4 @@ function TabIcon({ type }: TabIconProps) {
 
     return icons[type];
 }
+

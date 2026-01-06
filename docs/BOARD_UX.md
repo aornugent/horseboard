@@ -102,9 +102,9 @@ The S / M / L zoom controls don't actually zoom text—they control **horses per
 
 | Zoom | Horses/Page | Use Case |
 |------|-------------|----------|
-| S (Small) | 8 | Small TV, close viewing |
+| S (Small) | 8 | Big TV or close viewing |
 | M (Medium) | 6 | Default, most barns |
-| L (Large) | 4 | Big TV, far viewing, low-vision users |
+| L (Large) | 4 | Small TV, far viewing or low-vision users |
 
 This indirectly affects text size because fewer horses means more space per column.
 
@@ -160,7 +160,7 @@ Tapping the gear (⚙) expands display settings:
 
 ---
 
-## Orientation Toggle (Phase 2)
+## Orientation Toggle 
 
 ### Visual Design
 
@@ -185,7 +185,6 @@ The icons show the visual difference:
 When switching orientation:
 1. Reset to page 0 (avoid confusion)
 2. Re-run sparse filter with new axis logic
-3. Animate the transition (subtle 300ms crossfade)
 
 ---
 
@@ -197,7 +196,7 @@ Feeds often differ by time of day. Morning feeds include supplements; evening fe
 
 The TV shows a prominent badge: **AM** or **PM**
 
-In AUTO mode, this switches at noon. Some barns want 5am / 4pm splits—that's a future enhancement.
+In AUTO mode, this switches at noon. 
 
 ### Override Behavior
 
@@ -223,13 +222,7 @@ Even after sparse filtering, some pages might have 15+ feeds visible. If the TV 
 
 1. Show as many as fit
 2. Add breadcrumb: "↓ 5 more below"
-3. **2D Pagination** (Optional): Prev/Next cycles through feed "sub-pages" before advancing to next horse page
-
-Design decision: Keep this simple in Phase 1. Just show the breadcrumb. Power users can scroll on their phone.
-
-### Too Many Horses (Horizontal Overflow)
-
-Already solved: that's what pagination is for.
+3. **2D Pagination**: Prev/Next cycles through feed "sub-pages" before advancing to next horse page
 
 ### Empty Page
 
@@ -254,15 +247,6 @@ Horses should be orderable. Common patterns:
 
 Phase 2 should add drag-drop reordering or a "sort by" dropdown.
 
-### Dynamic Ordering (Clever But Optional)
-
-Within a page, we could reorder horses by **relevance to visible feeds**:
-- Page shows Feeds A, B, C
-- Horse with all three goes first
-- Horse with only C goes last
-
-This clusters "busy" rows at the top. Might be confusing if order changes per page. Needs user testing.
-
 ---
 
 ## Visual Polish
@@ -273,7 +257,7 @@ When paging:
 - **Crossfade**: 200ms opacity transition
 - **Slide** (optional): Subtle 50px slide in page direction
 
-Avoid jarring cuts. The TV is ambient; it shouldn't startle.
+Avoid jarring cuts. The TV is ambient; it shouldn't startle. The current AM/PM tranisition is already very janky and needs improving.
 
 ### Color & Theming
 
@@ -313,7 +297,7 @@ A new horse arrives. Owner adds it via Controller, assigns feeds. Returns to fee
 
 ---
 
-## Open Questions for Phase 2
+## Future extensions
 
 1. **Portrait vs Landscape detection**: Should the board auto-rotate orientation based on screen aspect ratio?
 

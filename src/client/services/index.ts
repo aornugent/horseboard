@@ -11,6 +11,8 @@ export {
   deleteFeed,
   updateTimeMode,
   updateBoard,
+  updateOrientation,
+
 
   setControllerToken,
   setPermission,

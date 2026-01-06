@@ -7,6 +7,7 @@ import {
   type Horse,
   type Feed,
   type DietEntry,
+  type BoardOrientation,
 } from '@shared/resources';
 import { getEffectiveTimeMode } from '@shared/time-mode';
 
@@ -334,12 +335,15 @@ export interface BoardStore {
   override_until: ReadonlySignal<string | null>;
   zoom_level: ReadonlySignal<number>;
   current_page: ReadonlySignal<number>;
+  orientation: ReadonlySignal<BoardOrientation>;
   effective_time_mode: ReadonlySignal<EffectiveTimeMode>;
+  pageSize: ReadonlySignal<number>;
 
   set: (board: Board, source?: UpdateSource) => void;
   update: (updates: Partial<Board>, source?: UpdateSource) => void;
   updateTimeMode: (mode: TimeMode, override_until_date?: string | null) => void;
   setZoomLevel: (level: number) => void;
+  setOrientation: (orientation: BoardOrientation) => void;
   setCurrentPage: (page: number) => void;
 }
 
@@ -351,6 +355,12 @@ export function createBoardStore(): BoardStore {
   const override_until = computed(() => board.value?.override_until ?? null);
   const zoom_level = computed(() => board.value?.zoom_level ?? 2);
   const current_page = computed(() => board.value?.current_page ?? 0);
+  const orientation = computed<BoardOrientation>(() => board.value?.orientation ?? 'horse-major');
+
+  const pageSize = computed(() => {
+    const level = zoom_level.value;
+    return level === 1 ? 8 : level === 2 ? 6 : 4;
+  });
 
   const effective_time_mode = computed<EffectiveTimeMode>(() => {
     return getEffectiveTimeMode(configured_mode.value, override_until.value, timezone.value);
@@ -363,6 +373,8 @@ export function createBoardStore(): BoardStore {
     override_until,
     zoom_level,
     current_page,
+    orientation,
+    pageSize,
     effective_time_mode,
 
     set(newBoard: Board, source: UpdateSource = 'api') {
@@ -378,8 +390,9 @@ export function createBoardStore(): BoardStore {
         ...board.value,
         ...updates,
         updated_at: new Date().toISOString(),
-      };
+      } as Board;
 
+      // Ensure orientation is preserved/updated correctly if passed in updates
       if (shouldReplace(board.value, updated, source)) {
         board.value = updated;
       }
@@ -401,6 +414,17 @@ export function createBoardStore(): BoardStore {
         board.value = {
           ...board.value,
           zoom_level: level,
+          updated_at: new Date().toISOString(),
+        };
+      }
+    },
+
+    setOrientation(newOrientation: BoardOrientation) {
+      if (board.value) {
+        board.value = {
+          ...board.value,
+          orientation: newOrientation,
+          current_page: 0, // Reset page when orientation changes
           updated_at: new Date().toISOString(),
         };
       }

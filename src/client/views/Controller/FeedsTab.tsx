@@ -4,7 +4,7 @@ import { Modal } from '../../components/Modal';
 import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
-import { type UnitType, UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
+import { UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
 import './FeedsTab.css';
 
 // Default unit definition for UI selection
