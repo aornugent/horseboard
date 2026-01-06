@@ -1,41 +1,69 @@
 import { signal, computed } from '@preact/signals';
-import { FeedCard } from '../../components/FeedCard';
+import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feeds, addFeed, removeFeed, updateFeed, board, dietEntries, canEdit } from '../../stores';
+import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
-import { UNITS, UNIT_LABELS, DEFAULT_UNIT, type Unit, type Feed } from '@shared/resources';
+import { type Feed } from '@shared/resources';
+import { type UnitType, UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
 import './FeedsTab.css';
 
-// ... (keep local state) ...
+// Default unit definition for UI selection
+const DEFAULT_UNIT_ID: UnitTypeOptionId = 'scoop';
+
+
+
 const searchQuery = signal('');
 const isAddingFeed = signal(false);
 const newFeedName = signal('');
-const newFeedUnit = signal<Unit>(DEFAULT_UNIT);
+const newFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID);
 const editingFeed = signal<Feed | null>(null);
+const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
 const deletingFeed = signal<Feed | null>(null);
 
-// ... (keep computed and helpers) ...
+const board = boardStore.board;
+const dietEntries = dietStore.items;
+
+const addFeed = (feed: Feed) => feedStore.add(feed);
+const updateFeed = (id: string, feed: Feed) => feedStore.update(id, feed);
+
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  if (!query) return feeds.value;
-  return feeds.value.filter(f => f.name.toLowerCase().includes(query));
+  if (!query) return feedStore.items.value;
+  return feedStore.items.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
 function countHorsesUsingFeed(feedId: string): number {
   return dietEntries.value.filter(
-    entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount)
+    entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount || entry.am_variant || entry.pm_variant)
   ).length;
 }
 
-async function handleCreateFeed(name: string, unit: Unit) {
+// Helper to find unit ID from feed properties
+function getUnitId(feed: Feed): UnitTypeOptionId {
+  // Simple heuristic mapping
+  if (feed.unit_type === 'fraction' && feed.unit_label === 'scoop') return 'scoop';
+  if (feed.unit_type === 'decimal' && feed.unit_label === 'ml') return 'ml';
+  if (feed.unit_type === 'int' && feed.unit_label === 'biscuit') return 'biscuit';
+  return 'scoop'; // Default fallback
+}
+
+async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
   if (!board.value) return;
 
+  const unitConfig = UNIT_TYPE_OPTIONS.find(u => u.id === unitId) || UNIT_TYPE_OPTIONS[0];
+
   try {
-    const feed = await apiCreateFeed(board.value.id, name, unit);
+    const feed = await apiCreateFeed(
+      board.value.id,
+      name,
+      unitConfig.type,
+      unitConfig.unitLabel,
+      null
+    );
     addFeed(feed);
     isAddingFeed.value = false;
     newFeedName.value = '';
-    newFeedUnit.value = DEFAULT_UNIT;
+    newFeedUnitId.value = DEFAULT_UNIT_ID;
   } catch (err) {
     console.error('Failed to create feed:', err);
   }
@@ -44,27 +72,27 @@ async function handleCreateFeed(name: string, unit: Unit) {
 async function handleDeleteFeed(id: string) {
   try {
     await apiDeleteFeed(id);
-    removeFeed(id);
+    feedStore.remove(id);
     deletingFeed.value = null;
   } catch (err) {
     console.error('Failed to delete feed:', err);
   }
 }
 
-async function handleSaveFeedEdit(feed: Feed) {
+async function handleSaveFeedEdit(feed: Feed, unitId: UnitTypeOptionId) {
+  const unitConfig = UNIT_TYPE_OPTIONS.find(u => u.id === unitId) || UNIT_TYPE_OPTIONS[0];
   try {
-    const updated = await apiUpdateFeed(feed.id, { name: feed.name, unit: feed.unit });
+    const updated = await apiUpdateFeed(feed.id, {
+      name: feed.name,
+      unit_type: unitConfig.type,
+      unit_label: unitConfig.unitLabel
+    });
     updateFeed(feed.id, updated);
     editingFeed.value = null;
   } catch (err) {
     console.error('Failed to update feed:', err);
   }
 }
-
-const UNIT_OPTIONS = UNITS.map(unit => ({
-  value: unit,
-  label: UNIT_LABELS[unit],
-}));
 
 export function FeedsTab() {
   const canEditBoard = canEdit();
@@ -110,14 +138,16 @@ export function FeedsTab() {
               key={feed.id}
               feed={feed}
               horseCount={countHorsesUsingFeed(feed.id)}
-              onEdit={canEditBoard ? () => { editingFeed.value = { ...feed }; } : undefined}
+              onEdit={canEditBoard ? () => {
+                editingFeed.value = { ...feed };
+                editingFeedUnitId.value = getUnitId(feed);
+              } : undefined}
               onDelete={canEditBoard ? () => { deletingFeed.value = feed; } : undefined}
             />
           ))
         )}
       </div>
 
-      {/* Add Feed Modal */}
       {/* Add Feed Modal */}
       <Modal
         isOpen={isAddingFeed.value}
@@ -126,7 +156,7 @@ export function FeedsTab() {
         onClose={() => {
           isAddingFeed.value = false;
           newFeedName.value = '';
-          newFeedUnit.value = DEFAULT_UNIT;
+          newFeedUnitId.value = DEFAULT_UNIT_ID;
         }}
       >
         <div class="modal-field">
@@ -145,12 +175,12 @@ export function FeedsTab() {
         <div class="modal-field">
           <label class="modal-label">Unit</label>
           <div class="unit-selector" data-testid="new-feed-unit">
-            {UNIT_OPTIONS.map(u => (
+            {UNIT_TYPE_OPTIONS.map(u => (
               <button
-                key={u.value}
-                class={`unit-btn ${newFeedUnit.value === u.value ? 'active' : ''}`}
-                data-testid={`unit-btn-${u.value}`}
-                onClick={() => { newFeedUnit.value = u.value; }}
+                key={u.id}
+                class={`unit-btn ${newFeedUnitId.value === u.id ? 'active' : ''}`}
+                data-testid={`unit-btn-${u.id}`}
+                onClick={() => { newFeedUnitId.value = u.id as UnitTypeOptionId; }}
               >
                 {u.label}
               </button>
@@ -164,7 +194,7 @@ export function FeedsTab() {
             onClick={() => {
               isAddingFeed.value = false;
               newFeedName.value = '';
-              newFeedUnit.value = DEFAULT_UNIT;
+              newFeedUnitId.value = DEFAULT_UNIT_ID;
             }}
           >
             Cancel
@@ -173,14 +203,13 @@ export function FeedsTab() {
             class="modal-btn modal-btn-confirm"
             data-testid="confirm-add-feed"
             disabled={!newFeedName.value.trim()}
-            onClick={() => handleCreateFeed(newFeedName.value.trim(), newFeedUnit.value)}
+            onClick={() => handleCreateFeed(newFeedName.value.trim(), newFeedUnitId.value)}
           >
             Add Feed
           </button>
         </div>
       </Modal>
 
-      {/* Edit Feed Modal */}
       {/* Edit Feed Modal */}
       <Modal
         isOpen={!!editingFeed.value}
@@ -210,15 +239,13 @@ export function FeedsTab() {
             <div class="modal-field">
               <label class="modal-label">Unit</label>
               <div class="unit-selector" data-testid="edit-feed-unit">
-                {UNIT_OPTIONS.map(u => (
+                {UNIT_TYPE_OPTIONS.map(u => (
                   <button
-                    key={u.value}
-                    class={`unit-btn ${editingFeed.value?.unit === u.value ? 'active' : ''}`}
-                    data-testid={`edit-unit-btn-${u.value}`}
+                    key={u.id}
+                    class={`unit-btn ${editingFeedUnitId.value === u.id ? 'active' : ''}`}
+                    data-testid={`edit-unit-btn-${u.id}`}
                     onClick={() => {
-                      if (editingFeed.value) {
-                        editingFeed.value = { ...editingFeed.value, unit: u.value };
-                      }
+                      editingFeedUnitId.value = u.id as UnitTypeOptionId;
                     }}
                   >
                     {u.label}
@@ -238,7 +265,7 @@ export function FeedsTab() {
                 class="modal-btn modal-btn-confirm"
                 data-testid="confirm-edit-feed"
                 disabled={!editingFeed.value.name.trim()}
-                onClick={() => editingFeed.value && handleSaveFeedEdit(editingFeed.value)}
+                onClick={() => editingFeed.value && handleSaveFeedEdit(editingFeed.value, editingFeedUnitId.value)}
               >
                 Save Changes
               </button>
@@ -247,7 +274,6 @@ export function FeedsTab() {
         )}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={!!deletingFeed.value}

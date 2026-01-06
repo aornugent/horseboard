@@ -1,5 +1,5 @@
-import { SwimLaneGrid } from '../../components/SwimLaneGrid';
-import { horses, feeds, effectiveTimeMode, configuredMode, zoomLevel, updateTimeMode, board, setCurrentPage, currentPage, setZoomLevel } from '../../stores';
+import { SwimLaneGrid } from '../../components/SwimLaneGrid/SwimLaneGrid';
+import { horseStore, feedStore, boardStore } from '../../stores';
 import './BoardTab.css';
 
 import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode } from '../../services';
@@ -7,18 +7,18 @@ import { TIME_MODE, TIME_MODE_CONFIG, type TimeMode } from '../../../shared/reso
 import { useSignal } from '@preact/signals';
 
 async function changePage(delta: number) {
-  if (!board.value) return;
-  const newPage = Math.max(0, (currentPage.value || 0) + delta);
+  if (!boardStore.board.value) return;
+  const newPage = Math.max(0, (boardStore.current_page.value || 0) + delta);
   try {
-    await apiUpdateBoard(board.value.id, { current_page: newPage });
-    setCurrentPage(newPage);
+    await apiUpdateBoard(boardStore.board.value.id, { current_page: newPage });
+    boardStore.setCurrentPage(newPage);
   } catch (err) {
     console.error('Failed to update page:', err);
   }
 }
 
 async function changeTimeMode(mode: TimeMode) {
-  if (!board.value) return;
+  if (!boardStore.board.value) return;
 
   // Calculate override expiry (1 hour) for non-AUTO modes, matching SettingsTab behavior
   const override_until = mode !== TIME_MODE.AUTO
@@ -26,18 +26,18 @@ async function changeTimeMode(mode: TimeMode) {
     : null;
 
   try {
-    await apiUpdateTimeMode(board.value.id, mode, override_until);
-    updateTimeMode(mode, override_until);  // Update local store so UI reflects change
+    await apiUpdateTimeMode(boardStore.board.value.id, mode, override_until);
+    boardStore.updateTimeMode(mode, override_until);  // Update local store so UI reflects change
   } catch (err) {
     console.error('Failed to update time mode:', err);
   }
 }
 
 async function changeZoom(level: 1 | 2 | 3) {
-  if (!board.value) return;
+  if (!boardStore.board.value) return;
   try {
-    await apiUpdateBoard(board.value.id, { zoom_level: level });
-    setZoomLevel(level);
+    await apiUpdateBoard(boardStore.board.value.id, { zoom_level: level });
+    boardStore.setZoomLevel(level);
   } catch (err) {
     console.error('Failed to update zoom:', err);
   }
@@ -50,19 +50,19 @@ export function BoardTab() {
     <div class="board-tab" data-testid="board-tab">
       <div class="board-tab-header">
         <h2 class="board-tab-title">Board Preview</h2>
-        <span class="board-tab-badge">{effectiveTimeMode.value}</span>
+        <span class="board-tab-badge">{boardStore.effective_time_mode.value}</span>
       </div>
 
       <div class="board-controls">
         <button
           class="board-control-btn"
           onClick={() => changePage(-1)}
-          disabled={(currentPage.value || 0) <= 0}
+          disabled={(boardStore.current_page.value || 0) <= 0}
           data-testid="prev-page-btn"
         >
           ◀ Previous
         </button>
-        <span class="board-page-indicator">Page {(currentPage.value || 0) + 1}</span>
+        <span class="board-page-indicator">Page {(boardStore.current_page.value || 0) + 1}</span>
         <button
           class="board-control-btn"
           onClick={() => changePage(1)}
@@ -78,13 +78,13 @@ export function BoardTab() {
 
       <div
         class="board-preview"
-        data-theme={effectiveTimeMode.value.toLowerCase()}
+        data-theme={boardStore.effective_time_mode.value.toLowerCase()}
       >
         <div class="board-preview-content">
           <SwimLaneGrid
-            horses={horses}
-            feeds={feeds}
-            timeMode={effectiveTimeMode}
+            horses={horseStore.items}
+            feeds={feedStore.items}
+            timeMode={boardStore.effective_time_mode}
             isEditable={false}
           />
         </div>
@@ -108,7 +108,7 @@ export function BoardTab() {
                 {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
                   <button
                     key={mode}
-                    class={`board-control-option ${configuredMode.value === mode ? 'active' : ''}`}
+                    class={`board-control-option ${boardStore.configured_mode.value === mode ? 'active' : ''}`}
                     onClick={() => changeTimeMode(mode)}
                     data-testid={`time-mode-${mode.toLowerCase()}`}
                     title={TIME_MODE_CONFIG[mode].description}
@@ -123,21 +123,21 @@ export function BoardTab() {
               <label class="board-control-label">Zoom</label>
               <div class="board-control-buttons">
                 <button
-                  class={`board-control-option ${zoomLevel.value === 1 ? 'active' : ''}`}
+                  class={`board-control-option ${boardStore.zoom_level.value === 1 ? 'active' : ''}`}
                   onClick={() => changeZoom(1)}
                   data-testid="zoom-level-1"
                 >
                   S
                 </button>
                 <button
-                  class={`board-control-option ${zoomLevel.value === 2 ? 'active' : ''}`}
+                  class={`board-control-option ${boardStore.zoom_level.value === 2 ? 'active' : ''}`}
                   onClick={() => changeZoom(2)}
                   data-testid="zoom-level-2"
                 >
                   M
                 </button>
                 <button
-                  class={`board-control-option ${zoomLevel.value === 3 ? 'active' : ''}`}
+                  class={`board-control-option ${boardStore.zoom_level.value === 3 ? 'active' : ''}`}
                   onClick={() => changeZoom(3)}
                   data-testid="zoom-level-3"
                 >

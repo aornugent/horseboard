@@ -1,8 +1,8 @@
 import { useState } from 'preact/hooks';
 import { signal, computed } from '@preact/signals';
-import { FeedPad } from '../../components/FeedPad';
-import { formatQuantity } from '@shared/fractions';
-import { getHorse, feeds, getFeed, dietByHorse, updateDietAmount, getDietEntry, updateHorse as storeUpdateHorse, removeHorse, canEdit } from '../../stores';
+import { FeedPad } from '../../components/FeedPad/FeedPad';
+import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
+import { horseStore, feedStore, dietStore, canEdit } from '../../stores';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 import './HorseDetail.css';
 
@@ -24,17 +24,17 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
   const canEditBoard = canEdit();
 
-  const horse = getHorse(horseId);
+  const horse = horseStore.get(horseId);
 
   const activeFeeds = computed(() => {
-    const entries = dietByHorse.value.get(horseId) ?? [];
+    const entries = dietStore.byHorse.value.get(horseId) ?? [];
     const activeFeedIds = new Set(
       entries
-        .filter((e) => e.am_amount !== null || e.pm_amount !== null)
+        .filter((e) => e.am_amount !== null || e.pm_amount !== null || !!e.am_variant || !!e.pm_variant)
         .map((e) => e.feed_id)
     );
 
-    return feeds.value.sort((a, b) => {
+    return feedStore.items.value.sort((a, b) => {
       const aActive = activeFeedIds.has(a.id);
       const bActive = activeFeedIds.has(b.id);
       if (aActive && !bActive) return -1;
@@ -53,21 +53,30 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getCurrentValue = (): number | null => {
     if (!selectedFeed) return null;
-    const entry = getDietEntry(horseId, selectedFeed.feed_id);
+    const entry = dietStore.get(horseId, selectedFeed.feed_id);
     return entry?.[selectedFeed.field] ?? null;
   };
 
-  const handleConfirm = async (value: number | null) => {
+  const getCurrentVariant = (): string | null => {
+    if (!selectedFeed) return null;
+    const entry = dietStore.get(horseId, selectedFeed.feed_id);
+    return selectedFeed.field === 'am_amount' ? entry?.am_variant ?? null : entry?.pm_variant ?? null;
+  };
+
+  const handleConfirm = async (value: number | null, variant: string | null) => {
     if (!selectedFeed) return;
 
-    updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
 
-    const currentEntry = getDietEntry(horseId, selectedFeed.feed_id);
+    dietStore.updateAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
+
+    const currentEntry = dietStore.get(horseId, selectedFeed.feed_id);
     const am_amount = selectedFeed.field === 'am_amount' ? value : currentEntry?.am_amount;
     const pm_amount = selectedFeed.field === 'pm_amount' ? value : currentEntry?.pm_amount;
+    const am_variant = selectedFeed.field === 'am_amount' ? variant : currentEntry?.am_variant;
+    const pm_variant = selectedFeed.field === 'pm_amount' ? variant : currentEntry?.pm_variant;
 
     try {
-      await upsertDiet(horseId, selectedFeed.feed_id, am_amount, pm_amount);
+      await upsertDiet(horseId, selectedFeed.feed_id, am_amount, pm_amount, am_variant, pm_variant);
     } catch (error) {
       console.error('Failed to save diet entry:', error);
       alert('Failed to save changes. Please check your connection and try again.');
@@ -75,11 +84,13 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   };
 
   const getSelectedFeedInfo = () => {
-    if (!selectedFeed) return { name: '', unit: '' };
-    const feed = getFeed(selectedFeed.feed_id);
+    if (!selectedFeed) return { name: '', unitType: 'fraction' as const, unitLabel: 'scoop', entryOptions: null };
+    const feed = feedStore.get(selectedFeed.feed_id);
     return {
       name: feed?.name ?? '',
-      unit: feed?.unit ?? '',
+      unitType: feed?.unit_type ?? 'fraction',
+      unitLabel: feed?.unit_label ?? 'scoop',
+      entryOptions: feed?.entry_options ?? null,
     };
   };
 
@@ -94,7 +105,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
     try {
       const updated = await apiUpdateHorse(horseId, { name: newName });
-      storeUpdateHorse(horseId, updated);
+      horseStore.update(horseId, updated);
       isEditing.value = false;
     } catch (err) {
       console.error('Failed to update horse:', err);
@@ -113,7 +124,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const handleConfirmDelete = async () => {
     try {
       await apiDeleteHorse(horseId);
-      removeHorse(horseId);
+      horseStore.remove(horseId);
       isDeleting.value = false;
       onBack();
     } catch (err) {
@@ -202,9 +213,14 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
       <div class="feed-tiles" data-testid="feed-tiles">
         {activeFeeds.value.map((feed) => {
-          const entry = getDietEntry(horseId, feed.id);
+          const entry = dietStore.get(horseId, feed.id);
           const amValue = entry?.am_amount;
           const pmValue = entry?.pm_amount;
+
+          const strategy = getStrategyForType(feed.unit_type);
+          const options = parseEntryOptions(feed.entry_options, feed.unit_type);
+          const amDisplay = strategy.formatDisplay(amValue ?? null, entry?.am_variant ?? null, options, feed.unit_label) || '—';
+          const pmDisplay = strategy.formatDisplay(pmValue ?? null, entry?.pm_variant ?? null, options, feed.unit_label) || '—';
 
           return (
             <div
@@ -214,7 +230,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
             >
               <div class="feed-tile-header">
                 <span class="feed-tile-name">{feed.name}</span>
-                <span class="feed-tile-unit">{feed.unit}</span>
+                <span class="feed-tile-unit">{feed.unit_label}</span>
               </div>
               <div class="feed-tile-values">
                 <button
@@ -225,7 +241,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 >
                   <span class="value-label">AM</span>
                   <span class="value-amount">
-                    {formatQuantity(amValue ?? null, feed.unit) || '—'}
+                    {amDisplay}
                   </span>
                 </button>
 
@@ -237,7 +253,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 >
                   <span class="value-label">PM</span>
                   <span class="value-amount">
-                    {formatQuantity(pmValue ?? null, feed.unit) || '—'}
+                    {pmDisplay}
                   </span>
                 </button>
               </div>
@@ -249,10 +265,13 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       <FeedPad
         isOpen={!!selectedFeed}
         currentValue={getCurrentValue()}
+        currentVariant={getCurrentVariant()}
         onConfirm={handleConfirm}
         onClose={() => setSelectedFeed(null)}
         feedName={feedInfo.name}
-        unit={feedInfo.unit}
+        unitType={feedInfo.unitType}
+        unitLabel={feedInfo.unitLabel}
+        entryOptions={feedInfo.entryOptions}
       />
 
       {isEditing.value && (

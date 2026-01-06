@@ -159,7 +159,7 @@ function createCollectionStore<T extends Timestamped>(keyFn: KeyFn<T>): Collecti
 }
 
 export interface ResourceStore<T extends { id: string } & Timestamped>
-  extends CollectionStore<T> {}
+  extends CollectionStore<T> { }
 
 export function createResourceStore<T extends { id: string } & Timestamped>(): CollectionStore<T> {
   return createCollectionStore<T>((item) => item.id);
@@ -297,6 +297,8 @@ export function createDietStore(): DietStore {
           feed_id,
           am_amount: field === 'am_amount' ? value : null,
           pm_amount: field === 'pm_amount' ? value : null,
+          am_variant: null,
+          pm_variant: null,
           created_at: now,
           updated_at: now,
         };
@@ -317,7 +319,9 @@ export function createDietStore(): DietStore {
       return entries.filter(
         (e) =>
           (e.am_amount !== null && e.am_amount !== 0) ||
-          (e.pm_amount !== null && e.pm_amount !== 0)
+          (e.pm_amount !== null && e.pm_amount !== 0) ||
+          !!e.am_variant ||
+          !!e.pm_variant
       ).length;
     },
   };

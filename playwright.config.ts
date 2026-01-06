@@ -30,19 +30,27 @@ export default defineConfig({
   // Reporter to use
   reporter: 'html',
 
+  // Stop after first failure for fast feedback
+  maxFailures: 5,
+
   // Shared settings for all the projects below
   use: {
     // Base URL for all tests
     baseURL: 'http://localhost:5173',
 
-    // Fail faster on broken selectors - 5s default, use explicit timeout for slow ops
-    actionTimeout: 5000,
+    // Fail faster on broken selectors - 1.5s default
+    actionTimeout: 1500,
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
 
     // Take screenshot on failure
     screenshot: 'only-on-failure',
+  },
+
+  // Global expect timeout - fail fast on assertions
+  expect: {
+    timeout: 1500,
   },
 
   // Configure projects for major browsers

@@ -20,7 +20,7 @@ test.describe('Session Persistence', () => {
     await ownerPage.reload();
 
     // Should still be on controller (auto-redirect from /)
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
 
     // Verify session restored: Still owner with admin permissions
     await ownerPage.locator('[data-testid="tab-settings"]').click();
@@ -40,7 +40,7 @@ test.describe('Session Persistence', () => {
     await visitorPage.reload();
 
     // Should still be on controller
-    await expect(visitorPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+    await expect(visitorPage.locator('[data-testid="controller-view"]')).toBeVisible();
 
     // Verify session restored: Still view-only (no add button)
     await expect(visitorPage.locator(selectors.addHorseBtn)).not.toBeVisible();
@@ -86,7 +86,7 @@ test.describe('Session Persistence', () => {
       await userPage.locator(selectors.inviteInput).fill(inviteCode);
       await userPage.locator(selectors.inviteSubmit).click();
 
-      await expect(userPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 8000 });
+      await expect(userPage.locator(selectors.horsesTab)).toBeVisible();
       await userPage.locator('[data-testid="tab-horses"]').click();
 
       // Verify edit access
@@ -96,7 +96,7 @@ test.describe('Session Persistence', () => {
       await userPage.reload();
 
       // Should still be on controller
-      await expect(userPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(userPage.locator('[data-testid="controller-view"]')).toBeVisible();
 
       // Verify session restored: Still edit (has add button)
       await expect(userPage.locator(selectors.addHorseBtn)).toBeVisible();
@@ -124,7 +124,7 @@ test.describe('Session Persistence', () => {
     expect(persistedBoardId).toBe(ownerBoardId);
 
     // Should auto-redirect to controller (not show landing page)
-    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+    await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
   });
 
   test('clears session when signing out', async ({ browser }) => {
@@ -143,7 +143,7 @@ test.describe('Session Persistence', () => {
       await page.locator('[data-testid="submit-btn"]').click();
 
       // Should redirect to controller after signup
-      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
       // Capture board ID
       const boardId = await page.evaluate(() => localStorage.getItem('hb_board_id'));
@@ -157,7 +157,7 @@ test.describe('Session Persistence', () => {
       await page.locator(selectors.signOutBtn).click();
 
       // Should stay on controller (board ID persists)
-      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
 
       // Check settings - should now show sign in option (not account name)
       await page.locator('[data-testid="tab-settings"]').click();
@@ -176,7 +176,7 @@ test.describe('Session Persistence', () => {
     await ownerPage.goto('/');
 
     // Should auto-redirect to controller (not show landing page)
-    await expect(ownerPage).toHaveURL(/\/controller/, { timeout: 5000 });
+    await expect(ownerPage).toHaveURL(/\/controller/);
     await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
   });
 });

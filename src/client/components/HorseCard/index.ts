@@ -1,1 +1,0 @@
-export { HorseCard } from './HorseCard';

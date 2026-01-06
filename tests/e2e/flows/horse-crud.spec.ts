@@ -22,7 +22,7 @@ test.describe('Horse CRUD Operations', () => {
 
       // Reload to pick up new data
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
 
       // Verify both horse cards are visible
       await expect(ownerPage.locator(selectors.horseCard(horse1.id))).toBeVisible();
@@ -99,7 +99,7 @@ test.describe('Horse CRUD Operations', () => {
 
       // Reload to see it
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
 
       // Click on horse card to open detail view
       await ownerPage.locator(selectors.horseCard(horse.id)).click();
@@ -147,7 +147,7 @@ test.describe('Horse CRUD Operations', () => {
 
       // Reload
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
 
       // Click on horse card to open detail view
       await ownerPage.locator(selectors.horseCard(horse.id)).click();

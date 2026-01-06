@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requirePermission } from '../lib/auth';
+import { authenticate } from '../lib/auth';
 import type { RouteContext } from './types';
 import crypto from 'crypto';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router 
 
     // Poll for provisioning status (TV)
     // GET /api/devices/poll?code=XYZ
+    // No auth required - device provisioning flow
     router.get('/poll', (req: Request, res: Response) => {
         const code = req.query.code as string;
         if (!code) {
@@ -47,9 +48,9 @@ export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router 
         if (data.token) {
             // Provisioning complete!
             res.json({ success: true, data: { token: data.token } });
-            // Clean up after successful handoff? 
-            // Maybe keep it briefly or delete immediately. 
-            // If we delete immediately, valid retry might fail. 
+            // Clean up after successful handoff?
+            // Maybe keep it briefly or delete immediately.
+            // If we delete immediately, valid retry might fail.
             // Let's delete it.
             provisioningStore.delete(code);
         } else {
@@ -58,9 +59,9 @@ export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router 
     });
 
     // GET /api/devices/me - resolve current token to board info
-    // Requires 'view' permission (which validates the token)
-    router.get('/me', requirePermission('view'), (req: Request, res: Response) => {
-        const { token_id, board_id, permission } = req.authContext!;
+    // Requires valid authentication (token or session)
+    router.get('/me', authenticate(), (req: Request, res: Response) => {
+        const { token_id, board_id, permission } = req.auth!;
 
         // If no token ID, they might be using session auth, which is fine but
         // this endpoint is primarily for token resolution.
@@ -81,27 +82,24 @@ export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router 
 
     // Link device to board (Controller)
     // POST /api/devices/link
-    router.post('/link', requirePermission('view'), validate(LinkDeviceSchema), (req: Request, res: Response) => {
+    router.post('/link', authenticate(), validate(LinkDeviceSchema), (req: Request, res: Response) => {
         const { code, board_id } = req.body;
-        const { user_id } = req.authContext!;
+        const { user_id } = req.auth!;
 
         // Verify user owns the board (admin rights)
         const board = repos.boards.getById(board_id);
         if (!board) {
-            res.status(404).json({ success: false, error: 'Board not found' });
-            return;
+            return res.status(404).json({ success: false, error: 'Board not found' });
         }
 
         if (board.account_id !== user_id) {
             // Only owner can link devices
-            res.status(403).json({ success: false, error: 'Insufficient permissions' });
-            return;
+            return res.status(403).json({ success: false, error: 'Insufficient permissions' });
         }
 
         const data = provisioningStore.get(code);
         if (!data) {
-            res.status(404).json({ success: false, error: 'Device code not found or expired' });
-            return;
+            return res.status(404).json({ success: false, error: 'Device code not found or expired' });
         }
 
         // Generate token
@@ -132,13 +130,13 @@ export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router 
 
     // List linked devices
     // GET /api/devices
-    router.get('/', requirePermission('view'), (req: Request, res: Response) => {
-        const { user_id } = req.authContext!;
+    router.get('/', authenticate(), (req: Request, res: Response) => {
+        const { user_id } = req.auth!;
 
         // Get all boards owned by user
-        // We don't have a direct `boards.getByUser`? 
-        // `getAll` returns all boards? No, that would be bad. 
-        // `boards.ts` `getAll` returns all. 
+        // We don't have a direct `boards.getByUser`?
+        // `getAll` returns all boards? No, that would be bad.
+        // `boards.ts` `getAll` returns all.
         // We need to filter.
         const allBoards = repos.boards.getAll(); // Ideally we should have `getByowner`
         const myBoards = allBoards.filter(b => b.account_id === user_id);
@@ -155,19 +153,17 @@ export function createDevicesRouter(ctx: RouteContext, sse: SSEManager): Router 
 
     // Unlink device
     // DELETE /api/devices/:id
-    router.delete('/:id', requirePermission('view'), (req: Request, res: Response) => {
+    router.delete('/:id', authenticate(), (req: Request, res: Response) => {
         const token = repos.controllerTokens.getById(req.params.id);
         if (!token) {
-            res.status(404).json({ success: false, error: 'Device not found' });
-            return;
+            return res.status(404).json({ success: false, error: 'Device not found' });
         }
 
-        const { user_id } = req.authContext!;
+        const { user_id } = req.auth!;
         const board = repos.boards.getById(token.board_id);
 
         if (!board || board.account_id !== user_id) {
-            res.status(403).json({ success: false, error: 'Insufficient permissions' });
-            return;
+            return res.status(403).json({ success: false, error: 'Insufficient permissions' });
         }
 
         repos.controllerTokens.delete(req.params.id);

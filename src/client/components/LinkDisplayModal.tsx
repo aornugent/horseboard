@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals';
 import { linkDevice } from '../services';
-import { board } from '../stores';
+import { boardStore } from '../stores';
 
 interface Props {
   onClose: () => void;
@@ -14,13 +14,13 @@ const isLoading = signal(false);
 export function LinkDisplayModal({ onClose, onSuccess }: Props) {
   async function handleSubmit(e: Event) {
     e.preventDefault();
-    if (!board.value) return;
+    if (!boardStore.board.value) return;
 
     isLoading.value = true;
     error.value = null;
 
     try {
-      await linkDevice(code.value.toUpperCase(), board.value.id);
+      await linkDevice(code.value.toUpperCase(), boardStore.board.value.id);
       code.value = '';
       onSuccess();
       onClose();
