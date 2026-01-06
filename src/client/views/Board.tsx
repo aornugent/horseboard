@@ -12,9 +12,8 @@ export function Board() {
     timeMode: boardStore.effective_time_mode.value,
     page: boardStore.current_page.value,
     pageSize: boardStore.pageSize.value,
-    // TODO: Implement row pagination/cycling for TV
-    rowPage: 0,
-    rowPageSize: 10 // Arbitrary default for TV or calculate based on screen height?
+    rowPage: 0, // TODO: Implement row pagination/cycling for TV
+    rowPageSize: boardStore.rowPageSize.value
   });
 
   const hasData = grid.columns.length > 0;
@@ -49,7 +48,7 @@ export function Board() {
             />
             {grid.hasMoreRows && (
               <div class="breadcrumb-more" data-testid="breadcrumb-more">
-                ↓ {grid.totalRowPages - 1} more below
+                ↓ {grid.remainingRows} more feeds below
               </div>
             )}
           </>

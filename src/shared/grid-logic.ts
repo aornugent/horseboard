@@ -38,6 +38,7 @@ export interface GridOutput {
     totalColumnPages: number;
     totalRowPages: number;
     hasMoreRows: boolean;
+    remainingRows: number;
 }
 
 export function computeGrid(input: GridInput): GridOutput {
@@ -114,6 +115,7 @@ export function computeGrid(input: GridInput): GridOutput {
     const totalRowPages = Math.ceil(visibleSecondaryItemsAll.length / rowPageSize) || 1;
     const visibleSecondaryItems = visibleSecondaryItemsAll.slice(rowPage * rowPageSize, (rowPage + 1) * rowPageSize);
     const hasMoreRows = (rowPage + 1) * rowPageSize < visibleSecondaryItemsAll.length;
+    const remainingRows = Math.max(0, visibleSecondaryItemsAll.length - (rowPage + 1) * rowPageSize);
 
     // 6. Build GridOutput
     const columns: GridItem[] = visiblePrimaryItems.map(item => ({
@@ -174,6 +176,7 @@ export function computeGrid(input: GridInput): GridOutput {
         cells,
         totalColumnPages,
         totalRowPages,
-        hasMoreRows
+        hasMoreRows,
+        remainingRows
     };
 }

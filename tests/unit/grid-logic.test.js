@@ -238,6 +238,36 @@ describe('row pagination (2D)', () => {
         assert.strictEqual(p1.rows.length, 5);
         assert.notDeepStrictEqual(p0.rows.map(r => r.id), p1.rows.map(r => r.id));
     });
+
+    test('remainingRows shows correct count on first row page', async () => {
+        const r = computeGrid({
+            horses: [horses[0]], feeds: manyFeeds, diet: bigDiet,
+            orientation: 'horse-major', timeMode: 'AM', page: 0, pageSize: 10, rowPage: 0, rowPageSize: 3,
+        });
+        assert.strictEqual(r.remainingRows, 7, '10 total - 3 visible = 7 remaining');
+    });
+
+    test('remainingRows shows correct count on middle row page', async () => {
+        const r = computeGrid({
+            horses: [horses[0]], feeds: manyFeeds, diet: bigDiet,
+            orientation: 'horse-major', timeMode: 'AM', page: 0, pageSize: 10, rowPage: 1, rowPageSize: 3,
+        });
+        assert.strictEqual(r.remainingRows, 4, '10 total - 6 shown = 4 remaining');
+    });
+
+    test('remainingRows is 0 on last row page', async () => {
+        const r = computeGrid({
+            horses: [horses[0]], feeds: manyFeeds, diet: bigDiet,
+            orientation: 'horse-major', timeMode: 'AM', page: 0, pageSize: 10, rowPage: 3, rowPageSize: 3,
+        });
+        assert.strictEqual(r.remainingRows, 0);
+        assert.strictEqual(r.hasMoreRows, false);
+    });
+
+    test('remainingRows is 0 when all rows fit', async () => {
+        const r = computeGrid({ horses, feeds, diet, orientation: 'horse-major', timeMode: 'AM', page: 0, pageSize: 10 });
+        assert.strictEqual(r.remainingRows, 0);
+    });
 });
 
 // ==========================================================================

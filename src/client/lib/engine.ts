@@ -338,6 +338,7 @@ export interface BoardStore {
   orientation: ReadonlySignal<BoardOrientation>;
   effective_time_mode: ReadonlySignal<EffectiveTimeMode>;
   pageSize: ReadonlySignal<number>;
+  rowPageSize: ReadonlySignal<number>;
 
   set: (board: Board, source?: UpdateSource) => void;
   update: (updates: Partial<Board>, source?: UpdateSource) => void;
@@ -362,6 +363,9 @@ export function createBoardStore(): BoardStore {
     return level === 1 ? 8 : level === 2 ? 6 : 4;
   });
 
+  // Default row page size for TV display (number of feeds visible at once)
+  const rowPageSize = computed(() => 10);
+
   const effective_time_mode = computed<EffectiveTimeMode>(() => {
     return getEffectiveTimeMode(configured_mode.value, override_until.value, timezone.value);
   });
@@ -375,6 +379,7 @@ export function createBoardStore(): BoardStore {
     current_page,
     orientation,
     pageSize,
+    rowPageSize,
     effective_time_mode,
 
     set(newBoard: Board, source: UpdateSource = 'api') {
