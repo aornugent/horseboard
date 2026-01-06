@@ -1,25 +1,22 @@
 import { z } from 'zod';
+import { UnitTypeSchema } from './unit-strategies';
 
-export const UnitSchema = z.enum(['scoop', 'ml', 'sachet', 'biscuit']);
-export type Unit = z.infer<typeof UnitSchema>;
 
-export const UNITS = UnitSchema.options;
 
-export const UNIT = {
-  SCOOP: 'scoop',
-  ML: 'ml',
-  SACHET: 'sachet',
-  BISCUIT: 'biscuit',
-} as const satisfies Record<string, Unit>;
+// Re-export UnitType for convenience
+export { UnitTypeSchema };
+export type UnitType = z.infer<typeof UnitTypeSchema>;
 
-export const UNIT_LABELS: Record<Unit, string> = {
-  scoop: 'Scoop',
-  ml: 'ml',
-  sachet: 'Sachet',
-  biscuit: 'Biscuit',
+export const DEFAULT_UNIT_TYPE = 'fraction' as const;
+export const DEFAULT_UNIT_LABEL = 'scoop' as const;
+
+// Keep UNIT_LABELS for display (now tied to unit_label, not enum)
+export const UNIT_TYPE_DEFAULT_LABELS: Record<z.infer<typeof UnitTypeSchema>, string> = {
+  fraction: 'scoop',
+  int: 'biscuit',
+  decimal: 'ml',
+  choice: '',
 };
-
-export const DEFAULT_UNIT: Unit = 'scoop';
 
 export const TimeModeSchema = z.enum(['AUTO', 'AM', 'PM']);
 export type TimeMode = z.infer<typeof TimeModeSchema>;
@@ -70,7 +67,9 @@ export const FeedSchema = z.object({
   id: z.string().min(1),
   board_id: z.string().min(1),
   name: z.string().min(1).max(50),
-  unit: UnitSchema,
+  unit_type: UnitTypeSchema,
+  unit_label: z.string().min(1).max(20),
+  entry_options: z.string().nullable(), // JSON string
   rank: z.number().int().min(0),
   stock_level: z.number().min(0),
   low_stock_threshold: z.number().min(0),
@@ -81,12 +80,16 @@ export type Feed = z.infer<typeof FeedSchema>;
 
 export const CreateFeedSchema = z.object({
   name: z.string().min(1).max(50),
-  unit: UnitSchema.optional().default('scoop'),
+  unit_type: UnitTypeSchema.optional().default('fraction'),
+  unit_label: z.string().min(1).max(20).optional(),
+  entry_options: z.string().nullable().optional(),
 });
 
 export const UpdateFeedSchema = z.object({
   name: z.string().min(1).max(50).optional(),
-  unit: UnitSchema.optional(),
+  unit_type: UnitTypeSchema.optional(),
+  unit_label: z.string().min(1).max(20).optional(),
+  entry_options: z.string().nullable().optional(),
   stock_level: z.number().min(0).optional(),
   low_stock_threshold: z.number().min(0).optional(),
 });
@@ -96,6 +99,8 @@ export const DietEntrySchema = z.object({
   feed_id: z.string().min(1),
   am_amount: z.number().min(0).nullable(),
   pm_amount: z.number().min(0).nullable(),
+  am_variant: z.string().nullable(),
+  pm_variant: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -106,6 +111,8 @@ export const UpsertDietEntrySchema = z.object({
   feed_id: z.string().min(1),
   am_amount: z.number().min(0).optional().nullable(),
   pm_amount: z.number().min(0).optional().nullable(),
+  am_variant: z.string().optional().nullable(),
+  pm_variant: z.string().optional().nullable(),
 });
 
 export const BoardSchema = z.object({

@@ -32,7 +32,7 @@ test.describe('TV Display View', () => {
     await ownerPage.goto('/board');
 
     // Wait for board view to be ready
-    await expect(ownerPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+    await expect(ownerPage.locator(selectors.boardView)).toBeVisible();
 
     // Verify grid is visible
     const grid = ownerPage.locator(selectors.swimLaneGrid);
@@ -65,7 +65,7 @@ test.describe('TV Display View', () => {
 
     // Navigate to /board
     await ownerPage.goto('/board');
-    await expect(ownerPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+    await expect(ownerPage.locator(selectors.boardView)).toBeVisible();
 
     // Click on a cell
     const cell = ownerPage.locator(selectors.cell(horse.id, feed.id));
@@ -101,7 +101,7 @@ test.describe('Real-Time Sync', () => {
         { key: 'hb_board_id', value: ownerBoardId }
       );
       await displayPage.goto('/board');
-      await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+      await expect(displayPage.locator(selectors.boardView)).toBeVisible();
 
       const displayBadge = displayPage.locator(selectors.badge(horse.id, feed.id));
 
@@ -131,11 +131,11 @@ test.describe('Real-Time Sync', () => {
       await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
       await ownerPage.locator(timeModeSelectors.am).click();
 
-      await expect(displayBadge).toContainText('2', { timeout: 5000 });
+      await expect(displayBadge).toContainText('2');
 
       // --- Force PM mode and verify display shows ½ ---
       await ownerPage.locator(timeModeSelectors.pm).click();
-      await expect(displayBadge).toContainText('½', { timeout: 5000 });
+      await expect(displayBadge).toContainText('½');
 
     } finally {
       await displayContext.close();
@@ -159,7 +159,7 @@ test.describe('Real-Time Sync', () => {
         { key: 'hb_board_id', value: ownerBoardId }
       );
       await displayPage.goto('/board');
-      await expect(displayPage.locator(selectors.boardView)).toBeVisible({ timeout: 15000 });
+      await expect(displayPage.locator(selectors.boardView)).toBeVisible();
 
       // Get initial mode
       const timeModeBadge = displayPage.locator(selectors.timeModeBadge);
@@ -180,7 +180,7 @@ test.describe('Real-Time Sync', () => {
       await ownerPage.locator(timeModeSelectors.timeMode(newMode as 'AM' | 'PM')).click();
 
       // Wait for sync
-      await expect(timeModeBadge).toContainText(newMode, { timeout: 5000 });
+      await expect(timeModeBadge).toContainText(newMode);
 
     } finally {
       await displayContext.close();

@@ -1,5 +1,5 @@
 import type { Signal } from '@preact/signals';
-import { formatQuantity } from '@shared/fractions';
+import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
 import { TIME_MODE, type Horse, type Feed, type EffectiveTimeMode } from '@shared/resources';
 import { dietStore } from '../../stores';
 import './SwimLaneGrid.css';
@@ -49,7 +49,12 @@ export function SwimLaneGrid({
           {horseList.map((horse, idx) => {
             const entry = dietMap.get(`${horse.id}:${feed.id}`);
             const value = mode === TIME_MODE.AM ? entry?.am_amount : entry?.pm_amount;
-            const hasValue = value !== null && value !== undefined && value !== 0;
+            const variant = mode === TIME_MODE.AM ? entry?.am_variant : entry?.pm_variant;
+            const hasValue = (value !== null && value !== undefined && value !== 0) || !!variant; // variant might be "Small" with value 1 or something
+
+            const strategy = getStrategyForType(feed.unit_type);
+            const options = parseEntryOptions(feed.entry_options, feed.unit_type);
+            const displayText = strategy.formatDisplay(value ?? null, variant ?? null, options, feed.unit_label);
 
             return (
               <div
@@ -62,7 +67,7 @@ export function SwimLaneGrid({
                 {hasValue && (
                   <div class="scoop-badge" data-testid={`badge-${horse.id}-${feed.id}`}>
                     <span class="badge-value">
-                      {formatQuantity(value, feed.unit)}
+                      {displayText}
                     </span>
                   </div>
                 )}

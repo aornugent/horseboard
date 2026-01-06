@@ -79,7 +79,7 @@ test.describe('Permission Enforcement', () => {
       await visitorPage.locator(selectors.inviteSubmit).click();
 
       // Wait for reload/upgrade
-      await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible({ timeout: 15000 });
+      await expect(visitorPage.locator(selectors.horsesTab)).toBeVisible();
       await visitorPage.locator(selectors.tabHorses).click();
 
       // 3. Edit User CAN add horse via UI
@@ -131,7 +131,7 @@ test.describe('Permission Enforcement', () => {
       // Need some data for pagination to make sense
       const { createHorse, createFeed, upsertDiet } = await import('./helpers/api');
       await createHorse(request, ownerBoardId, { name: 'Test' });
-      const feed = await createFeed(request, ownerBoardId, { name: 'Oats', unit: 'scoop' });
+      const feed = await createFeed(request, ownerBoardId, { name: 'Oats', unit_type: 'fraction', unit_label: 'scoop' });
 
       // Reload visitor to get the data
       await visitorPage.reload();

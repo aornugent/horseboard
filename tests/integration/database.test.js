@@ -133,10 +133,11 @@ describe('Database Integration Tests', () => {
     });
 
     test('creates a feed', () => {
-      const feed = feedRepo.create({ name: 'Oats', unit: 'scoop' }, boardId);
+      const feed = feedRepo.create({ name: 'Oats' }, boardId);
       assert.ok(feed.id.startsWith('f_'));
       assert.equal(feed.name, 'Oats');
-      assert.equal(feed.unit, 'scoop');
+      assert.equal(feed.unit_type, 'fraction');
+      assert.equal(feed.unit_label, 'scoop');
     });
 
     test('lists feeds for board', () => {
@@ -148,9 +149,10 @@ describe('Database Integration Tests', () => {
 
     test('updates feed', () => {
       const created = feedRepo.create({ name: 'Oats' }, boardId);
-      feedRepo.update({ unit: 'ml', stock_level: 100 }, created.id);
+      feedRepo.update({ unit_type: 'decimal', unit_label: 'ml', stock_level: 100 }, created.id);
       const feed = feedRepo.getById(created.id);
-      assert.equal(feed.unit, 'ml');
+      assert.equal(feed.unit_type, 'decimal');
+      assert.equal(feed.unit_label, 'ml');
       assert.equal(feed.stock_level, 100);
     });
 
@@ -202,6 +204,23 @@ describe('Database Integration Tests', () => {
       dietRepo.upsert({ horse_id: horseId, feed_id: feedId, am_amount: 2, pm_amount: 1 });
       assert.ok(dietRepo.delete(horseId, feedId));
       assert.equal(dietRepo.getById(horseId, feedId), null);
+    });
+
+    test('getByBoardId returns variant columns', () => {
+      // Create diet entry with variants
+      dietRepo.upsert({
+        horse_id: horseId,
+        feed_id: feedId,
+        am_amount: 1,
+        pm_amount: 2,
+        am_variant: 'Small',
+        pm_variant: 'Large'
+      });
+
+      const entries = dietRepo.getByBoardId(boardId);
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].am_variant, 'Small');
+      assert.equal(entries[0].pm_variant, 'Large');
     });
   });
 

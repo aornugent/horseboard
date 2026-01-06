@@ -6,7 +6,7 @@
  */
 
 import { APIRequestContext } from '@playwright/test';
-import type { Unit } from '../../../src/shared/resources';
+
 
 // API base URL (matches playwright.config.ts)
 const BASE_URL = 'http://localhost:5173';
@@ -48,7 +48,9 @@ export interface Feed {
   id: string;
   board_id: string;
   name: string;
-  unit: Unit;
+  unit_type: 'fraction' | 'int' | 'decimal' | 'choice';
+  unit_label: string;
+  entry_options: string | null;
   rank: number;
   stock_level: number;
   low_stock_threshold: number;
@@ -61,6 +63,8 @@ export interface DietEntry {
   feed_id: string;
   am_amount: number | null;
   pm_amount: number | null;
+  am_variant: string | null;
+  pm_variant: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -239,7 +243,9 @@ export async function deleteHorse(
 
 export interface CreateFeedInput {
   name: string;
-  unit: Unit;
+  unit_type?: 'fraction' | 'int' | 'decimal' | 'choice';
+  unit_label?: string;
+  entry_options?: string | null;
 }
 
 /**
@@ -253,7 +259,12 @@ export async function createFeed(
   const response = await request.post(
     `${BASE_URL}/api/boards/${boardId}/feeds`,
     {
-      data: input,
+      data: {
+        name: input.name,
+        unit_type: input.unit_type,
+        unit_label: input.unit_label,
+        entry_options: input.entry_options,
+      },
       headers: TEST_AUTH_HEADERS,
     }
   );
@@ -297,6 +308,8 @@ export interface UpsertDietInput {
   feed_id: string;
   am_amount?: number | null;
   pm_amount?: number | null;
+  am_variant?: string | null;
+  pm_variant?: string | null;
 }
 
 /**

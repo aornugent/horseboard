@@ -25,16 +25,18 @@ test.describe('Feed CRUD Operations', () => {
       // Seed 2 feeds via API
       const oats = await createFeed(request, ownerBoardId, {
         name: 'Oats',
-        unit: 'scoop',
+        unit_type: 'fraction',
+        unit_label: 'scoop',
       });
-      const vitamins = await createFeed(request, ownerBoardId, {
-        name: 'Vitamins',
-        unit: 'sachet',
+      const hay = await createFeed(request, ownerBoardId, {
+        name: 'Hay',
+        unit_type: 'int',
+        unit_label: 'biscuit',
       });
 
       // Reload to pick up new data
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
       // Navigate back to feeds tab after reload
       await ownerPage.locator(selectors.tabFeeds).click();
       await expect(ownerPage.locator(selectors.feedsTab)).toBeVisible();
@@ -45,11 +47,11 @@ test.describe('Feed CRUD Operations', () => {
       await expect(ownerPage.locator(selectors.feedCardName(oats.id))).toHaveText('Oats');
       await expect(ownerPage.locator(selectors.feedCardMeta(oats.id))).toContainText('scoop');
 
-      // Verify Vitamins feed
-      const vitaminsCard = ownerPage.locator(selectors.feedCard(vitamins.id));
-      await expect(vitaminsCard).toBeVisible();
-      await expect(ownerPage.locator(selectors.feedCardName(vitamins.id))).toHaveText('Vitamins');
-      await expect(ownerPage.locator(selectors.feedCardMeta(vitamins.id))).toContainText('sachet');
+      // Verify Hay feed
+      const hayCard = ownerPage.locator(selectors.feedCard(hay.id));
+      await expect(hayCard).toBeVisible();
+      await expect(ownerPage.locator(selectors.feedCardName(hay.id))).toHaveText('Hay');
+      await expect(ownerPage.locator(selectors.feedCardMeta(hay.id))).toContainText('biscuit');
     });
   });
 
@@ -84,12 +86,13 @@ test.describe('Feed CRUD Operations', () => {
       // Seed a feed
       const feed = await createFeed(request, ownerBoardId, {
         name: 'Hay',
-        unit: 'biscuit',
+        unit_type: 'int',
+        unit_label: 'biscuit',
       });
 
       // Reload data
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
       await ownerPage.locator(selectors.tabFeeds).click();
 
       // Click on feed card to open edit modal
@@ -120,12 +123,12 @@ test.describe('Feed CRUD Operations', () => {
 
   test.describe('Delete a feed', () => {
     test('should delete one feed and leave the other', async ({ ownerPage, ownerBoardId, request }) => {
-      const feed1 = await createFeed(request, ownerBoardId, { name: 'Grain', unit: 'scoop' });
-      const feed2 = await createFeed(request, ownerBoardId, { name: 'Supplements', unit: 'sachet' });
+      const feed1 = await createFeed(request, ownerBoardId, { name: 'Grain', unit_type: 'fraction', unit_label: 'scoop' });
+      const feed2 = await createFeed(request, ownerBoardId, { name: 'Supplements', unit_type: 'int', unit_label: 'biscuit' });
 
       // Reload
       await ownerPage.reload();
-      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible({ timeout: 8000 });
+      await expect(ownerPage.locator('[data-testid="controller-view"]')).toBeVisible();
       await ownerPage.locator(selectors.tabFeeds).click();
 
       // Verify both feeds are visible

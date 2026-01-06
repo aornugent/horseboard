@@ -8,7 +8,10 @@
  * in sync with component implementation.
  */
 
-import { UNITS, TIME_MODES, type Unit, type TimeMode } from '../../src/shared/resources';
+import { TIME_MODES, type TimeMode } from '../../src/shared/resources';
+
+// Valid unit IDs for testing iteration
+const UNITS = ['scoop', 'ml', 'biscuit'] as const;
 
 // =============================================================================
 // STATIC SELECTORS
@@ -209,11 +212,13 @@ export const selectors = {
  * If a unit is renamed in resources.ts, tests using this will fail loudly
  * rather than silently passing with a stale selector.
  */
+type UnitId = 'scoop' | 'ml' | 'biscuit';
+
 export const unitSelectors = {
   /** Get selector for a unit button in the add feed modal */
-  unitBtn: (unit: Unit) => `[data-testid="unit-btn-${unit}"]`,
+  unitBtn: (unit: UnitId) => `[data-testid="unit-btn-${unit}"]`,
   /** Get selector for a unit button in the edit feed modal */
-  editUnitBtn: (unit: Unit) => `[data-testid="edit-unit-btn-${unit}"]`,
+  editUnitBtn: (unit: UnitId) => `[data-testid="edit-unit-btn-${unit}"]`,
   /** All valid unit values for iteration */
   allUnits: UNITS,
 } as const;

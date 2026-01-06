@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS feeds (
   id TEXT PRIMARY KEY,
   board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  unit TEXT NOT NULL CHECK (unit IN ('scoop', 'ml', 'sachet', 'biscuit')),
+  unit TEXT NOT NULL DEFAULT 'scoop' CHECK (unit IN ('scoop', 'ml', 'sachet', 'biscuit')),
   rank INTEGER NOT NULL DEFAULT 0,
   stock_level REAL NOT NULL DEFAULT 0,
   low_stock_threshold REAL NOT NULL DEFAULT 0,

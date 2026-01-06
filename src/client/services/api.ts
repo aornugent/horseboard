@@ -1,4 +1,5 @@
-import type { Board, Horse, Feed, DietEntry, Unit, TimeMode } from '@shared/resources';
+import type { Board, Horse, Feed, DietEntry, TimeMode } from '@shared/resources';
+import type { UnitType } from '@shared/unit-strategies';
 import { signal } from '@preact/signals';
 import { setPermission as setPermissionStore } from '../stores';
 import { TOKEN_STORAGE_KEY } from './lifecycle';
@@ -218,11 +219,13 @@ export async function deleteHorse(horse_id: string): Promise<void> {
 export async function createFeed(
   board_id: string,
   name: string,
-  unit: Unit
+  unit_type: UnitType = 'fraction',
+  unit_label: string = 'scoop',
+  entry_options: string | null = null
 ): Promise<Feed> {
   const result = await request<ApiResponse<Feed>>(`/api/boards/${board_id}/feeds`, {
     method: 'POST',
-    body: JSON.stringify({ name, unit }),
+    body: JSON.stringify({ name, unit_type, unit_label, entry_options }),
   });
   if (!result.data) {
     throw new ApiError('Failed to create feed', 500);
@@ -232,7 +235,7 @@ export async function createFeed(
 
 export async function updateFeed(
   feed_id: string,
-  updates: { name?: string; unit?: Unit }
+  updates: { name?: string; unit_type?: UnitType; unit_label?: string; entry_options?: string | null }
 ): Promise<Feed> {
   const result = await request<ApiResponse<Feed>>(`/api/feeds/${feed_id}`, {
     method: 'PATCH',
@@ -283,11 +286,13 @@ export async function upsertDiet(
   horse_id: string,
   feed_id: string,
   am_amount?: number | null,
-  pm_amount?: number | null
+  pm_amount?: number | null,
+  am_variant?: string | null,
+  pm_variant?: string | null,
 ): Promise<DietEntry> {
   const result = await request<ApiResponse<DietEntry>>('/api/diet', {
     method: 'PUT',
-    body: JSON.stringify({ horse_id, feed_id, am_amount, pm_amount }),
+    body: JSON.stringify({ horse_id, feed_id, am_amount, pm_amount, am_variant, pm_variant }),
   });
   if (!result.data) {
     throw new ApiError('Failed to update diet', 500);
