@@ -5,7 +5,7 @@ import { initializeApp, isInitialized, connectionError, STORAGE_KEY } from './se
 
 import { loadControllerToken, sseClient } from './services';
 import { boardStore, user, initAuth } from './stores';
-import './styles/theme.css';
+
 
 export function App() {
   useEffect(() => {

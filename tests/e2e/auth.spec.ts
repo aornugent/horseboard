@@ -236,7 +236,7 @@ test.describe('Authentication', () => {
             // 4. Verify horse appears in UI (confirms full round-trip)
             await page.reload();
             await expect(page.locator('[data-testid="controller-view"]')).toBeVisible();
-            await expect(page.locator('.horse-card').filter({ hasText: 'Real Auth Horse' })).toBeVisible();
+            await expect(page.locator('.list-card').filter({ hasText: 'Real Auth Horse' })).toBeVisible();
         });
 
         test('session persists across reload without re-authentication', async ({ page }) => {

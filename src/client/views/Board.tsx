@@ -1,7 +1,7 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid/SwimLaneGrid';
 import { horseStore, feedStore, boardStore, dietStore } from '../stores';
 import { computeGrid, get2DPageCoords } from '../../shared/grid-logic';
-import './Board.css';
+
 
 export function Board() {
   /* Pagination Logic */

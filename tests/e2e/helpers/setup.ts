@@ -240,7 +240,7 @@ export async function waitForControllerReady(page: Page): Promise<void> {
   });
 
   // Wait for data hydration - either cards or empty state
-  await page.waitForSelector('.horse-card, [data-testid="horse-list-empty"]', {
+  await page.waitForSelector('.list-card, [data-testid="horse-list-empty"]', {
     state: 'visible',
     timeout: 5000,
   });

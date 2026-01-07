@@ -62,7 +62,7 @@ test.describe('Horse CRUD Operations', () => {
       await expect(ownerPage.locator(selectors.addHorseModal)).not.toBeVisible();
 
       // New horse should appear in the list
-      const horseCard = ownerPage.locator('.horse-card').filter({ hasText: newHorseName });
+      const horseCard = ownerPage.locator('.list-card').filter({ hasText: newHorseName });
       await expect(horseCard).toBeVisible();
 
       // Empty state should be gone
@@ -84,7 +84,7 @@ test.describe('Horse CRUD Operations', () => {
       await expect(ownerPage.locator(selectors.addHorseModal)).not.toBeVisible();
 
       // Horse should NOT be in the list
-      const horseCard = ownerPage.locator('.horse-card').filter({ hasText: 'Cancelled Horse' });
+      const horseCard = ownerPage.locator('.list-card').filter({ hasText: 'Cancelled Horse' });
       await expect(horseCard).not.toBeVisible();
     });
   });
