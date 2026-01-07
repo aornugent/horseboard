@@ -1,22 +1,8 @@
-Below is a **prompt-engineered rewrite of your `/review` workflow**, incorporating the **architectural exploration expansion** while preserving what already works well in Antigravity’s slash-command / workflow model.
-
-I have optimized this for:
-
-* **Prompt adherence under real model behavior**
-* **Clear phase separation**
-* **Mechanical enforcement of architectural breadth**
-* **Low token waste**
-* **Compatibility with your existing artifacts**
-
-This is intended to be a **drop-in replacement** for `/review`.
-
+--- 
+description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements and system design integrity
 ---
 
-# `/review` — Rigorous Review with Architectural Exploration
-
----
-
-## description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements and system design integrity
+# Code and design review
 
 ## Overview
 

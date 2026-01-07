@@ -17,15 +17,21 @@ test.describe('TV Display View', () => {
     // Seed 2 horses, 2 feeds via API
     const horse1 = await createHorse(request, ownerBoardId, { name: 'Thunder' });
     const horse2 = await createHorse(request, ownerBoardId, { name: 'Lightning' });
-    const feed1 = await createFeed(request, ownerBoardId, { name: 'Oats', unit: 'scoop' });
-    const feed2 = await createFeed(request, ownerBoardId, { name: 'Hay', unit: 'biscuit' });
+    const feed1 = await createFeed(request, ownerBoardId, { name: 'Oats', unit_label: 'scoop' });
+    const feed2 = await createFeed(request, ownerBoardId, { name: 'Hay', unit_label: 'biscuit' });
 
-    // Seed diet entries
+    // Seed diet entries for BOTH feeds (sparse filtering only shows feeds with diet entries)
     await upsertDiet(request, {
       horse_id: horse1.id,
       feed_id: feed1.id,
       am_amount: 1,
       pm_amount: 1.5
+    });
+    await upsertDiet(request, {
+      horse_id: horse2.id,
+      feed_id: feed2.id,
+      am_amount: 2,
+      pm_amount: 2
     });
 
     // Navigate to /board (TV display)
@@ -38,15 +44,15 @@ test.describe('TV Display View', () => {
     const grid = ownerPage.locator(selectors.swimLaneGrid);
     await expect(grid).toBeVisible();
 
-    // Verify horse names appear in header
-    await expect(ownerPage.locator(selectors.horseHeader(horse1.id))).toContainText('Thunder');
-    await expect(ownerPage.locator(selectors.horseHeader(horse2.id))).toContainText('Lightning');
+    // Verify horse names appear in header (columns in horse-major orientation)
+    await expect(ownerPage.locator(selectors.columnHeader(horse1.id))).toContainText('Thunder');
+    await expect(ownerPage.locator(selectors.columnHeader(horse2.id))).toContainText('Lightning');
 
     // Verify feed names appear in rows
-    await expect(ownerPage.locator(selectors.feedName(feed1.id))).toContainText('Oats');
-    await expect(ownerPage.locator(selectors.feedName(feed2.id))).toContainText('Hay');
+    await expect(ownerPage.locator(selectors.rowHeader(feed1.id))).toContainText('Oats');
+    await expect(ownerPage.locator(selectors.rowHeader(feed2.id))).toContainText('Hay');
 
-    // Verify quantity badge
+    // Verify quantity badge (cell uses col,row order: horse,feed in horse-major)
     const badge = ownerPage.locator(selectors.badge(horse1.id, feed1.id));
     await expect(badge).toBeVisible();
   });
@@ -54,21 +60,30 @@ test.describe('TV Display View', () => {
   test('is read-only - FeedPad does not open on cell click', async ({ ownerPage, ownerBoardId, request }) => {
     // Seed 1 horse, 1 feed
     const horse = await createHorse(request, ownerBoardId, { name: 'Test Horse' });
-    const feed = await createFeed(request, ownerBoardId, { name: 'Test Feed', unit: 'scoop' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'Test Feed', unit_label: 'scoop' });
 
-    // Seed diet
+    // Seed diet (include both AM and PM to ensure visibility regardless of time mode)
     await upsertDiet(request, {
       horse_id: horse.id,
       feed_id: feed.id,
-      am_amount: 1
+      am_amount: 1,
+      pm_amount: 1
     });
 
-    // Navigate to /board
+    // Set board_id in localStorage and navigate to /board
+    await ownerPage.goto('/');
+    await ownerPage.evaluate(
+      ({ key, value }) => localStorage.setItem(key, value),
+      { key: 'hb_board_id', value: ownerBoardId }
+    );
     await ownerPage.goto('/board');
     await expect(ownerPage.locator(selectors.boardView)).toBeVisible();
 
-    // Click on a cell
-    const cell = ownerPage.locator(selectors.cell(horse.id, feed.id));
+    // Wait for data to load via SSE - grid should contain the horse name
+    await expect(ownerPage.locator(selectors.swimLaneGrid)).toContainText('Test Horse');
+
+    // Click on ANY grid cell (first one found)
+    const cell = ownerPage.locator('.grid-cell').first();
     await expect(cell).toBeVisible();
     await cell.click();
 
@@ -129,6 +144,7 @@ test.describe('Real-Time Sync', () => {
       await expect(ownerPage.locator(selectors.boardTab)).toBeVisible();
       await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
       await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+      await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
       await ownerPage.locator(timeModeSelectors.am).click();
 
       await expect(displayBadge).toContainText('2');
@@ -175,6 +191,9 @@ test.describe('Real-Time Sync', () => {
       await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
       await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
 
+      // Time mode is in overflow menu
+      await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
+
       // Determine new mode and click
       const newMode = initialMode?.includes('AM') ? 'PM' : 'AM';
       await ownerPage.locator(timeModeSelectors.timeMode(newMode as 'AM' | 'PM')).click();
@@ -187,3 +206,77 @@ test.describe('Real-Time Sync', () => {
     }
   });
 });
+
+test.describe('Board Tab', () => {
+  test('shows scrollable unpaginated grid', async ({ ownerPage: page, request, ownerBoardId }) => {
+    // Create 8 horses (more than TV pageSize of 6)
+    const feed = await createFeed(request, ownerBoardId, { name: 'Oats', rank: 1 });
+    const names = ['Apollo', 'Bella', 'Charlie', 'Dusty', 'Echo', 'Frosty', 'Glory', 'Hunter'];
+    const horses = await Promise.all(names.map(n => createHorse(request, ownerBoardId, { name: n })));
+    await Promise.all(horses.map(h => upsertDiet(request, {
+      horse_id: h.id, feed_id: feed.id, am_amount: 1, pm_amount: 1
+    })));
+
+    await page.reload();
+    await page.click('[data-testid="tab-board"]');
+    await expect(page.getByTestId('board-tab')).toBeVisible();
+
+    // All 8 horses visible (unpaginated)
+    for (const name of names) {
+      await expect(page.getByText(name)).toBeVisible();
+    }
+
+    // No breadcrumb (unpaginated = no overflow)
+    await expect(page.locator('[data-testid="breadcrumb-more"]')).not.toBeVisible();
+  });
+
+  test('header controls visible by default, hidden when matched', async ({ ownerPage: page }) => {
+    await page.reload();
+    await page.click('[data-testid="tab-board"]');
+
+    // Header controls visible by default
+    await expect(page.getByTestId('header-time-toggle')).toBeVisible();
+    await expect(page.getByTestId('header-flip-btn')).toBeVisible();
+
+    // Open drawer, enable Match (checkbox is hidden behind styled slider)
+    await page.click('[data-testid="toggle-display-controls"]');
+    await page.click('[data-testid="match-tv-toggle"]', { force: true });
+
+    // Header controls hidden
+    await expect(page.getByTestId('header-time-toggle')).not.toBeVisible();
+    await expect(page.getByTestId('header-flip-btn')).not.toBeVisible();
+  });
+
+  test('Match mode syncs controller grid to TV page', async ({ ownerPage: page, request, ownerBoardId, browser }) => {
+    // Create enough data to require pagination
+    const feed = await createFeed(request, ownerBoardId, { name: 'Oats' });
+    const names = Array.from({ length: 10 }, (_, i) => `Horse${i}`);
+    const horses = await Promise.all(names.map(n => createHorse(request, ownerBoardId, { name: n })));
+    // Must create diet entries for sparse filtering to populate the grid
+    await Promise.all(horses.map(h => upsertDiet(request, { horse_id: h.id, feed_id: feed.id, am_amount: 1 })));
+
+    // Open TV display in separate context
+    const displayCtx = await browser.newContext();
+    const displayPage = await displayCtx.newPage();
+    try {
+      await displayPage.goto('/');
+      await displayPage.evaluate(({ k, v }) => localStorage.setItem(k, v), { k: 'hb_board_id', v: ownerBoardId });
+      await displayPage.goto('/board');
+      await expect(displayPage.locator('[data-testid="board-view"]')).toBeVisible();
+
+      // Controller: enable Match, navigate to page 2 via drawer
+      await page.reload();
+      await page.click('[data-testid="tab-board"]');
+      await page.click('[data-testid="toggle-display-controls"]');
+      await page.click('[data-testid="match-tv-toggle"]', { force: true });
+      await page.click('[data-testid="next-page-btn"]');
+
+      // Both TV and controller should show page 2
+      await expect(displayPage.getByTestId('page-badge')).toContainText('2 /');
+      // Controller grid scrolls to show same content as TV
+    } finally {
+      await displayCtx.close();
+    }
+  });
+});
+

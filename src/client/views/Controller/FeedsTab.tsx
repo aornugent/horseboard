@@ -1,11 +1,15 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
+import {
+  feeds, addFeed, updateFeed, removeFeed,
+  diet, board
+} from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
-import { type UnitType, UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
-import './FeedsTab.css';
+import { UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
+
 
 // Default unit definition for UI selection
 const DEFAULT_UNIT_ID: UnitTypeOptionId = 'scoop';
@@ -20,20 +24,14 @@ const editingFeed = signal<Feed | null>(null);
 const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
 const deletingFeed = signal<Feed | null>(null);
 
-const board = boardStore.board;
-const dietEntries = dietStore.items;
-
-const addFeed = (feed: Feed) => feedStore.add(feed);
-const updateFeed = (id: string, feed: Feed) => feedStore.update(id, feed);
-
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  if (!query) return feedStore.items.value;
-  return feedStore.items.value.filter(f => f.name.toLowerCase().includes(query));
+  if (!query) return feeds.value;
+  return feeds.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
 function countHorsesUsingFeed(feedId: string): number {
-  return dietEntries.value.filter(
+  return diet.value.filter(
     entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount || entry.am_variant || entry.pm_variant)
   ).length;
 }
@@ -72,7 +70,7 @@ async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
 async function handleDeleteFeed(id: string) {
   try {
     await apiDeleteFeed(id);
-    feedStore.remove(id);
+    removeFeed(id);
     deletingFeed.value = null;
   } catch (err) {
     console.error('Failed to delete feed:', err);
@@ -95,15 +93,15 @@ async function handleSaveFeedEdit(feed: Feed, unitId: UnitTypeOptionId) {
 }
 
 export function FeedsTab() {
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
 
   return (
-    <div class="feeds-tab" data-testid="feeds-tab">
-      <div class="feeds-tab-header">
-        <h2 class="feeds-tab-title">Feeds</h2>
+    <div class="tab" data-testid="feeds-tab">
+      <div class="tab-header">
+        <h2 class="tab-title">Feeds</h2>
         {canEditBoard && (
           <button
-            class="feeds-tab-add-btn"
+            class="btn"
             data-testid="add-feed-btn"
             onClick={() => { isAddingFeed.value = true; }}
           >
@@ -112,10 +110,10 @@ export function FeedsTab() {
         )}
       </div>
 
-      <div class="feeds-tab-search">
+      <div class="tab-search">
         <input
           type="search"
-          class="feed-search-input"
+          class="input"
           placeholder="Search feeds..."
           data-testid="feed-search"
           value={searchQuery.value}
@@ -125,9 +123,9 @@ export function FeedsTab() {
         />
       </div>
 
-      <div class="feed-list" data-testid="feed-list">
+      <div class="tab-list" data-testid="feed-list">
         {filteredFeeds.value.length === 0 ? (
-          <div class="feed-list-empty" data-testid="feed-list-empty">
+          <div class="tab-list-empty" data-testid="feed-list-empty">
             {searchQuery.value
               ? 'No feeds match your search'
               : 'No feeds yet. Add one to get started!'}

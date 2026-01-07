@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { authClient } from '../stores';
 import { navigate } from '../router';
 import { STORAGE_KEY } from '../services/lifecycle';
-import './Auth.css';
+
 
 const name = signal('');
 const email = signal('');
@@ -28,7 +28,16 @@ export function SignupView() {
             } else if (data) {
                 // Successful signup
                 try {
-                    const { listUserBoards, createBoard, setPermission } = await import('../services');
+                    const { listUserBoards, createBoard } = await import('../services');
+                    const { setPermission } = await import('../stores');
+                    const { authState } = await import('../stores');
+                    if (data) {
+                        authState.value = {
+                            user: data.user,
+                            session: null,
+                            isLoading: false
+                        };
+                    }
                     const boards = await listUserBoards();
                     let boardId;
                     if (boards.length === 0) {
@@ -69,7 +78,7 @@ export function SignupView() {
                         <input
                             id="name"
                             type="text"
-                            class="form-input"
+                            class="input"
                             data-testid="name-input"
                             value={name.value}
                             onInput={(e) => (name.value = (e.target as HTMLInputElement).value)}
@@ -84,7 +93,7 @@ export function SignupView() {
                         <input
                             id="email"
                             type="email"
-                            class="form-input"
+                            class="input"
                             data-testid="email-input"
                             value={email.value}
                             onInput={(e) => (email.value = (e.target as HTMLInputElement).value)}
@@ -99,7 +108,7 @@ export function SignupView() {
                         <input
                             id="password"
                             type="password"
-                            class="form-input"
+                            class="input"
                             data-testid="password-input"
                             value={password.value}
                             onInput={(e) => (password.value = (e.target as HTMLInputElement).value)}

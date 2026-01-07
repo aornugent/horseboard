@@ -57,7 +57,7 @@ export function ControllerView() {
                             onClick={() => (activeTab.value = 'board')}
                         >
                             <TabIcon type="board" />
-                            <span>Board</span>
+                            <span>Preview</span>
                         </button>
                         <button
                             class={`tab-btn ${activeTab.value === 'settings' ? 'active' : ''}`}
@@ -109,3 +109,4 @@ function TabIcon({ type }: TabIconProps) {
 
     return icons[type];
 }
+

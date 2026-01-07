@@ -105,7 +105,7 @@ test.describe('Session Persistence', () => {
       await userPage.locator(selectors.addHorseBtn).click();
       await userPage.locator(selectors.newHorseName).fill('Persistence Test Horse');
       await userPage.locator(selectors.confirmAddHorse).click();
-      await expect(userPage.locator('.horse-card').filter({ hasText: 'Persistence Test Horse' })).toBeVisible();
+      await expect(userPage.locator('.list-card').filter({ hasText: 'Persistence Test Horse' })).toBeVisible();
     } finally {
       await userContext.close();
     }

@@ -1,7 +1,9 @@
 import { signal } from '@preact/signals';
 import { navigate } from '../router';
-import { pairWithCode, setControllerToken } from '../services';
-import { initializeApp, STORAGE_KEY } from '../services/lifecycle';
+import { pairWithCode } from '../services';
+import { initializeApp } from '../services/lifecycle';
+import { STORAGE_KEY } from '../constants';
+import { boardId } from '../stores/token';
 
 const pairCode = signal('');
 const isConnecting = signal(false);
@@ -16,10 +18,8 @@ async function handleConnect() {
         const result = await pairWithCode(pairCode.value);
 
         if (result.success && result.board_id) {
-            if (result.token) {
-                setControllerToken(result.token);
-            }
             localStorage.setItem(STORAGE_KEY, result.board_id);
+            boardId.value = result.board_id;
             await initializeApp(result.board_id);
             navigate('/controller');
         } else {

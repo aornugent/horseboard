@@ -75,6 +75,16 @@ describe('Database Integration Tests', () => {
       assert.ok(boardRepo.delete(created.id));
       assert.equal(boardRepo.getById(created.id), null);
     });
+
+    test('persists orientation', () => {
+      const created = boardRepo.create({});
+      assert.equal(created.orientation, 'horse-major'); // Default
+
+      boardRepo.update({ orientation: 'feed-major' }, created.id);
+      const updated = boardRepo.getById(created.id);
+      assert.equal(updated.orientation, 'feed-major');
+    });
+
   });
 
   describe('HorseRepository', () => {

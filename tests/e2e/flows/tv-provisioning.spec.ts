@@ -1,6 +1,6 @@
-import { test, expect } from './fixtures/auth';
-import { selectors } from './selectors';
-import { deleteBoard } from './helpers/api';
+import { test, expect } from '../fixtures/auth';
+import { selectors } from '../selectors';
+import { deleteBoard } from '../helpers/api';
 
 /**
  * Device Provisioning Tests
@@ -56,7 +56,7 @@ test.describe('Device Provisioning', () => {
         expect(tvToken).toBeTruthy();
 
         // 5. Verify display appears in owner's linked displays list
-        const linkedDisplay = ownerPage.locator('.settings-device-name').filter({ hasText: 'Display' });
+        const linkedDisplay = ownerPage.locator('.device-name').filter({ hasText: 'Display' });
         await expect(linkedDisplay).toBeVisible();
 
         // Cleanup
@@ -91,7 +91,7 @@ test.describe('Device Provisioning', () => {
         await unlinkBtn.click();
 
         // Display removed from list
-        await expect(ownerPage.locator('.settings-device-name')).not.toBeVisible();
+        await expect(ownerPage.locator('.device-name')).not.toBeVisible();
 
         // TV should revert to provisioning
         // Token revoked -> API fails -> revert

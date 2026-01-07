@@ -115,6 +115,10 @@ export const UpsertDietEntrySchema = z.object({
   pm_variant: z.string().optional().nullable(),
 });
 
+
+export const BoardOrientationSchema = z.enum(['horse-major', 'feed-major']);
+export type BoardOrientation = z.infer<typeof BoardOrientationSchema>;
+
 export const BoardSchema = z.object({
   id: z.string().min(1),
   pair_code: z.string().length(6),
@@ -123,11 +127,13 @@ export const BoardSchema = z.object({
   override_until: z.string().nullable(),
   zoom_level: z.number().int().min(1).max(3),
   current_page: z.number().int().min(0),
+  orientation: BoardOrientationSchema.default('horse-major'),
   account_id: z.string().nullable(), // Added for ownership
   created_at: z.string(),
   updated_at: z.string(),
 });
 export type Board = z.infer<typeof BoardSchema>;
+
 
 export const UpdateBoardSchema = z.object({
   timezone: z.string().min(1).optional(),
@@ -139,6 +145,11 @@ export const SetTimeModeSchema = z.object({
   time_mode: TimeModeSchema,
   override_until: z.string().optional().nullable(),
 });
+
+export const SetOrientationSchema = z.object({
+  orientation: BoardOrientationSchema,
+});
+
 
 export const ControllerTokenSchema = z.object({
   id: z.string(),

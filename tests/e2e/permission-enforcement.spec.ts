@@ -86,7 +86,7 @@ test.describe('Permission Enforcement', () => {
       await visitorPage.locator(selectors.addHorseBtn).click();
       await visitorPage.locator(selectors.newHorseName).fill('Edit User Horse');
       await visitorPage.locator(selectors.confirmAddHorse).click();
-      await expect(visitorPage.locator('.horse-card').filter({ hasText: 'Edit User Horse' })).toBeVisible();
+      await expect(visitorPage.locator('.list-card').filter({ hasText: 'Edit User Horse' })).toBeVisible();
 
       // 4. Edit User CANNOT generate invite (Admin only)
       await visitorPage.locator(selectors.tabSettings).click();

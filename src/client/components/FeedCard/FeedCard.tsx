@@ -1,5 +1,5 @@
 import type { Feed } from '@shared/types';
-import './FeedCard.css';
+
 
 interface FeedCardProps {
   feed: Feed;
@@ -11,23 +11,23 @@ interface FeedCardProps {
 export function FeedCard({ feed, horseCount, onEdit, onDelete }: FeedCardProps) {
   return (
     <div
-      class={`feed-card ${!onEdit ? 'readonly' : ''}`}
+      class={`list-card ${!onEdit ? 'readonly' : ''}`}
       data-testid={`feed-card-${feed.id}`}
     >
-      <div class="feed-card-content" onClick={onEdit}>
-        <div class="feed-card-name" data-testid={`feed-card-name-${feed.id}`}>
+      <div class="list-card-content" onClick={onEdit}>
+        <div class="list-card-name" data-testid={`feed-card-name-${feed.id}`}>
           {feed.name}
         </div>
-        <div class="feed-card-meta" data-testid={`feed-card-meta-${feed.id}`}>
-          <span class="feed-card-unit">{feed.unit_label}</span>
-          <span class="feed-card-usage">
+        <div class="list-card-meta" data-testid={`feed-card-meta-${feed.id}`}>
+          <span class="list-card-badge">{feed.unit_label}</span>
+          <span class="list-card-usage">
             {horseCount === 0 ? 'Not in use' : `${horseCount} horse${horseCount !== 1 ? 's' : ''}`}
           </span>
         </div>
       </div>
       {onDelete && (
         <button
-          class="feed-card-delete"
+          class="list-card-action"
           data-testid={`feed-card-delete-${feed.id}`}
           onClick={(e) => {
             e.stopPropagation();

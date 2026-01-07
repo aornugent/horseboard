@@ -27,7 +27,7 @@ test.describe('Unit Types & Formatting', () => {
         await expect(ownerPage.locator('[data-testid="horse-list"]')).toContainText('Thunder');
 
         // 3. Set diet
-        const horseCard = ownerPage.locator('.horse-card').first();
+        const horseCard = ownerPage.locator('.list-card').first();
         await horseCard.click();
         await expect(ownerPage.locator('[data-testid="horse-detail-name"]')).toHaveText('Thunder');
 
@@ -86,7 +86,7 @@ test.describe('Unit Types & Formatting', () => {
         await ownerPage.click('[data-testid="confirm-add-horse"]');
 
         // Navigate to horse detail
-        const horseCard = ownerPage.locator('.horse-card').first();
+        const horseCard = ownerPage.locator('.list-card').first();
         await horseCard.click();
         await expect(ownerPage.locator('[data-testid="horse-detail-name"]')).toHaveText('Blaze');
 
