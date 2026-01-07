@@ -50,6 +50,7 @@ export const PERMISSION_STORAGE_KEY = 'hb_permission';
 
 export function setPermission(permission: string): void {
   localStorage.setItem(PERMISSION_STORAGE_KEY, permission);
+  setPermissionStore(permission as any);
 }
 
 export function loadPermission(): string {
@@ -75,7 +76,6 @@ async function request<T>(
     if (response.status === 403) {
       // Permission denied - downgrade to view-only and show friendly message
       setPermission('view');
-      setPermissionStore('view');
       onAuthError.value = { status: 403, message: 'You need edit access to do that' };
     } else if (response.status === 401) {
       onAuthError.value = { status: response.status, message: 'Authentication failed' };

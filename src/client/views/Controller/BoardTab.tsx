@@ -1,5 +1,9 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid/SwimLaneGrid';
-import { horseStore, feedStore, boardStore, dietStore } from '../../stores';
+import {
+  horses, feeds, diet, board,
+  orientation, zoom_level, current_page, effective_time_mode, configured_mode,
+  setCurrentPage, updateBoard, setZoomLevel, setOrientation
+} from '../../stores';
 
 
 import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode, updateOrientation as apiUpdateOrientation } from '../../services';
@@ -9,18 +13,18 @@ import { computeGrid } from '../../../shared/grid-logic';
 
 
 async function changePage(delta: number) {
-  if (!boardStore.board.value) return;
-  const newPage = Math.max(0, (boardStore.current_page.value || 0) + delta);
+  if (!board.value) return;
+  const newPage = Math.max(0, (current_page.value || 0) + delta);
   try {
-    await apiUpdateBoard(boardStore.board.value.id, { current_page: newPage });
-    boardStore.setCurrentPage(newPage);
+    await apiUpdateBoard(board.value.id, { current_page: newPage });
+    setCurrentPage(newPage);
   } catch (err) {
     console.error('Failed to update page:', err);
   }
 }
 
 async function changeTimeMode(mode: TimeMode) {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
 
   // Calculate override expiry (1 hour) for non-AUTO modes, matching SettingsTab behavior
   const override_until = mode !== TIME_MODE.AUTO
@@ -28,28 +32,29 @@ async function changeTimeMode(mode: TimeMode) {
     : null;
 
   try {
-    await apiUpdateTimeMode(boardStore.board.value.id, mode, override_until);
-    boardStore.updateTimeMode(mode, override_until);  // Update local store so UI reflects change
+    await apiUpdateTimeMode(board.value.id, mode, override_until);
+    // Directly update the store via updateBoard helper
+    updateBoard({ time_mode: mode, override_until });
   } catch (err) {
     console.error('Failed to update time mode:', err);
   }
 }
 
 async function changeZoom(level: 1 | 2 | 3) {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
   try {
-    await apiUpdateBoard(boardStore.board.value.id, { zoom_level: level });
-    boardStore.setZoomLevel(level);
+    await apiUpdateBoard(board.value.id, { zoom_level: level });
+    setZoomLevel(level);
   } catch (err) {
     console.error('Failed to update zoom:', err);
   }
 }
 
 async function changeOrientation(orientation: BoardOrientation) {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
   try {
-    await apiUpdateOrientation(boardStore.board.value.id, orientation);
-    boardStore.setOrientation(orientation);
+    await apiUpdateOrientation(board.value.id, orientation);
+    setOrientation(orientation);
   } catch (err) {
     console.error('Failed to update orientation:', err);
   }
@@ -72,8 +77,8 @@ export function BoardTab() {
   // or on initial load if needed (though we can just default to board values)
   // Actually, simpler:
   // Effective values used for rendering the grid:
-  const effectiveTimeMode = matchTV.value ? boardStore.effective_time_mode.value : localTimeMode.value;
-  const effectiveOrientation = matchTV.value ? boardStore.orientation.value : localOrientation.value;
+  const effectiveTimeMode = matchTV.value ? effective_time_mode.value : localTimeMode.value;
+  const effectiveOrientation = matchTV.value ? orientation.value : localOrientation.value;
 
   // Initialize local state from board when component mounts
   // or when switching matchTV off? 
@@ -88,8 +93,8 @@ export function BoardTab() {
     const newValue = !matchTV.value;
     if (!newValue) {
       // Switching TO independent mode: copy current board state
-      localTimeMode.value = boardStore.effective_time_mode.value;
-      localOrientation.value = boardStore.orientation.value;
+      localTimeMode.value = effective_time_mode.value;
+      localOrientation.value = orientation.value;
     }
     matchTV.value = newValue;
   };
@@ -136,12 +141,12 @@ export function BoardTab() {
         <button
           class="board-control-btn"
           onClick={() => changePage(-1)}
-          disabled={(boardStore.current_page.value || 0) <= 0}
+          disabled={(current_page.value || 0) <= 0}
           data-testid="prev-page-btn"
         >
           ◀ Previous
         </button>
-        <span class="board-page-indicator" data-testid="page-indicator">Page {(boardStore.current_page.value || 0) + 1}</span>
+        <span class="board-page-indicator" data-testid="page-indicator">Page {(current_page.value || 0) + 1}</span>
         <button
           class="board-control-btn"
           onClick={() => changePage(1)}
@@ -158,9 +163,9 @@ export function BoardTab() {
       <div class="board-preview">
         {(() => {
           const grid = computeGrid({
-            horses: horseStore.items.value,
-            feeds: feedStore.items.value,
-            diet: dietStore.items.value,
+            horses: horses.value,
+            feeds: feeds.value,
+            diet: diet.value,
             orientation: effectiveOrientation,
             timeMode: effectiveTimeMode,
             page: 0,
@@ -208,12 +213,12 @@ export function BoardTab() {
               <label class="board-control-label">Orientation</label>
               <div class="board-control-buttons">
                 <button
-                  class={`board-control-option ${boardStore.orientation.value === 'horse-major' ? 'active' : ''}`}
+                  class={`board-control-option ${orientation.value === 'horse-major' ? 'active' : ''}`}
                   onClick={() => changeOrientation('horse-major')}
                   data-testid="orientation-horse-major"
                 >Horses</button>
                 <button
-                  class={`board-control-option ${boardStore.orientation.value === 'feed-major' ? 'active' : ''}`}
+                  class={`board-control-option ${orientation.value === 'feed-major' ? 'active' : ''}`}
                   onClick={() => changeOrientation('feed-major')}
                   data-testid="orientation-feed-major"
                 >Feeds</button>
@@ -236,7 +241,7 @@ export function BoardTab() {
                     {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
                       <button
                         key={mode}
-                        class={`board-control-option ${boardStore.configured_mode.value === mode ? 'active' : ''}`}
+                        class={`board-control-option ${configured_mode.value === mode ? 'active' : ''}`}
                         onClick={() => changeTimeMode(mode)}
                         data-testid={`time-mode-${mode.toLowerCase()}`}
                         title={TIME_MODE_CONFIG[mode].description}
@@ -251,21 +256,21 @@ export function BoardTab() {
                   <label class="board-control-label">Zoom</label>
                   <div class="board-control-buttons">
                     <button
-                      class={`board-control-option ${boardStore.zoom_level.value === 1 ? 'active' : ''}`}
+                      class={`board-control-option ${zoom_level.value === 1 ? 'active' : ''}`}
                       onClick={() => changeZoom(1)}
                       data-testid="zoom-level-1"
                     >
                       S
                     </button>
                     <button
-                      class={`board-control-option ${boardStore.zoom_level.value === 2 ? 'active' : ''}`}
+                      class={`board-control-option ${zoom_level.value === 2 ? 'active' : ''}`}
                       onClick={() => changeZoom(2)}
                       data-testid="zoom-level-2"
                     >
                       M
                     </button>
                     <button
-                      class={`board-control-option ${boardStore.zoom_level.value === 3 ? 'active' : ''}`}
+                      class={`board-control-option ${zoom_level.value === 3 ? 'active' : ''}`}
                       onClick={() => changeZoom(3)}
                       data-testid="zoom-level-3"
                     >

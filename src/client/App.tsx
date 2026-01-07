@@ -4,7 +4,7 @@ import { pathname, navigate } from './router';
 import { initializeApp, isInitialized, connectionError, STORAGE_KEY } from './services/lifecycle';
 
 import { loadControllerToken, sseClient } from './services';
-import { boardStore, user, initAuth } from './stores';
+import { board, user, initAuth, effective_time_mode } from './stores';
 
 
 export function App() {
@@ -37,9 +37,9 @@ export function App() {
       return;
     }
 
-    const mode = boardStore.board.value?.time_mode === 'AUTO' ? boardStore.effective_time_mode.value : (boardStore.board.value?.time_mode || 'AM');
+    const mode = board.value?.time_mode === 'AUTO' ? effective_time_mode.value : (board.value?.time_mode || 'AM');
     document.body.setAttribute('data-theme', mode.toLowerCase());
-  }, [boardStore.board.value, boardStore.effective_time_mode.value, pathname.value]);
+  }, [board.value, effective_time_mode.value, pathname.value]);
 
   useEffect(() => {
     if (user.value && (pathname.value === '/login' || pathname.value === '/signup')) {

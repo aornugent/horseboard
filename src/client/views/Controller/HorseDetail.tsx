@@ -2,7 +2,11 @@ import { useState } from 'preact/hooks';
 import { signal, computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad/FeedPad';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
-import { horseStore, feedStore, dietStore, canEdit } from '../../stores';
+import {
+  horses, feeds, getHorse, updateHorse, removeHorse,
+  diet, getDiet, getDietByHorse, updateDietAmount,
+  getFeed, canEdit
+} from '../../stores';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 
 
@@ -24,17 +28,17 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
   const canEditBoard = canEdit();
 
-  const horse = horseStore.get(horseId);
+  const horse = getHorse(horseId);
 
   const activeFeeds = computed(() => {
-    const entries = dietStore.byHorse.value.get(horseId) ?? [];
+    const entries = getDietByHorse(horseId);
     const activeFeedIds = new Set(
       entries
         .filter((e) => e.am_amount !== null || e.pm_amount !== null || !!e.am_variant || !!e.pm_variant)
         .map((e) => e.feed_id)
     );
 
-    return feedStore.items.value.sort((a, b) => {
+    return feeds.value.sort((a, b) => {
       const aActive = activeFeedIds.has(a.id);
       const bActive = activeFeedIds.has(b.id);
       if (aActive && !bActive) return -1;
@@ -53,13 +57,13 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getCurrentValue = (): number | null => {
     if (!selectedFeed) return null;
-    const entry = dietStore.get(horseId, selectedFeed.feed_id);
+    const entry = getDiet(horseId, selectedFeed.feed_id);
     return entry?.[selectedFeed.field] ?? null;
   };
 
   const getCurrentVariant = (): string | null => {
     if (!selectedFeed) return null;
-    const entry = dietStore.get(horseId, selectedFeed.feed_id);
+    const entry = getDiet(horseId, selectedFeed.feed_id);
     return selectedFeed.field === 'am_amount' ? entry?.am_variant ?? null : entry?.pm_variant ?? null;
   };
 
@@ -67,9 +71,9 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     if (!selectedFeed) return;
 
 
-    dietStore.updateAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
+    updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
 
-    const currentEntry = dietStore.get(horseId, selectedFeed.feed_id);
+    const currentEntry = getDiet(horseId, selectedFeed.feed_id);
     const am_amount = selectedFeed.field === 'am_amount' ? value : currentEntry?.am_amount;
     const pm_amount = selectedFeed.field === 'pm_amount' ? value : currentEntry?.pm_amount;
     const am_variant = selectedFeed.field === 'am_amount' ? variant : currentEntry?.am_variant;
@@ -85,7 +89,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getSelectedFeedInfo = () => {
     if (!selectedFeed) return { name: '', unitType: 'fraction' as const, unitLabel: 'scoop', entryOptions: null };
-    const feed = feedStore.get(selectedFeed.feed_id);
+    const feed = getFeed(selectedFeed.feed_id);
     return {
       name: feed?.name ?? '',
       unitType: feed?.unit_type ?? 'fraction',
@@ -105,7 +109,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
     try {
       const updated = await apiUpdateHorse(horseId, { name: newName });
-      horseStore.update(horseId, updated);
+      updateHorse(horseId, updated);
       isEditing.value = false;
     } catch (err) {
       console.error('Failed to update horse:', err);
@@ -124,7 +128,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const handleConfirmDelete = async () => {
     try {
       await apiDeleteHorse(horseId);
-      horseStore.remove(horseId);
+      removeHorse(horseId);
       isDeleting.value = false;
       onBack();
     } catch (err) {
@@ -213,7 +217,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
       <div class="feed-tiles" data-testid="feed-tiles">
         {activeFeeds.value.map((feed) => {
-          const entry = dietStore.get(horseId, feed.id);
+          const entry = getDiet(horseId, feed.id);
           const amValue = entry?.am_amount;
           const pmValue = entry?.pm_amount;
 

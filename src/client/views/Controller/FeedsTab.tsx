@@ -1,7 +1,10 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
+import {
+  feeds, addFeed, updateFeed, removeFeed,
+  diet, board, canEdit
+} from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
 import { UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
@@ -20,20 +23,17 @@ const editingFeed = signal<Feed | null>(null);
 const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
 const deletingFeed = signal<Feed | null>(null);
 
-const board = boardStore.board;
-const dietEntries = dietStore.items;
-
-const addFeed = (feed: Feed) => feedStore.add(feed);
-const updateFeed = (id: string, feed: Feed) => feedStore.update(id, feed);
+const boardValue = board.value;
+const dietEntries = diet.value;
 
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  if (!query) return feedStore.items.value;
-  return feedStore.items.value.filter(f => f.name.toLowerCase().includes(query));
+  if (!query) return feeds.value;
+  return feeds.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
 function countHorsesUsingFeed(feedId: string): number {
-  return dietEntries.value.filter(
+  return diet.value.filter(
     entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount || entry.am_variant || entry.pm_variant)
   ).length;
 }
@@ -72,7 +72,7 @@ async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
 async function handleDeleteFeed(id: string) {
   try {
     await apiDeleteFeed(id);
-    feedStore.remove(id);
+    removeFeed(id);
     deletingFeed.value = null;
   } catch (err) {
     console.error('Failed to delete feed:', err);

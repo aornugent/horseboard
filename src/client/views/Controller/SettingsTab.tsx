@@ -1,5 +1,11 @@
 import {
-  boardStore,
+  board,
+  timezone,
+  orientation,
+  zoom_level,
+  updateBoard,
+  setOrientation,
+  setZoomLevel,
   user,
   authClient,
   permission,
@@ -29,11 +35,11 @@ const TIMEZONES = [
 ];
 
 async function saveTimezone(tz: string) {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
 
   try {
-    await apiUpdateBoard(boardStore.board.value.id, { timezone: tz });
-    boardStore.update({ timezone: tz });
+    await apiUpdateBoard(board.value.id, { timezone: tz });
+    updateBoard({ timezone: tz });
   } catch (err) {
     console.error('Failed to update timezone:', err);
   }
@@ -47,20 +53,20 @@ async function handleSignOut() {
 import { updateOrientation as apiUpdateOrientation } from '../../services';
 
 async function changeOrientation(orientation: 'horse-major' | 'feed-major') {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
   try {
-    await apiUpdateOrientation(boardStore.board.value.id, orientation);
-    boardStore.setOrientation(orientation);
+    await apiUpdateOrientation(board.value.id, orientation);
+    setOrientation(orientation);
   } catch (err) {
     console.error('Failed to update orientation:', err);
   }
 }
 
 async function changeZoom(level: 1 | 2 | 3) {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
   try {
-    await apiUpdateBoard(boardStore.board.value.id, { zoom_level: level });
-    boardStore.setZoomLevel(level);
+    await apiUpdateBoard(board.value.id, { zoom_level: level });
+    setZoomLevel(level);
   } catch (err) {
     console.error('Failed to update zoom:', err);
   }
@@ -74,11 +80,11 @@ function SectionStaffAccess() {
   const error = useSignal<string | null>(null);
 
   async function handleGenerate() {
-    if (!boardStore.board.value) return;
+    if (!board.value) return;
     loading.value = true;
     error.value = null;
     try {
-      inviteCode.value = await generateInviteCode(boardStore.board.value.id);
+      inviteCode.value = await generateInviteCode(board.value.id);
     } catch (err) {
       error.value = (err as Error).message;
     } finally {
@@ -220,7 +226,7 @@ export function SettingsTab() {
     }
   }
 
-  if (!boardStore.board.value) {
+  if (!board.value) {
     return (
       <div class="tab" data-testid="settings-tab">
         <div class="settings-loading">Loading settings...</div>
@@ -283,13 +289,13 @@ export function SettingsTab() {
           <div class="info-item">
             <span class="info-label">Pair Code</span>
             <span class="info-value" data-testid="board-pair-code">
-              {boardStore.board.value.pair_code}
+              {board.value.pair_code}
             </span>
           </div>
           <div class="info-item">
             <span class="info-label">Board ID</span>
             <span class="info-value info-value-small" data-testid="board-id">
-              {boardStore.board.value.id.slice(0, 8)}...
+              {board.value.id.slice(0, 8)}...
             </span>
           </div>
         </div>
@@ -339,7 +345,7 @@ export function SettingsTab() {
                 <select
                   class="input"
                   data-testid="timezone-selector"
-                  value={boardStore.timezone.value}
+                  value={timezone.value}
                   onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
                   disabled={!canEditBoard}
                 >
@@ -365,13 +371,13 @@ export function SettingsTab() {
               <label class="settings-subsection-title">Default Orientation</label>
               <div class="settings-segmented" data-testid="default-orientation-selector">
                 <button
-                  class={boardStore.orientation.value === 'horse-major' ? 'active' : ''}
+                  class={orientation.value === 'horse-major' ? 'active' : ''}
                   onClick={() => changeOrientation('horse-major')}
                 >
                   Horses
                 </button>
                 <button
-                  class={boardStore.orientation.value === 'feed-major' ? 'active' : ''}
+                  class={orientation.value === 'feed-major' ? 'active' : ''}
                   onClick={() => changeOrientation('feed-major')}
                 >
                   Feeds
@@ -382,9 +388,9 @@ export function SettingsTab() {
             <div class="settings-control-group">
               <label class="settings-subsection-title">Default Zoom</label>
               <div class="settings-segmented" data-testid="default-zoom-selector">
-                <button class={boardStore.zoom_level.value === 1 ? 'active' : ''} onClick={() => changeZoom(1)}>S</button>
-                <button class={boardStore.zoom_level.value === 2 ? 'active' : ''} onClick={() => changeZoom(2)}>M</button>
-                <button class={boardStore.zoom_level.value === 3 ? 'active' : ''} onClick={() => changeZoom(3)}>L</button>
+                <button class={zoom_level.value === 1 ? 'active' : ''} onClick={() => changeZoom(1)}>S</button>
+                <button class={zoom_level.value === 2 ? 'active' : ''} onClick={() => changeZoom(2)}>M</button>
+                <button class={zoom_level.value === 3 ? 'active' : ''} onClick={() => changeZoom(3)}>L</button>
               </div>
             </div>
           </section>

@@ -1,5 +1,5 @@
 import { pathname, navigate } from './router';
-import { boardStore } from './stores';
+import { board } from './stores';
 import { isInitialized, initializeApp, STORAGE_KEY, isTokenInvalid } from './services/lifecycle';
 import { Landing } from './views/Landing';
 import { LoginView } from './views/LoginView';
@@ -12,7 +12,7 @@ function GuardedLanding() {
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
     // If user has sticky access, auto-redirect to controller
-    if (storedBoardId && boardStore.board.value) {
+    if (storedBoardId && board.value) {
         navigate('/controller');
         return null;
     }
@@ -21,7 +21,7 @@ function GuardedLanding() {
 }
 
 function GuardedController() {
-    const needsPairing = !boardStore.board.value && !isInitialized.value;
+    const needsPairing = !board.value && !isInitialized.value;
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
     // If no board, redirect to Landing page for pairing
@@ -33,7 +33,7 @@ function GuardedController() {
 }
 
 function GuardedBoard() {
-    const needsPairing = !boardStore.board.value && !isInitialized.value;
+    const needsPairing = !board.value && !isInitialized.value;
     const storedBoardId = localStorage.getItem(STORAGE_KEY);
 
     // Show provisioning if: no board cached, OR token was invalidated (revoked)
