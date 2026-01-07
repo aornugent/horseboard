@@ -4,7 +4,7 @@ import { FeedPad } from '../../components/FeedPad/FeedPad';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
 import { horseStore, feedStore, dietStore, canEdit } from '../../stores';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
-import './HorseDetail.css';
+
 
 interface HorseDetailProps {
   horseId: string;
@@ -275,7 +275,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       />
 
       {isEditing.value && (
-        <div class="modal-overlay" data-testid="edit-horse-modal">
+        <div class="modal-overlay open" data-testid="edit-horse-modal">
           <div class="modal-content">
             <h3 class="modal-title">Edit Horse</h3>
             <div class="modal-field">
@@ -312,7 +312,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       )}
 
       {isDeleting.value && (
-        <div class="modal-overlay" data-testid="delete-horse-modal">
+        <div class="modal-overlay open" data-testid="delete-horse-modal">
           <div class="modal-content">
             <h3 class="modal-title">Delete Horse?</h3>
             <p class="modal-description">

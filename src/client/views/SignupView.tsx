@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { authClient } from '../stores';
 import { navigate } from '../router';
 import { STORAGE_KEY } from '../services/lifecycle';
-import './Auth.css';
+
 
 const name = signal('');
 const email = signal('');
@@ -69,7 +69,7 @@ export function SignupView() {
                         <input
                             id="name"
                             type="text"
-                            class="form-input"
+                            class="input"
                             data-testid="name-input"
                             value={name.value}
                             onInput={(e) => (name.value = (e.target as HTMLInputElement).value)}
@@ -84,7 +84,7 @@ export function SignupView() {
                         <input
                             id="email"
                             type="email"
-                            class="form-input"
+                            class="input"
                             data-testid="email-input"
                             value={email.value}
                             onInput={(e) => (email.value = (e.target as HTMLInputElement).value)}
@@ -99,7 +99,7 @@ export function SignupView() {
                         <input
                             id="password"
                             type="password"
-                            class="form-input"
+                            class="input"
                             data-testid="password-input"
                             value={password.value}
                             onInput={(e) => (password.value = (e.target as HTMLInputElement).value)}

@@ -13,7 +13,7 @@ import { LinkDisplayModal } from '../../components/LinkDisplayModal';
 import { listDevices, revokeDeviceToken } from '../../services';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import './SettingsTab.css';
+
 
 // Common timezones for horse farms
 const TIMEZONES = [
@@ -89,7 +89,7 @@ function SectionStaffAccess() {
   return (
     <>
       <h4 class="settings-subsection-title">Staff Access</h4>
-      <p class="settings-section-description">
+      <p class="section-description">
         Generate a temporary code to give staff 'Edit' access
       </p>
 
@@ -100,7 +100,7 @@ function SectionStaffAccess() {
             Expires: {new Date(inviteCode.value.expires_at).toLocaleTimeString()}
           </p>
           <button
-            class="settings-btn settings-btn-primary settings-btn-block"
+            class="btn-list btn-list-primary btn-list-block"
             onClick={() => inviteCode.value = null}
           >
             Done
@@ -109,7 +109,7 @@ function SectionStaffAccess() {
       ) : (
         <>
           <button
-            class="settings-btn settings-btn-primary settings-btn-block"
+            class="btn-list btn-list-primary btn-list-block"
             onClick={handleGenerate}
             disabled={loading.value}
             data-testid="generate-invite-btn"
@@ -145,13 +145,13 @@ function SectionUpgradeAccess() {
 
   if (!showInput.value) {
     return (
-      <section class="settings-section">
-        <h3 class="settings-section-title">Upgrade Access</h3>
-        <p class="settings-section-description">
+      <section class="section">
+        <h3 class="section-title">Upgrade Access</h3>
+        <p class="section-description">
           Have an invite code? Enter it here to enable controls.
         </p>
         <button
-          class="settings-btn settings-btn-primary settings-btn-block"
+          class="btn-list btn-list-primary btn-list-block"
           onClick={() => showInput.value = true}
           data-testid="enter-invite-btn"
         >
@@ -162,19 +162,19 @@ function SectionUpgradeAccess() {
   }
 
   return (
-    <section class="settings-section">
-      <h3 class="settings-section-title">Enter Invite Code</h3>
-      <div class="settings-input-group">
+    <section class="section">
+      <h3 class="section-title">Enter Invite Code</h3>
+      <div class="input-group">
         <input
           type="text"
-          class="settings-input settings-input-code"
+          class="input input-code"
           value={code.value}
           onInput={(e) => code.value = (e.target as HTMLInputElement).value}
           placeholder="000000"
           data-testid="invite-input"
         />
         <button
-          class="settings-btn settings-btn-primary"
+          class="btn-list btn-list-primary"
           onClick={handleRedeem}
           disabled={loading.value || !code.value}
           data-testid="invite-submit"
@@ -184,7 +184,7 @@ function SectionUpgradeAccess() {
       </div>
       {error.value && <p class="settings-error" data-testid="invite-error">{error.value}</p>}
       <button
-        class="settings-btn settings-btn-text"
+        class="btn-list btn-list-text"
         onClick={() => showInput.value = false}
       >
         Cancel
@@ -195,8 +195,8 @@ function SectionUpgradeAccess() {
 
 function SectionPermissions() {
   return (
-    <section class="settings-section">
-      <h3 class="settings-section-title">Permissions</h3>
+    <section class="section">
+      <h3 class="section-title">Permissions</h3>
       <SectionStaffAccess />
     </section>
   );
@@ -222,36 +222,36 @@ export function SettingsTab() {
 
   if (!boardStore.board.value) {
     return (
-      <div class="settings-tab" data-testid="settings-tab">
+      <div class="tab" data-testid="settings-tab">
         <div class="settings-loading">Loading settings...</div>
       </div>
     );
   }
 
   return (
-    <div class="settings-tab" data-testid="settings-tab">
-      <h2 class="settings-title">Settings</h2>
+    <div class="tab" data-testid="settings-tab">
+      <h2 class="tab-title">Settings</h2>
 
-      <section class="settings-section">
-        <h3 class="settings-section-title">Account</h3>
+      <section class="section">
+        <h3 class="section-title">Account</h3>
         {isAuthLoading.value && (
-          <div class="settings-account-info">
-            <div class="settings-account-details">
-              <div class="settings-account-role">Loading...</div>
+          <div class="info-info">
+            <div class="info-details">
+              <div class="info-role">Loading...</div>
             </div>
           </div>
         )}
         {!isAuthLoading.value && user.value && (
-          <div class="settings-account-info">
-            <div class="settings-account-details">
-              <div class="settings-account-name" data-testid="account-name">{user.value.name}</div>
-              <div class="settings-account-email">{user.value.email}</div>
-              <div class="settings-account-role">
+          <div class="info-info">
+            <div class="info-details">
+              <div class="info-name" data-testid="account-name">{user.value.name}</div>
+              <div class="info-email">{user.value.email}</div>
+              <div class="info-role">
                 {isAdmin() ? 'Owner' : `Permission: ${permission.value}`}
               </div>
             </div>
             <button
-              class="settings-btn settings-btn-danger"
+              class="btn-list btn-list-danger"
               onClick={handleSignOut}
               data-testid="sign-out-btn"
             >
@@ -260,12 +260,12 @@ export function SettingsTab() {
           </div>
         )}
         {!isAuthLoading.value && !user.value && (
-          <div class="settings-account-info">
-            <div class="settings-account-details">
-              <div class="settings-account-role">Not signed in</div>
+          <div class="info-info">
+            <div class="info-details">
+              <div class="info-role">Not signed in</div>
             </div>
             <button
-              class="settings-btn settings-btn-primary"
+              class="btn-list btn-list-primary"
               onClick={() => navigate('/login')}
               data-testid="sign-in-btn"
             >
@@ -277,18 +277,18 @@ export function SettingsTab() {
 
       {!canEditBoard && <SectionUpgradeAccess />}
 
-      <section class="settings-section settings-info">
-        <h3 class="settings-section-title">Board Info</h3>
-        <div class="settings-info-grid">
-          <div class="settings-info-item">
-            <span class="settings-info-label">Pair Code</span>
-            <span class="settings-info-value" data-testid="board-pair-code">
+      <section class="section info">
+        <h3 class="section-title">Board Info</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Pair Code</span>
+            <span class="info-value" data-testid="board-pair-code">
               {boardStore.board.value.pair_code}
             </span>
           </div>
-          <div class="settings-info-item">
-            <span class="settings-info-label">Board ID</span>
-            <span class="settings-info-value settings-info-value-small" data-testid="board-id">
+          <div class="info-item">
+            <span class="info-label">Board ID</span>
+            <span class="info-value info-value-small" data-testid="board-id">
               {boardStore.board.value.id.slice(0, 8)}...
             </span>
           </div>
@@ -297,21 +297,21 @@ export function SettingsTab() {
 
       {isAdmin() && (
         <>
-          <section class="settings-section">
-            <h3 class="settings-section-title">Displays</h3>
+          <section class="section">
+            <h3 class="section-title">Displays</h3>
 
-            <div class="settings-devices-list">
+            <div class="devices-list">
               {linkedDevices.value.length === 0 ? (
                 <div class="settings-empty-state">No displays connected</div>
               ) : (
                 linkedDevices.value.map(device => (
-                  <div class="settings-device-item" key={device.id}>
-                    <div class="settings-device-info">
-                      <span class="settings-device-name" data-testid="settings-device-name">{device.name}</span>
-                      <span class="settings-device-meta">Added: {new Date(device.created_at).toLocaleDateString()}</span>
+                  <div class="device-item" key={device.id}>
+                    <div class="device-info">
+                      <span class="device-name" data-testid="device-name">{device.name}</span>
+                      <span class="device-meta">Added: {new Date(device.created_at).toLocaleDateString()}</span>
                     </div>
                     <button
-                      class="settings-btn settings-btn-danger settings-btn-small"
+                      class="btn-list btn-list-danger btn-list-small"
                       onClick={() => handleUnlink(device.id)}
                       data-testid="unlink-display-btn"
                     >
@@ -323,7 +323,7 @@ export function SettingsTab() {
             </div>
 
             <button
-              class="settings-btn settings-btn-primary settings-btn-block"
+              class="btn-list btn-list-primary btn-list-block"
               onClick={() => showLinkModal.value = true}
               data-testid="add-display-btn"
             >
@@ -332,12 +332,12 @@ export function SettingsTab() {
 
             <div class="settings-display-timezone">
               <h4 class="settings-subsection-title">Timezone</h4>
-              <p class="settings-section-description">
+              <p class="section-description">
                 Used for automatic AM/PM calculation
               </p>
-              <div class="settings-select-wrapper">
+              <div class="input-wrapper">
                 <select
-                  class="settings-select"
+                  class="input"
                   data-testid="timezone-selector"
                   value={boardStore.timezone.value}
                   onChange={(e) => saveTimezone((e.target as HTMLSelectElement).value)}
@@ -355,9 +355,9 @@ export function SettingsTab() {
 
           <SectionPermissions />
 
-          <section class="settings-section" data-testid="display-defaults-section">
-            <h3 class="settings-section-title">Display Defaults</h3>
-            <p class="settings-section-description">
+          <section class="section" data-testid="display-defaults-section">
+            <h3 class="section-title">Display Defaults</h3>
+            <p class="section-description">
               Configure default orientation and zoom for TV displays
             </p>
 

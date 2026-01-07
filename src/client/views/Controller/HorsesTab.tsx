@@ -3,7 +3,7 @@ import { HorseCard } from '../../components/HorseCard/HorseCard';
 import { Modal } from '../../components/Modal';
 import { horseStore, dietStore, boardStore, canEdit } from '../../stores';
 import { createHorse as apiCreateHorse } from '../../services';
-import './HorsesTab.css';
+
 
 interface HorsesTabProps {
   onHorseSelect: (horseId: string) => void;
@@ -31,12 +31,12 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
   const canEditBoard = canEdit();
 
   return (
-    <div class="horses-tab" data-testid="horses-tab">
-      <div class="horses-tab-header">
-        <h2 class="horses-tab-title">Horses</h2>
+    <div class="tab" data-testid="horses-tab">
+      <div class="tab-header">
+        <h2 class="tab-title">Horses</h2>
         {canEditBoard && (
           <button
-            class="horses-tab-add-btn"
+            class="btn"
             data-testid="add-horse-btn"
             onClick={() => { isAddingHorse.value = true; }}
           >
@@ -45,10 +45,10 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
         )}
       </div>
 
-      <div class="horses-tab-search">
+      <div class="tab-search">
         <input
           type="search"
-          class="horse-search-input"
+          class="input"
           placeholder="Search horses..."
           data-testid="horse-search"
           value={horseStore.searchQuery.value}
@@ -58,9 +58,9 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
         />
       </div>
 
-      <div class="horse-list" data-testid="horse-list">
+      <div class="tab-list" data-testid="horse-list">
         {horseStore.filtered.value.length === 0 ? (
-          <div class="horse-list-empty" data-testid="horse-list-empty">
+          <div class="tab-list-empty" data-testid="horse-list-empty">
             {horseStore.searchQuery.value
               ? 'No horses match your search'
               : 'No horses yet. Add one to get started!'}

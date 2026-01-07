@@ -5,7 +5,7 @@ import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
 import { UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
-import './FeedsTab.css';
+
 
 // Default unit definition for UI selection
 const DEFAULT_UNIT_ID: UnitTypeOptionId = 'scoop';
@@ -98,12 +98,12 @@ export function FeedsTab() {
   const canEditBoard = canEdit();
 
   return (
-    <div class="feeds-tab" data-testid="feeds-tab">
-      <div class="feeds-tab-header">
-        <h2 class="feeds-tab-title">Feeds</h2>
+    <div class="tab" data-testid="feeds-tab">
+      <div class="tab-header">
+        <h2 class="tab-title">Feeds</h2>
         {canEditBoard && (
           <button
-            class="feeds-tab-add-btn"
+            class="btn"
             data-testid="add-feed-btn"
             onClick={() => { isAddingFeed.value = true; }}
           >
@@ -112,10 +112,10 @@ export function FeedsTab() {
         )}
       </div>
 
-      <div class="feeds-tab-search">
+      <div class="tab-search">
         <input
           type="search"
-          class="feed-search-input"
+          class="input"
           placeholder="Search feeds..."
           data-testid="feed-search"
           value={searchQuery.value}
@@ -125,9 +125,9 @@ export function FeedsTab() {
         />
       </div>
 
-      <div class="feed-list" data-testid="feed-list">
+      <div class="tab-list" data-testid="feed-list">
         {filteredFeeds.value.length === 0 ? (
-          <div class="feed-list-empty" data-testid="feed-list-empty">
+          <div class="tab-list-empty" data-testid="feed-list-empty">
             {searchQuery.value
               ? 'No feeds match your search'
               : 'No feeds yet. Add one to get started!'}

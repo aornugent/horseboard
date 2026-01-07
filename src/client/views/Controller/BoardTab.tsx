@@ -1,6 +1,6 @@
 import { SwimLaneGrid } from '../../components/SwimLaneGrid/SwimLaneGrid';
 import { horseStore, feedStore, boardStore, dietStore } from '../../stores';
-import './BoardTab.css';
+
 
 import { updateBoard as apiUpdateBoard, updateTimeMode as apiUpdateTimeMode, updateOrientation as apiUpdateOrientation } from '../../services';
 import { TIME_MODE, TIME_MODE_CONFIG, type TimeMode, type BoardOrientation } from '../../../shared/resources';
@@ -103,9 +103,9 @@ export function BoardTab() {
   };
 
   return (
-    <div class="board-tab" data-testid="board-tab">
-      <div class="board-tab-header">
-        <h2 class="board-tab-title">Board Preview</h2>
+    <div class="tab" data-testid="board-tab">
+      <div class="tab-header">
+        <h2 class="tab-title">Board Preview</h2>
 
         {!matchTV.value && (
           <div class="header-controls">
@@ -128,7 +128,7 @@ export function BoardTab() {
         )}
 
         {matchTV.value && (
-          <span class="board-tab-badge">{effectiveTimeMode}</span>
+          <span class="tab-badge">{effectiveTimeMode}</span>
         )}
       </div>
 
