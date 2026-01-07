@@ -3,10 +3,11 @@ import { signal, computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad/FeedPad';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
 import {
-  horses, feeds, getHorse, updateHorse, removeHorse,
-  diet, getDiet, getDietByHorse, updateDietAmount,
-  getFeed, canEdit
+  feeds, getHorse, updateHorse, removeHorse,
+  getDiet, getDietByHorse, updateDietAmount,
+  getFeed
 } from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 
 
@@ -26,7 +27,7 @@ const isDeleting = signal(false);
 
 export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
 
   const horse = getHorse(horseId);
 

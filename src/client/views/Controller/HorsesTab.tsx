@@ -2,9 +2,10 @@ import { signal } from '@preact/signals';
 import { HorseCard } from '../../components/HorseCard/HorseCard';
 import { Modal } from '../../components/Modal';
 import {
-  horses, searchQuery, filteredHorses, addHorse,
-  diet, countActiveFeeds, board, canEdit
+  searchQuery, filteredHorses, addHorse,
+  countActiveFeeds, board
 } from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { createHorse as apiCreateHorse } from '../../services';
 
 
@@ -31,7 +32,7 @@ async function handleCreateHorse(name: string, note: string) {
 }
 
 export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
 
   return (
     <div class="tab" data-testid="horses-tab">

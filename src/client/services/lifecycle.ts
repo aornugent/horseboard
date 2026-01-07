@@ -1,10 +1,11 @@
 import { signal } from '@preact/signals';
 import { sseClient } from './sse';
-import { loadPermission } from './api';
-import { setPermission as setPermissionStore } from '../stores';
+import { resolveToken } from './api';
+import { setPermission as setPermissionStore } from '../stores/permission';
 
-export const STORAGE_KEY = 'hb_board_id';
-export const TOKEN_STORAGE_KEY = 'hb_token';
+export { STORAGE_KEY, TOKEN_STORAGE_KEY } from '../constants';
+import { STORAGE_KEY, TOKEN_STORAGE_KEY } from '../constants';
+
 export const isInitialized = signal(false);
 export const connectionError = signal<string | null>(null);
 export const isTokenInvalid = signal(false);
@@ -16,9 +17,19 @@ export const isTokenInvalid = signal(false);
  */
 export async function initializeApp(boardId: string): Promise<boolean> {
     try {
-        // Load cached permission from localStorage (instant UI)
-        const cachedPermission = loadPermission();
-        setPermissionStore(cachedPermission as any);
+        // Load permission from token if available
+        const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+        if (token) {
+            try {
+                const { permission } = await resolveToken();
+                if (permission) {
+                    setPermissionStore(permission as any);
+                }
+            } catch (err) {
+                console.warn('Failed to resolve token permission:', err);
+                // Fallback to view-only is safe (store default)
+            }
+        }
 
         // Connect to SSE for board data and live updates
         await sseClient.connect(boardId);

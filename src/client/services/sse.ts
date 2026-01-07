@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { batch } from '@preact/signals';
 import { setFromSSE } from '../stores';
 import {
   BoardSchema,

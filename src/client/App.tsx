@@ -1,10 +1,11 @@
 import { useEffect } from 'preact/hooks';
 import { Router } from './Router';
-import { pathname, navigate } from './router';
-import { initializeApp, isInitialized, connectionError, STORAGE_KEY } from './services/lifecycle';
+import { pathname } from './router';
+import { initializeApp, isInitialized, connectionError } from './services/lifecycle';
+import { STORAGE_KEY } from './constants';
 
 import { loadControllerToken, sseClient } from './services';
-import { board, user, initAuth, effective_time_mode } from './stores';
+import { board, initAuth, effective_time_mode } from './stores';
 
 
 export function App() {
@@ -41,11 +42,7 @@ export function App() {
     document.body.setAttribute('data-theme', mode.toLowerCase());
   }, [board.value, effective_time_mode.value, pathname.value]);
 
-  useEffect(() => {
-    if (user.value && (pathname.value === '/login' || pathname.value === '/signup')) {
-      navigate('/controller');
-    }
-  }, [user.value, pathname.value]);
+
 
   const storedBoardId = localStorage.getItem(STORAGE_KEY);
 

@@ -3,8 +3,9 @@ import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
 import {
   feeds, addFeed, updateFeed, removeFeed,
-  diet, board, canEdit
+  diet, board
 } from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
 import { UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
@@ -22,9 +23,6 @@ const newFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID);
 const editingFeed = signal<Feed | null>(null);
 const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
 const deletingFeed = signal<Feed | null>(null);
-
-const boardValue = board.value;
-const dietEntries = diet.value;
 
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
@@ -95,7 +93,7 @@ async function handleSaveFeedEdit(feed: Feed, unitId: UnitTypeOptionId) {
 }
 
 export function FeedsTab() {
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
 
   return (
     <div class="tab" data-testid="feeds-tab">

@@ -166,12 +166,11 @@ export function updateDietAmount(
   }
 }
 
-// ============= Permission (unchanged) =============
-export type Permission = 'none' | 'view' | 'edit' | 'admin';
-export const permission = signal<Permission>('view');
-export const setPermission = (p: Permission) => { permission.value = p; };
-export const canEdit = () => permission.value === 'edit' || permission.value === 'admin';
-export const isAdmin = () => permission.value === 'admin';
+// ============= Token Reactivity =============
+export * from './token';
+
+// ============= Permission =============
+export * from './permission';
 
 // Re-export auth module
 export * from './auth';
