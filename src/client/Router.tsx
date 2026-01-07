@@ -1,6 +1,11 @@
+
+
+import { appMode } from './hooks/useAppMode';
 import { pathname, navigate } from './router';
-import { boardStore } from './stores';
-import { isInitialized, initializeApp, STORAGE_KEY, isTokenInvalid } from './services/lifecycle';
+import { isTokenInvalid, initializeApp } from './services/lifecycle';
+import { STORAGE_KEY } from './constants';
+import { boardId } from './stores/token';
+
 import { Landing } from './views/Landing';
 import { LoginView } from './views/LoginView';
 import { SignupView } from './views/SignupView';
@@ -8,58 +13,45 @@ import { ControllerView } from './views/ControllerView';
 import { Board } from './views/Board';
 import { ProvisioningView } from './views/ProvisioningView';
 
-function GuardedLanding() {
-    const storedBoardId = localStorage.getItem(STORAGE_KEY);
+export function Router() {
+    const mode = appMode.value;
+    const path = pathname.value;
 
-    // If user has sticky access, auto-redirect to controller
-    if (storedBoardId && boardStore.board.value) {
+    // Loading state
+    if (mode === 'loading') {
+        return <div class="loading-spinner">Loading...</div>;
+    }
+
+    // Route matching
+    if (path === '/login') return <LoginView />;
+    if (path === '/signup') return <SignupView />;
+
+    if (path === '/board') {
+        // Display or provisioning
+        // If unauthenticated or token invalid, show provisioning
+        if (mode === 'unauthenticated' || isTokenInvalid.value) {
+            return <ProvisioningView onProvisioned={(id) => {
+                isTokenInvalid.value = false;
+                localStorage.setItem(STORAGE_KEY, id);
+                boardId.value = id;
+                initializeApp(id);
+            }} />;
+        }
+        return <Board />;
+    }
+
+    if (path === '/controller') {
+        if (mode === 'unauthenticated') {
+            navigate('/');
+            return null;
+        }
+        return <ControllerView />;
+    }
+
+    // Landing page - redirect if authenticated
+    if (mode !== 'unauthenticated') {
         navigate('/controller');
         return null;
     }
-
     return <Landing />;
-}
-
-function GuardedController() {
-    const needsPairing = !boardStore.board.value && !isInitialized.value;
-    const storedBoardId = localStorage.getItem(STORAGE_KEY);
-
-    // If no board, redirect to Landing page for pairing
-    if (needsPairing && !storedBoardId) {
-        navigate('/');
-        return null;
-    }
-    return <ControllerView />;
-}
-
-function GuardedBoard() {
-    const needsPairing = !boardStore.board.value && !isInitialized.value;
-    const storedBoardId = localStorage.getItem(STORAGE_KEY);
-
-    // Show provisioning if: no board cached, OR token was invalidated (revoked)
-    if ((needsPairing && !storedBoardId) || isTokenInvalid.value) {
-        return (
-            <ProvisioningView
-                onProvisioned={(id: string) => {
-                    isTokenInvalid.value = false;
-                    localStorage.setItem(STORAGE_KEY, id);
-                    initializeApp(id);
-                }}
-            />
-        );
-    }
-    return <Board />;
-}
-
-const routes: Record<string, () => import('preact').JSX.Element | null> = {
-    '/': GuardedLanding,
-    '/login': LoginView,
-    '/signup': SignupView,
-    '/controller': GuardedController,
-    '/board': GuardedBoard,
-};
-
-export function Router() {
-    const Component = routes[pathname.value] || GuardedLanding;
-    return <Component />;
 }

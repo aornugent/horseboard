@@ -1,50 +1,53 @@
 import { SwimLaneGrid } from '../components/SwimLaneGrid/SwimLaneGrid';
-import { horseStore, feedStore, boardStore, dietStore } from '../stores';
+import {
+  horses, feeds, diet,
+  orientation, pageSize, rowPageSize, current_page, effective_time_mode, board
+} from '../stores';
 import { computeGrid, get2DPageCoords } from '../../shared/grid-logic';
 
 
 export function Board() {
   /* Pagination Logic */
-  const activeHorses = horseStore.items.value.filter(h => !h.archived);
-  const feeds = feedStore.items.value;
-  const orientation = boardStore.orientation.value;
+  const activeHorses = horses.value.filter(h => !h.archived);
+  const feedItems = feeds.value;
+  const currentOrientation = orientation.value;
 
-  const primaryCount = orientation === 'horse-major' ? activeHorses.length : feeds.length;
-  const secondaryCount = orientation === 'horse-major' ? feeds.length : activeHorses.length;
-  const rowPageSize = boardStore.rowPageSize.value || 10;
+  const primaryCount = currentOrientation === 'horse-major' ? activeHorses.length : feedItems.length;
+  const secondaryCount = currentOrientation === 'horse-major' ? feedItems.length : activeHorses.length;
+  const currentRowPageSize = rowPageSize.value || 10;
 
-  const totalRowPages = Math.ceil(secondaryCount / rowPageSize) || 1;
-  const totalColPages = Math.ceil(primaryCount / (boardStore.pageSize.value || 6)) || 1;
+  const totalRowPages = Math.ceil(secondaryCount / currentRowPageSize) || 1;
+  const totalColPages = Math.ceil(primaryCount / (pageSize.value || 6)) || 1;
   const totalPages = totalColPages * totalRowPages;
 
   // Calculate 2D coordinates from linear page index
   const { columnPage, rowPage } = get2DPageCoords(
-    boardStore.current_page.value || 0,
+    current_page.value || 0,
     totalRowPages
   );
 
   const grid = computeGrid({
-    horses: horseStore.items.value,
-    feeds: feedStore.items.value,
-    diet: dietStore.items.value,
-    orientation: boardStore.orientation.value,
-    timeMode: boardStore.effective_time_mode.value,
+    horses: horses.value,
+    feeds: feeds.value,
+    diet: diet.value,
+    orientation: orientation.value,
+    timeMode: effective_time_mode.value,
     page: columnPage,
-    pageSize: boardStore.pageSize.value,
+    pageSize: pageSize.value,
     rowPage: rowPage,
-    rowPageSize: rowPageSize
+    rowPageSize: rowPageSize.value
   });
 
-  const pairCode = boardStore.board.value?.pair_code;
+  const pairCode = board.value?.pair_code;
   const hasData = grid.columns.length > 0;
 
   /* Badge Rendering Uses Calculated Values */
-  const currentPage = (boardStore.current_page.value || 0) + 1;
+  const currentPageIndex = (current_page.value || 0) + 1;
 
   return (
     <div
       class="board-view"
-      data-theme={boardStore.effective_time_mode.value.toLowerCase()}
+      data-theme={effective_time_mode.value.toLowerCase()}
       data-testid="board-view"
     >
       <header class="board-header">
@@ -56,10 +59,10 @@ export function Board() {
         )}
         <div class="board-badges">
           <div class="board-page-badge" data-testid="page-badge">
-            Page {currentPage} / {totalPages}
+            Page {currentPageIndex} / {totalPages}
           </div>
           <div class="board-time-badge" data-testid="time-mode-badge">
-            {boardStore.effective_time_mode.value}
+            {effective_time_mode.value}
           </div>
         </div>
       </header>

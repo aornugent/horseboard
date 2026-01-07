@@ -28,7 +28,16 @@ export function SignupView() {
             } else if (data) {
                 // Successful signup
                 try {
-                    const { listUserBoards, createBoard, setPermission } = await import('../services');
+                    const { listUserBoards, createBoard } = await import('../services');
+                    const { setPermission } = await import('../stores');
+                    const { authState } = await import('../stores');
+                    if (data) {
+                        authState.value = {
+                            user: data.user,
+                            session: null,
+                            isLoading: false
+                        };
+                    }
                     const boards = await listUserBoards();
                     let boardId;
                     if (boards.length === 0) {

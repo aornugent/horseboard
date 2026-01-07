@@ -15,8 +15,6 @@ export {
 
 
   setControllerToken,
-  setPermission,
-  loadPermission,
   resolveToken,
   pollProvisioning,
   linkDevice,

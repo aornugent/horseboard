@@ -1,7 +1,11 @@
 import { signal } from '@preact/signals';
 import { HorseCard } from '../../components/HorseCard/HorseCard';
 import { Modal } from '../../components/Modal';
-import { horseStore, dietStore, boardStore, canEdit } from '../../stores';
+import {
+  searchQuery, filteredHorses, addHorse,
+  countActiveFeeds, board
+} from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { createHorse as apiCreateHorse } from '../../services';
 
 
@@ -14,11 +18,11 @@ const newHorseName = signal('');
 const newHorseNote = signal('');
 
 async function handleCreateHorse(name: string, note: string) {
-  if (!boardStore.board.value) return;
+  if (!board.value) return;
 
   try {
-    const horse = await apiCreateHorse(boardStore.board.value.id, name, note || null);
-    horseStore.add(horse);
+    const horse = await apiCreateHorse(board.value.id, name, note || null);
+    addHorse(horse);
     isAddingHorse.value = false;
     newHorseName.value = '';
     newHorseNote.value = '';
@@ -28,7 +32,7 @@ async function handleCreateHorse(name: string, note: string) {
 }
 
 export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
 
   return (
     <div class="tab" data-testid="horses-tab">
@@ -51,26 +55,26 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
           class="input"
           placeholder="Search horses..."
           data-testid="horse-search"
-          value={horseStore.searchQuery.value}
+          value={searchQuery.value}
           onInput={(e) => {
-            horseStore.searchQuery.value = (e.target as HTMLInputElement).value;
+            searchQuery.value = (e.target as HTMLInputElement).value;
           }}
         />
       </div>
 
       <div class="tab-list" data-testid="horse-list">
-        {horseStore.filtered.value.length === 0 ? (
+        {filteredHorses.value.length === 0 ? (
           <div class="tab-list-empty" data-testid="horse-list-empty">
-            {horseStore.searchQuery.value
+            {searchQuery.value
               ? 'No horses match your search'
               : 'No horses yet. Add one to get started!'}
           </div>
         ) : (
-          horseStore.filtered.value.map((horse) => (
+          filteredHorses.value.map((horse) => (
             <HorseCard
               key={horse.id}
               horse={horse}
-              feedCount={dietStore.countActiveFeeds(horse.id)}
+              feedCount={countActiveFeeds(horse.id)}
               onClick={() => onHorseSelect(horse.id)}
             />
           ))

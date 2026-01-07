@@ -1,8 +1,9 @@
 import type { Board, Horse, Feed, DietEntry, TimeMode, BoardOrientation } from '@shared/resources';
 import type { UnitType } from '@shared/unit-strategies';
 import { signal } from '@preact/signals';
-import { setPermission as setPermissionStore } from '../stores';
-import { TOKEN_STORAGE_KEY } from './lifecycle';
+import { setPermission as setPermissionStore } from '../stores/permission';
+import { accessToken } from '../stores/token';
+import { TOKEN_STORAGE_KEY } from '../constants';
 
 export const onAuthError = signal<{ status: number; message: string } | null>(null);
 
@@ -34,8 +35,10 @@ export function setControllerToken(token: string | null): void {
   controllerToken = token;
   if (token) {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    accessToken.value = token;
   } else {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    accessToken.value = null;
   }
 }
 
@@ -46,15 +49,7 @@ export function loadControllerToken(): void {
   }
 }
 
-export const PERMISSION_STORAGE_KEY = 'hb_permission';
 
-export function setPermission(permission: string): void {
-  localStorage.setItem(PERMISSION_STORAGE_KEY, permission);
-}
-
-export function loadPermission(): string {
-  return localStorage.getItem(PERMISSION_STORAGE_KEY) || 'view';
-}
 
 async function request<T>(
   url: string,
@@ -74,7 +69,6 @@ async function request<T>(
   if (!response.ok) {
     if (response.status === 403) {
       // Permission denied - downgrade to view-only and show friendly message
-      setPermission('view');
       setPermissionStore('view');
       onAuthError.value = { status: 403, message: 'You need edit access to do that' };
     } else if (response.status === 401) {
@@ -138,7 +132,6 @@ export async function generateInviteCode(board_id: string): Promise<{ code: stri
 export interface PairResult {
   success: boolean;
   board_id?: string;
-  token?: string;
   error?: string;
 }
 
@@ -156,11 +149,13 @@ export async function pairWithCode(code: string): Promise<PairResult> {
       body: JSON.stringify({ code })
     });
     if (result.success && result.data) {
+      // Set token signal for reactive routing (must happen before return)
+      setControllerToken(result.data.token);
       // Store permission for UI decisions
       if (result.data.permission) {
-        setPermission(result.data.permission);
+        setPermissionStore(result.data.permission as any);
       }
-      return { success: true, board_id: result.data.board_id, token: result.data.token };
+      return { success: true, board_id: result.data.board_id };
     }
     return { success: false, error: 'Invalid pairing code' };
   } catch (error) {
@@ -361,7 +356,7 @@ export async function redeemInvite(code: string): Promise<{ token: string }> {
   setControllerToken(token);
   // Store permission for UI decisions
   if (permission) {
-    setPermission(permission);
+    setPermissionStore(permission as any);
   }
   return { token };
 }
