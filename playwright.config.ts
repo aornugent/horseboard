@@ -11,6 +11,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Ignore preview files in standard test runs
+  testIgnore: '**/previews/**',
+
 
   // Global setup to clean database before tests
   globalSetup: './tests/e2e/global-setup.ts',
