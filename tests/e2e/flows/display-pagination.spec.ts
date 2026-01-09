@@ -12,12 +12,14 @@ test.describe('Orientation Toggle', () => {
     test('displays toggle in display controls', async ({ ownerPage }) => {
         await ownerPage.locator(selectors.tabBoard).click();
         await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
         await expect(ownerPage.locator(selectors.orientationToggle)).toBeVisible();
     });
 
     test('horse-major is default', async ({ ownerPage }) => {
         await ownerPage.locator(selectors.tabBoard).click();
         await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
         await expect(ownerPage.locator(selectors.orientationHorseMajor)).toHaveClass(/active/);
     });
 
@@ -29,10 +31,11 @@ test.describe('Orientation Toggle', () => {
         }
         await ownerPage.reload();
         await ownerPage.locator(selectors.tabBoard).click();
-        await ownerPage.locator(selectors.nextPageBtn).click();
+        await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await ownerPage.locator('[data-testid="tv-next-page"]').click();
         await expect(ownerPage.locator(selectors.boardPageIndicator)).toContainText('2');
 
-        await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+        await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
         await ownerPage.locator(selectors.orientationFeedMajor).click();
         await expect(ownerPage.locator(selectors.boardPageIndicator)).toContainText('1');
     });
@@ -56,6 +59,9 @@ test.describe('Orientation Toggle', () => {
 
         // Enable Match TV so preview follows board changes
         await page.click('[data-testid="match-tv-toggle"]');
+
+        // Open overflow menu to access orientation controls
+        await page.click('[data-testid="overflow-menu-btn"]');
 
         // Default: Horses (verify active class and header)
         await expect(page.getByTestId('orientation-horse-major')).toHaveClass(/active/);
@@ -134,7 +140,7 @@ test.describe('TV Display Pagination', () => {
             await page.reload();
             await page.click('[data-testid="tab-board"]');
             await page.click('[data-testid="toggle-display-controls"]');
-            await page.click('[data-testid="next-page-btn"]');
+            await page.click('[data-testid="tv-next-page"]');
 
             // Breadcrumb should be gone (last row page for this column)
             await expect(displayPage.getByTestId('breadcrumb-more')).not.toBeVisible();
@@ -158,6 +164,7 @@ test.describe('TV Display Pagination', () => {
 
             await ownerPage.locator(selectors.tabBoard).click();
             await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+            await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
             await ownerPage.locator(selectors.orientationFeedMajor).click();
 
             await expect(displayPage.locator(selectors.gridHeader)).toContainText('TestFeed');

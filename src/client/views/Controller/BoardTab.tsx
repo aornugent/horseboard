@@ -110,8 +110,6 @@ export function BoardTab() {
   return (
     <div class="tab" data-testid="board-tab">
       <div class="tab-header">
-        <h2 class="tab-title">Board Preview</h2>
-
         {!matchTV.value && (
           <div class="header-controls">
             <button
@@ -127,7 +125,7 @@ export function BoardTab() {
               data-testid="header-flip-btn"
               title="Flip Orientation"
             >
-              ⇄
+              <span class="flip-icon">↻</span>
             </button>
           </div>
         )}
@@ -137,30 +135,11 @@ export function BoardTab() {
         )}
       </div>
 
-      <div class="board-controls">
-        <button
-          class="board-control-btn"
-          onClick={() => changePage(-1)}
-          disabled={(current_page.value || 0) <= 0}
-          data-testid="prev-page-btn"
-        >
-          ◀ Previous
-        </button>
-        <span class="board-page-indicator" data-testid="page-indicator">Page {(current_page.value || 0) + 1}</span>
-        <button
-          class="board-control-btn"
-          onClick={() => changePage(1)}
-          data-testid="next-page-btn"
-        >
-          Next ▶
-        </button>
-      </div>
-
-      <div class="board-label">
-        <span class="board-label-text">{matchTV.value ? 'Synced with TV' : 'Independent View'}</span>
-      </div>
-
-      <div class="board-preview">
+      <div
+        class="board-preview"
+        data-testid="board-preview"
+        onClick={() => { if (showControls.value) showControls.value = false; }}
+      >
         {(() => {
           const grid = computeGrid({
             horses: horses.value,
@@ -185,17 +164,46 @@ export function BoardTab() {
 
       <div class="board-display-controls">
         <button
-          class="board-controls-toggle"
+          class="tv-controls-toggle"
           onClick={() => showControls.value = !showControls.value}
           data-testid="toggle-display-controls"
         >
-          Display Controls
-          <span class="board-controls-toggle-icon">{showControls.value ? '▼' : '▶'}</span>
+          {!showControls.value && <span class="tv-controls-label">TV Controls ▲</span>}
         </button>
 
         {showControls.value && (
           <div class="board-controls-drawer" data-testid="display-controls-drawer">
-            <div class="board-control-group">
+            {/* Hero Pagination - Primary control */}
+            <div class="tv-pagination-hero" data-testid="tv-pagination">
+              <button
+                class="tv-page-btn"
+                onClick={() => changePage(-1)}
+                disabled={(current_page.value || 0) <= 0}
+                data-testid="tv-prev-page"
+              >◀</button>
+              <span class="tv-page-indicator" data-testid="page-indicator">{(current_page.value || 0) + 1}</span>
+              <button
+                class="tv-page-btn"
+                onClick={() => changePage(1)}
+                data-testid="tv-next-page"
+              >▶</button>
+            </div>
+
+            {/* Secondary Row: Time Mode + Match TV + Overflow */}
+            <div class="tv-controls-row">
+              <div class="board-control-buttons" data-testid="time-mode-selector">
+                {[TIME_MODE.AM, TIME_MODE.PM].map(mode => (
+                  <button
+                    key={mode}
+                    class={`board-control-option ${configured_mode.value === mode ? 'active' : ''}`}
+                    onClick={() => changeTimeMode(mode)}
+                    data-testid={`time-mode-${mode.toLowerCase()}`}
+                  >
+                    {TIME_MODE_CONFIG[mode].label}
+                  </button>
+                ))}
+              </div>
+
               <div class="match-tv-control">
                 <label class="switch" data-testid="match-tv-toggle">
                   <input
@@ -205,50 +213,34 @@ export function BoardTab() {
                   />
                   <span class="slider round"></span>
                 </label>
-                <span class="match-tv-label">Match TV Display</span>
+                <span class="match-tv-label">Match</span>
               </div>
+
+              <button
+                class="overflow-menu-btn"
+                onClick={() => showOverflow.value = !showOverflow.value}
+                data-testid="overflow-menu-btn"
+              >
+                ⚙
+              </button>
             </div>
 
-            <div class="board-control-group" data-testid="orientation-toggle">
-              <label class="board-control-label">Orientation</label>
-              <div class="board-control-buttons">
-                <button
-                  class={`board-control-option ${orientation.value === 'horse-major' ? 'active' : ''}`}
-                  onClick={() => changeOrientation('horse-major')}
-                  data-testid="orientation-horse-major"
-                >Horses</button>
-                <button
-                  class={`board-control-option ${orientation.value === 'feed-major' ? 'active' : ''}`}
-                  onClick={() => changeOrientation('feed-major')}
-                  data-testid="orientation-feed-major"
-                >Feeds</button>
-              </div>
-            </div>
-
-            <button
-              class="overflow-menu-btn"
-              onClick={() => showOverflow.value = !showOverflow.value}
-              data-testid="overflow-menu-btn"
-            >
-              ⋮
-            </button>
-
+            {/* Overflow: Orientation + Zoom */}
             {showOverflow.value && (
               <>
-                <div class="board-control-group" data-testid="time-mode-selector">
-                  <label class="board-control-label">Time Mode</label>
+                <div class="board-control-group" data-testid="orientation-toggle">
+                  <label class="board-control-label">Orientation</label>
                   <div class="board-control-buttons">
-                    {[TIME_MODE.AUTO, TIME_MODE.AM, TIME_MODE.PM].map(mode => (
-                      <button
-                        key={mode}
-                        class={`board-control-option ${configured_mode.value === mode ? 'active' : ''}`}
-                        onClick={() => changeTimeMode(mode)}
-                        data-testid={`time-mode-${mode.toLowerCase()}`}
-                        title={TIME_MODE_CONFIG[mode].description}
-                      >
-                        {TIME_MODE_CONFIG[mode].label}
-                      </button>
-                    ))}
+                    <button
+                      class={`board-control-option ${orientation.value === 'horse-major' ? 'active' : ''}`}
+                      onClick={() => changeOrientation('horse-major')}
+                      data-testid="orientation-horse-major"
+                    >Horses</button>
+                    <button
+                      class={`board-control-option ${orientation.value === 'feed-major' ? 'active' : ''}`}
+                      onClick={() => changeOrientation('feed-major')}
+                      data-testid="orientation-feed-major"
+                    >Feeds</button>
                   </div>
                 </div>
 
@@ -259,23 +251,17 @@ export function BoardTab() {
                       class={`board-control-option ${zoom_level.value === 1 ? 'active' : ''}`}
                       onClick={() => changeZoom(1)}
                       data-testid="zoom-level-1"
-                    >
-                      S
-                    </button>
+                    >S</button>
                     <button
                       class={`board-control-option ${zoom_level.value === 2 ? 'active' : ''}`}
                       onClick={() => changeZoom(2)}
                       data-testid="zoom-level-2"
-                    >
-                      M
-                    </button>
+                    >M</button>
                     <button
                       class={`board-control-option ${zoom_level.value === 3 ? 'active' : ''}`}
                       onClick={() => changeZoom(3)}
                       data-testid="zoom-level-3"
-                    >
-                      L
-                    </button>
+                    >L</button>
                   </div>
                 </div>
               </>

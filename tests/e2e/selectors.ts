@@ -120,8 +120,11 @@ export const selectors = {
   orientationHorseMajor: '[data-testid="orientation-horse-major"]',
   orientationFeedMajor: '[data-testid="orientation-feed-major"]',
 
-  // Pagination
+  // Pagination (new TV Controls drawer)
   boardPageIndicator: '[data-testid="page-indicator"]',
+  tvPrevPage: '[data-testid="tv-prev-page"]',
+  tvNextPage: '[data-testid="tv-next-page"]',
+  // @deprecated - use tvPrevPage/tvNextPage
   prevPageBtn: '[data-testid="prev-page-btn"]',
   nextPageBtn: '[data-testid="next-page-btn"]',
   breadcrumbMore: '[data-testid="breadcrumb-more"]',

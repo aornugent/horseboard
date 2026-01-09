@@ -31,10 +31,11 @@ test.describe('Controller Smoke Tests', () => {
     await toggleBtn.click();
     await expect(drawer).toBeVisible();
 
-    // Time/Zoom now in overflow menu
-    await expect(ownerPage.locator(selectors.timeModeSelector)).not.toBeVisible();
-    await ownerPage.click('[data-testid="overflow-menu-btn"]');
+    // Time mode now visible by default; Orientation/Zoom in overflow
     await expect(ownerPage.locator(selectors.timeModeSelector)).toBeVisible();
+    await expect(ownerPage.locator('[data-testid="orientation-toggle"]')).not.toBeVisible();
+    await ownerPage.click('[data-testid="overflow-menu-btn"]');
+    await expect(ownerPage.locator('[data-testid="orientation-toggle"]')).toBeVisible();
     await expect(ownerPage.locator(selectors.zoomSelector)).toBeVisible();
 
     await toggleBtn.click();
@@ -61,5 +62,17 @@ test.describe('Controller Smoke Tests', () => {
 
     // Verify time mode selector NOT on settings (moved to Board tab)
     await expect(ownerPage.locator(selectors.timeModeSelector)).not.toBeVisible();
+  });
+
+  test('tapping grid closes drawer', async ({ ownerPage }) => {
+    await ownerPage.locator('[data-testid="tab-board"]').click();
+    await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+    await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+    // Tap on grid area
+    await ownerPage.locator('[data-testid="board-preview"]').click();
+
+    // Drawer should close
+    await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).not.toBeVisible();
   });
 });

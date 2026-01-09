@@ -269,7 +269,7 @@ test.describe('Board Tab', () => {
       await page.click('[data-testid="tab-board"]');
       await page.click('[data-testid="toggle-display-controls"]');
       await page.click('[data-testid="match-tv-toggle"]', { force: true });
-      await page.click('[data-testid="next-page-btn"]');
+      await page.click('[data-testid="tv-next-page"]');
 
       // Both TV and controller should show page 2
       await expect(displayPage.getByTestId('page-badge')).toContainText('2 /');

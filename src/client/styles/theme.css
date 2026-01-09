@@ -47,4 +47,8 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
   --transition-theme: 500ms ease;
+
+  /* Semantic Colors */
+  --color-danger: #e74c3c;
+  --color-danger-hover: rgba(231, 76, 60, 0.1);
 }

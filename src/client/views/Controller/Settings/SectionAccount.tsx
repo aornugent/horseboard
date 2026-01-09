@@ -12,23 +12,21 @@ export function SectionAccount() {
         <section class="section">
             <h3 class="section-title">Account</h3>
             {isAuthLoading.value && (
-                <div class="info-info">
-                    <div class="info-details">
-                        <div class="info-role">Loading...</div>
-                    </div>
+                <div class="card">
+                    <span class="info-label">Loading...</span>
                 </div>
             )}
             {!isAuthLoading.value && user.value && (
-                <div class="info-info">
-                    <div class="info-details">
-                        <div class="info-name" data-testid="account-name">{user.value.name}</div>
-                        <div class="info-email">{user.value.email}</div>
-                        <div class="info-role">
+                <div class="card u-flex-col u-gap-md">
+                    <div class="u-flex-col u-gap-xs">
+                        <span class="info-value" data-testid="account-name">{user.value.name}</span>
+                        <span class="info-label">{user.value.email}</span>
+                        <span class="list-card-badge">
                             {isAdmin.value ? 'Owner' : `Permission: ${permission.value}`}
-                        </div>
+                        </span>
                     </div>
                     <button
-                        class="btn-list btn-list-danger"
+                        class="btn-danger btn-block"
                         onClick={handleSignOut}
                         data-testid="sign-out-btn"
                     >
@@ -37,12 +35,10 @@ export function SectionAccount() {
                 </div>
             )}
             {!isAuthLoading.value && !user.value && (
-                <div class="info-info">
-                    <div class="info-details">
-                        <div class="info-role">Not signed in</div>
-                    </div>
+                <div class="card u-flex-col u-gap-md">
+                    <span class="info-label">Not signed in</span>
                     <button
-                        class="btn-list btn-list-primary"
+                        class="btn-block"
                         onClick={() => navigate('/login')}
                         data-testid="sign-in-btn"
                     >
