@@ -12,7 +12,7 @@ description: use when verifying UI changes, UX elegance, and visual quality.
 
 1. Ensure `NODE_ENV=test npm run dev` is running
 2. Run `npm run preview [name]` to seed state and get teleport command
-3. Use browser subagent to capture screenshots
+3. **IMMEDIATELY** call `browser_subagent` with the exact prompt template below
 4. **Score each dimension** and produce `artifact:ui-report.md`
 
 ---
@@ -45,6 +45,10 @@ description: use when verifying UI changes, UX elegance, and visual quality.
 
 ## Phase 2: Browser Capture
 
+> [!CAUTION]
+> **DO NOT** explore code, search for selectors, or do any other research in this phase.
+> The teleport command handles ALL navigation. Call `browser_subagent` IMMEDIATELY.
+
 Use this **EXACT** prompt for `browser_subagent`. Do not deviate.
 
 ```markdown
@@ -62,7 +66,7 @@ STEPS:
 1. **NAVIGATE**: `open_browser_url` to "http://localhost:5173/"
 2. **PURGE**: `await fetch('/api/auth/sign-out', { method: 'POST' }); localStorage.clear(); sessionStorage.clear();`
 3. **TELEPORT**: [INSERT TELEPORT COMMAND FROM PREVIEW OUTPUT]
-4. **VERIFY**: Wait 3000ms. Check URL. If fail -> STOP.
+4. **VERIFY**: Wait 50ms. Check URL. If fail -> STOP.
 5. **CAPTURE**: Desktop (Maximize) -> Screenshot.
 6. **RESIZE**: Mobile (375x812) -> Screenshot.
 7. **REPORT**: Return image paths.

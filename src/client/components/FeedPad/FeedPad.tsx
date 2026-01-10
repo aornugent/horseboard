@@ -79,20 +79,20 @@ export function FeedPad({
 
   return (
     <div
-      class={`feed-pad-overlay ${isOpen ? 'feed-pad-overlay--open' : ''}`}
+      class={`overlay overlay--drawer ${isOpen ? 'overlay--open' : ''}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleCancel();
       }}
     >
       <div
-        class={`feed-pad-drawer ${isOpen ? 'feed-pad-drawer--open' : ''}`}
+        class={`bottom-drawer ${isOpen ? 'bottom-drawer--open' : ''}`}
         data-testid="feed-pad"
         aria-hidden={!isOpen}
       >
-        <div class="feed-pad-header">
-          <h3 class="feed-pad-title">{feedName}</h3>
+        <div class="drawer-header">
+          <h3 class="drawer-title">{feedName}</h3>
           <button
-            class="feed-pad-close"
+            class="icon-btn icon-btn--circular icon-btn--bordered"
             data-testid="feed-pad-close"
             onClick={handleCancel}
             aria-label="Close"
@@ -125,7 +125,7 @@ export function FeedPad({
         {stepSize !== null && (
           <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
             <button
-              class="feed-pad-stepper-btn"
+              class="icon-btn icon-btn--lg icon-btn--circular"
               data-testid="stepper-decrement"
               onClick={handleDecrement}
               aria-label={`Decrease by ${stepSize}`}
@@ -136,7 +136,7 @@ export function FeedPad({
               {displayValue || '0'}
             </div>
             <button
-              class="feed-pad-stepper-btn"
+              class="icon-btn icon-btn--lg icon-btn--circular"
               data-testid="stepper-increment"
               onClick={handleIncrement}
               aria-label={`Increase by ${stepSize}`}

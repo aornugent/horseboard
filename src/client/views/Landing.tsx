@@ -34,18 +34,18 @@ async function handleConnect() {
 
 export function Landing() {
     return (
-        <div class="landing-view" data-testid="landing-view">
-            <div class="landing-card">
-                <div class="landing-header">
-                    <h1 class="landing-title">HorseBoard</h1>
-                    <p class="landing-subtitle">Barn Feed Management System</p>
+        <div class="form-view" data-testid="landing-view">
+            <div class="form-card">
+                <div class="form-header">
+                    <h1 class="form-title">HorseBoard</h1>
+                    <p class="form-subtitle">Barn Feed Management System</p>
                 </div>
 
-                <div class="landing-primary">
-                    <label class="landing-code-label">Enter 6-digit code</label>
+                <div class="form-stack">
+                    <label class="form-label">Enter 6-digit code</label>
                     <input
                         type="text"
-                        class="landing-code-input"
+                        class="input input-code"
                         data-testid="landing-code-input"
                         placeholder="000000"
                         maxLength={6}
@@ -61,7 +61,7 @@ export function Landing() {
                         }}
                     />
                     <button
-                        class="landing-connect-btn"
+                        class="btn-block"
                         data-testid="landing-connect-btn"
                         disabled={pairCode.value.length !== 6 || isConnecting.value}
                         onClick={handleConnect}
@@ -70,20 +70,20 @@ export function Landing() {
                     </button>
 
                     {connectError.value && (
-                        <div class="landing-error" data-testid="landing-error">
+                        <div class="form-error" data-testid="landing-error">
                             {connectError.value}
                         </div>
                     )}
                 </div>
 
-                <div class="landing-divider">
+                <div class="form-divider">
                     <span>or</span>
                 </div>
 
-                <div class="landing-secondary">
+                <div class="form-footer">
                     <a
                         href="/signup"
-                        class="landing-link"
+                        class="text-link"
                         data-testid="landing-signup-link"
                         onClick={(e) => {
                             e.preventDefault();
@@ -94,7 +94,7 @@ export function Landing() {
                     </a>
                     <a
                         href="/login"
-                        class="landing-link"
+                        class="text-link"
                         data-testid="landing-login-link"
                         onClick={(e) => {
                             e.preventDefault();

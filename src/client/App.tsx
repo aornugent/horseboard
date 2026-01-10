@@ -1,11 +1,10 @@
 import { useEffect } from 'preact/hooks';
 import { Router } from './Router';
-import { pathname } from './router';
 import { initializeApp, isInitialized, connectionError } from './services/lifecycle';
 import { STORAGE_KEY } from './constants';
 
 import { loadControllerToken, sseClient } from './services';
-import { board, initAuth, effective_time_mode } from './stores';
+import { initAuth } from './stores';
 
 
 export function App() {
@@ -29,18 +28,6 @@ export function App() {
       sseClient.disconnect();
     };
   }, []);
-
-  // Sync theme to body
-  useEffect(() => {
-    // Controller always uses AM (light) theme
-    if (pathname.value.startsWith('/controller')) {
-      document.body.setAttribute('data-theme', 'am');
-      return;
-    }
-
-    const mode = board.value?.time_mode === 'AUTO' ? effective_time_mode.value : (board.value?.time_mode || 'AM');
-    document.body.setAttribute('data-theme', mode.toLowerCase());
-  }, [board.value, effective_time_mode.value, pathname.value]);
 
 
 

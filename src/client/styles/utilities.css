@@ -1,0 +1,118 @@
+/* ============================================
+   2. UTILITIES
+   ============================================ */
+
+/* Layout */
+.u-flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.u-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.u-flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Spacing */
+.u-gap-xs {
+    gap: var(--spacing-xs);
+}
+
+.u-gap-sm {
+    gap: var(--spacing-sm);
+}
+
+.u-gap-md {
+    gap: var(--spacing-md);
+}
+
+.u-gap-lg {
+    gap: var(--spacing-lg);
+}
+
+/* Touch targets */
+.u-touch-target {
+    min-height: var(--touch-target);
+}
+
+/* Typography */
+.text-xs {
+    font-size: var(--font-size-xs);
+}
+
+.text-sm {
+    font-size: var(--font-size-sm);
+}
+
+.text-base {
+    font-size: var(--font-size-base);
+}
+
+.text-md {
+    font-size: var(--font-size-md);
+}
+
+.text-lg {
+    font-size: var(--font-size-lg);
+}
+
+.text-xl {
+    font-size: var(--font-size-xl);
+}
+
+.text-2xl {
+    font-size: var(--font-size-2xl);
+}
+
+/* Font Weight */
+.font-medium {
+    font-weight: 500;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+/* Interactive States */
+.pressable:active {
+    transform: scale(0.98);
+}
+
+.transition-fast {
+    transition: all var(--transition-fast);
+}
+
+/* Shadows */
+.shadow-sm {
+    box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+    box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+    box-shadow: var(--shadow-lg);
+}
+
+/* Input Focus States */
+.input-focus-ring {
+    border: 2px solid transparent;
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+.input-focus-ring:focus {
+    border-color: var(--color-accent);
+}

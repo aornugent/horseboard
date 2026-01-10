@@ -95,7 +95,7 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
           <label class="modal-label">Name</label>
           <input
             type="text"
-            class="modal-input"
+            class="input"
             data-testid="new-horse-name"
             placeholder="Horse name..."
             value={newHorseName.value}
@@ -108,7 +108,7 @@ export function HorsesTab({ onHorseSelect }: HorsesTabProps) {
           <label class="modal-label">Note (optional)</label>
           <input
             type="text"
-            class="modal-input"
+            class="input"
             data-testid="new-horse-note"
             placeholder="Any notes about this horse..."
             value={newHorseNote.value}

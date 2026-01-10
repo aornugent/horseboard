@@ -64,14 +64,14 @@ export function LoginView() {
     };
 
     return (
-        <div class="auth-container" data-testid="login-view">
-            <div class="auth-card">
-                <div class="auth-header">
-                    <h1 class="auth-title">Welcome Back</h1>
-                    <p class="auth-subtitle">Sign in to manage your stable</p>
+        <div class="form-view" data-testid="login-view">
+            <div class="form-card">
+                <div class="form-header">
+                    <h1 class="form-title">Welcome Back</h1>
+                    <p class="form-subtitle">Sign in to manage your stable</p>
                 </div>
 
-                <form class="auth-form" onSubmit={handleLogin}>
+                <form onSubmit={handleLogin}>
                     <div class="form-group">
                         <label class="form-label" for="email">Email Address</label>
                         <input
@@ -103,14 +103,14 @@ export function LoginView() {
                     </div>
 
                     {error.value && (
-                        <div class="auth-error">
+                        <div class="form-error">
                             {error.value}
                         </div>
                     )}
 
                     <button
                         type="submit"
-                        class="submit-btn"
+                        class="btn-block"
                         data-testid="submit-btn"
                         disabled={isLoading.value}
                     >
@@ -118,9 +118,9 @@ export function LoginView() {
                     </button>
                 </form>
 
-                <div class="auth-footer">
+                <div class="form-footer">
                     Don't have an account?
-                    <a href="/signup" class="auth-link" onClick={(e) => {
+                    <a href="/signup" class="text-link" onClick={(e) => {
                         e.preventDefault();
                         navigate('/signup');
                     }}>Sign Up</a>

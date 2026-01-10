@@ -161,7 +161,7 @@ export function FeedsTab() {
           <label class="modal-label">Name</label>
           <input
             type="text"
-            class="modal-input"
+            class="input"
             data-testid="new-feed-name"
             placeholder="Feed name..."
             value={newFeedName.value}
@@ -172,11 +172,11 @@ export function FeedsTab() {
         </div>
         <div class="modal-field">
           <label class="modal-label">Unit</label>
-          <div class="unit-selector" data-testid="new-feed-unit">
+          <div class="segmented-control" data-testid="new-feed-unit">
             {UNIT_TYPE_OPTIONS.map(u => (
               <button
                 key={u.id}
-                class={`unit-btn ${newFeedUnitId.value === u.id ? 'active' : ''}`}
+                class={`segment-btn ${newFeedUnitId.value === u.id ? 'active' : ''}`}
                 data-testid={`unit-btn-${u.id}`}
                 onClick={() => { newFeedUnitId.value = u.id as UnitTypeOptionId; }}
               >
@@ -221,7 +221,7 @@ export function FeedsTab() {
               <label class="modal-label">Name</label>
               <input
                 type="text"
-                class="modal-input"
+                class="input"
                 data-testid="edit-feed-name"
                 value={editingFeed.value.name}
                 onInput={(e) => {
@@ -236,11 +236,11 @@ export function FeedsTab() {
             </div>
             <div class="modal-field">
               <label class="modal-label">Unit</label>
-              <div class="unit-selector" data-testid="edit-feed-unit">
+              <div class="segmented-control" data-testid="edit-feed-unit">
                 {UNIT_TYPE_OPTIONS.map(u => (
                   <button
                     key={u.id}
-                    class={`unit-btn ${editingFeedUnitId.value === u.id ? 'active' : ''}`}
+                    class={`segment-btn ${editingFeedUnitId.value === u.id ? 'active' : ''}`}
                     data-testid={`edit-unit-btn-${u.id}`}
                     onClick={() => {
                       editingFeedUnitId.value = u.id as UnitTypeOptionId;

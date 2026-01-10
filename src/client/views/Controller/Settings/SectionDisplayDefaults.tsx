@@ -37,15 +37,15 @@ export function SectionDisplayDefaults() {
 
             <div class="form-group">
                 <label class="form-label">Default Orientation</label>
-                <div class="unit-selector" data-testid="default-orientation-selector">
+                <div class="segmented-control" data-testid="default-orientation-selector">
                     <button
-                        class={`unit-btn ${orientation.value === 'horse-major' ? 'active' : ''}`}
+                        class={`segment-btn ${orientation.value === 'horse-major' ? 'active' : ''}`}
                         onClick={() => changeOrientation('horse-major')}
                     >
                         Horses
                     </button>
                     <button
-                        class={`unit-btn ${orientation.value === 'feed-major' ? 'active' : ''}`}
+                        class={`segment-btn ${orientation.value === 'feed-major' ? 'active' : ''}`}
                         onClick={() => changeOrientation('feed-major')}
                     >
                         Feeds
@@ -55,10 +55,10 @@ export function SectionDisplayDefaults() {
 
             <div class="form-group">
                 <label class="form-label">Default Zoom</label>
-                <div class="unit-selector" data-testid="default-zoom-selector">
-                    <button class={`unit-btn ${zoom_level.value === 1 ? 'active' : ''}`} onClick={() => changeZoom(1)}>S</button>
-                    <button class={`unit-btn ${zoom_level.value === 2 ? 'active' : ''}`} onClick={() => changeZoom(2)}>M</button>
-                    <button class={`unit-btn ${zoom_level.value === 3 ? 'active' : ''}`} onClick={() => changeZoom(3)}>L</button>
+                <div class="segmented-control" data-testid="default-zoom-selector">
+                    <button class={`segment-btn ${zoom_level.value === 1 ? 'active' : ''}`} onClick={() => changeZoom(1)}>S</button>
+                    <button class={`segment-btn ${zoom_level.value === 2 ? 'active' : ''}`} onClick={() => changeZoom(2)}>M</button>
+                    <button class={`segment-btn ${zoom_level.value === 3 ? 'active' : ''}`} onClick={() => changeZoom(3)}>L</button>
                 </div>
             </div>
         </section>

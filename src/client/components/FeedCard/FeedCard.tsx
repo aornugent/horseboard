@@ -27,7 +27,7 @@ export function FeedCard({ feed, horseCount, onEdit, onDelete }: FeedCardProps) 
       </div>
       {onDelete && (
         <button
-          class="list-card-action"
+          class="icon-btn icon-btn--ghost icon-btn--danger"
           data-testid={`feed-card-delete-${feed.id}`}
           onClick={(e) => {
             e.stopPropagation();

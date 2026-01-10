@@ -14,8 +14,8 @@ test.describe('Auth Edge Cases', () => {
         await page.getByTestId('submit-btn').click();
 
         // REAL BEHAVIOR: Server returns error
-        await expect(page.locator('.auth-error')).toBeVisible();
-        await expect(page.locator('.auth-error')).toContainText('Invalid email or password');
+        await expect(page.locator('.form-error')).toBeVisible();
+        await expect(page.locator('.form-error')).toContainText('Invalid email or password');
     });
 
     test('includes rate limit headers on auth endpoints', async ({ request }) => {
@@ -68,7 +68,7 @@ test.describe('Auth Edge Cases', () => {
         await page.getByTestId('submit-btn').click();
 
         // REAL BEHAVIOR: Should show error that email is already registered
-        const errorMessage = page.locator('.auth-error');
+        const errorMessage = page.locator('.form-error');
         await expect(errorMessage).toBeVisible();
         await expect(errorMessage).toContainText(/already|exists|registered/i);
     });

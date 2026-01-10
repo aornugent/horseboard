@@ -65,14 +65,14 @@ export function SignupView() {
     };
 
     return (
-        <div class="auth-container" data-testid="signup-view">
-            <div class="auth-card">
-                <div class="auth-header">
-                    <h1 class="auth-title">Create Account</h1>
-                    <p class="auth-subtitle">Get started with HorseBoard</p>
+        <div class="form-view" data-testid="signup-view">
+            <div class="form-card">
+                <div class="form-header">
+                    <h1 class="form-title">Create Account</h1>
+                    <p class="form-subtitle">Get started with HorseBoard</p>
                 </div>
 
-                <form class="auth-form" onSubmit={handleSignup}>
+                <form onSubmit={handleSignup}>
                     <div class="form-group">
                         <label class="form-label" for="name">Full Name</label>
                         <input
@@ -120,14 +120,14 @@ export function SignupView() {
                     </div>
 
                     {error.value && (
-                        <div class="auth-error">
+                        <div class="form-error">
                             {error.value}
                         </div>
                     )}
 
                     <button
                         type="submit"
-                        class="submit-btn"
+                        class="btn-block"
                         data-testid="submit-btn"
                         disabled={isLoading.value}
                     >
@@ -135,9 +135,9 @@ export function SignupView() {
                     </button>
                 </form>
 
-                <div class="auth-footer">
+                <div class="form-footer">
                     Already have an account?
-                    <a href="/login" class="auth-link" onClick={(e) => {
+                    <a href="/login" class="text-link" onClick={(e) => {
                         e.preventDefault();
                         navigate('/login');
                     }}>Log In</a>

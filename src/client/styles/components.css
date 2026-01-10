@@ -1,0 +1,642 @@
+/* ============================================
+   3. SHARED COMPONENTS
+   ============================================ */
+
+/* Buttons */
+button {
+    padding: 0.75rem 1.5rem;
+    font-size: var(--font-size-base);
+    background-color: var(--color-accent);
+    color: var(--color-bg-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    min-height: var(--touch-target);
+    font-weight: 600;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.btn-text {
+    background: transparent;
+    color: var(--color-text-secondary);
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-sm);
+    min-height: auto;
+}
+
+.btn-block {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icon Button - Base */
+.icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: var(--touch-target);
+    padding: 0.5rem;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.icon-btn:hover {
+    background: var(--color-bg-primary);
+}
+
+.icon-btn:active {
+    transform: scale(0.98);
+}
+
+.icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Icon Button Modifiers */
+.icon-btn--ghost {
+    background: transparent;
+}
+
+.icon-btn--circular {
+    border-radius: 50%;
+}
+
+.icon-btn--bordered {
+    border: 2px solid var(--color-text-secondary);
+    background: transparent;
+}
+
+.icon-btn--lg {
+    min-width: 64px;
+    min-height: 64px;
+    font-size: var(--font-size-3xl);
+    font-weight: 600;
+}
+
+.icon-btn--xl {
+    min-width: 64px;
+    min-height: 56px;
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+    border-radius: var(--radius-lg);
+}
+
+.icon-btn--xl:hover {
+    background: var(--color-text-primary);
+}
+
+.icon-btn--danger {
+    background: var(--color-danger-hover);
+    color: var(--color-danger);
+}
+
+.icon-btn--danger:hover {
+    background: rgba(231, 76, 60, 0.2);
+}
+
+/* List Button (Complex button with label + desc, used in Settings) */
+.btn-list {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1rem;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    border: 2px solid transparent;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    text-align: left;
+    transition: all var(--transition-normal);
+    min-height: var(--touch-target);
+    width: 100%;
+}
+
+.btn-list:hover {
+    border-color: var(--color-text-secondary);
+}
+
+.btn-list.active {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+    border-color: var(--color-accent);
+}
+
+.btn-list-label {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+}
+
+.btn-list-description {
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+    margin-top: 0.25rem;
+}
+
+.btn-list-primary {
+    border-color: var(--color-accent);
+}
+
+.btn-list-primary:hover {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+}
+
+.btn-list-danger {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+.btn-list-danger:hover {
+    background: var(--color-danger-hover);
+}
+
+.btn-list-text {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-text-secondary);
+}
+
+.btn-list-small {
+    padding: 0.5rem 0.75rem;
+    min-height: auto;
+}
+
+.btn-list-block {
+    width: 100%;
+}
+
+
+
+/* Form Inputs */
+.input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: var(--font-size-base);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    border: 2px solid transparent;
+    border-radius: var(--radius-lg);
+    outline: none;
+    min-height: var(--touch-target);
+    transition: border-color 0.15s ease;
+}
+
+.input:focus {
+    border-color: var(--color-accent);
+}
+
+.input::placeholder {
+    color: var(--color-text-secondary);
+}
+
+.input-code {
+    font-family: monospace;
+    font-size: var(--font-size-xl);
+    text-align: center;
+    letter-spacing: 0.2em;
+}
+
+/* Cards */
+.card {
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+}
+
+
+
+/* Form / Auth Layout Primitives */
+.form-view {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: var(--color-bg-secondary);
+}
+
+.form-card {
+    background: var(--color-bg-primary);
+    padding: 2rem;
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-sm);
+}
+
+.form-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.form-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-primary);
+}
+
+.form-subtitle {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-primary);
+}
+
+.form-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-danger);
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+.form-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.form-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    margin: 1.5rem 0;
+}
+
+.form-divider::before,
+.form-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--color-bg-secondary);
+}
+
+.form-divider span {
+    padding: 0 1rem;
+}
+
+.text-link {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.text-link:hover {
+    text-decoration: underline;
+}
+
+/* List Cards (Horse/Feed items) */
+.list-card {
+    display: flex;
+    align-items: center;
+    min-height: 64px;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+.list-card:active {
+    transform: scale(0.98);
+    background: var(--color-bg-primary);
+}
+
+.list-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.list-card-name {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.list-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.feed-count-pill {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    background: var(--color-bg-primary);
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-full);
+}
+
+/* Switch / Toggle */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 28px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--color-bg-secondary);
+    transition: .4s;
+    border: 1px solid var(--color-border);
+    /* Assume border color is secondary or transparent */
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
+}
+
+
+/* Overlay - Unified backdrop for modals and drawers */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: var(--z-modal);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.overlay--darker {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.overlay--open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.overlay--drawer {
+    z-index: var(--z-overlay);
+}
+
+.overlay--modal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-md);
+    transform: translateY(20px);
+    transition: transform 0.2s;
+}
+
+.overlay--open .modal-content {
+    transform: translateY(0);
+}
+
+/* Bottom Drawer - Slides up from bottom */
+.bottom-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: var(--spacing-xl);
+    transform: translateY(100%);
+    transition: transform 0.3s ease, visibility 0.3s ease;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: var(--z-overlay);
+    visibility: hidden;
+}
+
+.bottom-drawer--open {
+    transform: translateY(0);
+    visibility: visible;
+}
+
+.drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.drawer-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.modal-title {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Modal Form Fields */
+.modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.modal-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+
+
+
+/* Modal Buttons */
+.modal-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    min-height: var(--touch-target);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    border: none;
+}
+
+.modal-btn:active {
+    transform: scale(0.98);
+}
+
+.modal-btn-cancel {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+}
+
+.modal-btn-confirm {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+}
+
+.modal-btn-danger {
+    background: var(--color-danger);
+    color: white;
+}
+
+.modal-description {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--spacing-lg);
+    line-height: 1.5;
+}
+
+.modal-btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Segmented Control */
+.segmented-control {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-bottom: 1rem;
+    padding: 0.25rem;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.segment-btn {
+    flex: 1;
+    min-width: 70px;
+    min-height: 40px;
+    padding: 0.5rem 0.75rem;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.segment-btn:hover {
+    color: var(--color-text-primary);
+}
+
+.segment-btn.active {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.segment-btn:active {
+    transform: scale(0.98);
+}
+
+.segmented-control--invert .segment-btn.active {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}

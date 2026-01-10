@@ -147,7 +147,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     <div class="horse-detail" data-testid="horse-detail">
       <header class="horse-detail-header">
         <button
-          class="horse-detail-back"
+          class="icon-btn icon-btn--ghost"
           data-testid="horse-detail-back"
           onClick={onBack}
           aria-label="Go back"
@@ -170,7 +170,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
           {canEditBoard && (
             <>
               <button
-                class="horse-detail-action-btn"
+                class="icon-btn"
                 data-testid="edit-horse-btn"
                 onClick={handleOpenEdit}
                 aria-label="Edit horse"
@@ -188,7 +188,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
                 </svg>
               </button>
               <button
-                class="horse-detail-action-btn horse-detail-action-btn-danger"
+                class="icon-btn icon-btn--danger"
                 data-testid="delete-horse-btn"
                 onClick={handleOpenDelete}
                 aria-label="Delete horse"
@@ -280,14 +280,14 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       />
 
       {isEditing.value && (
-        <div class="modal-overlay open" data-testid="edit-horse-modal">
+        <div class="overlay overlay--darker overlay--modal overlay--open" data-testid="edit-horse-modal">
           <div class="modal-content">
             <h3 class="modal-title">Edit Horse</h3>
             <div class="modal-field">
               <label class="modal-label">Name</label>
               <input
                 type="text"
-                class="modal-input"
+                class="input"
                 data-testid="edit-horse-name"
                 value={editName.value}
                 onInput={(e) => {
@@ -317,7 +317,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       )}
 
       {isDeleting.value && (
-        <div class="modal-overlay open" data-testid="delete-horse-modal">
+        <div class="overlay overlay--darker overlay--modal overlay--open" data-testid="delete-horse-modal">
           <div class="modal-content">
             <h3 class="modal-title">Delete Horse?</h3>
             <p class="modal-description">

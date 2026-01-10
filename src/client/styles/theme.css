@@ -1,14 +1,4 @@
-/* Morning Mist (AM) - Off-white/Hunter Green */
-[data-theme="am"] {
-  --color-bg-primary: #f8f9fa;
-  --color-bg-secondary: #e8ebe9;
-  --color-text-primary: #2d4a3e;
-  --color-text-secondary: #5a7a6b;
-  --color-accent: #3d5a4d;
-  --color-swim-lane-alt: rgba(0, 0, 0, 0.03);
-}
-
-/* Tack Room (PM) - Dark Grey/Amber */
+/* Tack Room (PM) - Dark Grey/Amber - Board-only override */
 [data-theme="pm"] {
   --color-bg-primary: #2c2c2e;
   --color-bg-secondary: #3a3a3c;
@@ -18,8 +8,16 @@
   --color-swim-lane-alt: rgba(0, 0, 0, 0.15);
 }
 
-/* Design Tokens */
+/* Design Tokens & Theme Defaults (Morning Mist/AM) */
 :root {
+  /* Theme Colors - Default to AM (Light) */
+  --color-bg-primary: #f8f9fa;
+  --color-bg-secondary: #e8ebe9;
+  --color-text-primary: #2d4a3e;
+  --color-text-secondary: #5a7a6b;
+  --color-accent: #3d5a4d;
+  --color-swim-lane-alt: rgba(0, 0, 0, 0.03);
+
   /* Z-index */
   --z-sticky: 100;
   --z-modal: 1000;
@@ -35,6 +33,31 @@
 
   /* Sizing */
   --touch-target: 48px;
+
+  /* Typography Scale */
+  --font-size-xs: 0.75rem;
+  /* 12px - badges, labels */
+  --font-size-sm: 0.875rem;
+  /* 14px - meta, secondary */
+  --font-size-base: 1rem;
+  /* 16px - body, inputs */
+  --font-size-md: 1.125rem;
+  /* 18px - emphasis */
+  --font-size-lg: 1.25rem;
+  /* 20px - card titles */
+  --font-size-xl: 1.5rem;
+  /* 24px - page titles */
+  --font-size-2xl: 1.75rem;
+  /* 28px - hero */
+  --font-size-3xl: 2rem;
+  /* 32px - TV display */
+  --font-size-display: 3rem;
+  /* 48px - TV large */
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.1);
 
   /* Radius */
   --radius-sm: 6px;

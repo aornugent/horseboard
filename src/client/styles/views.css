@@ -1,0 +1,894 @@
+/* ============================================
+   4. TAB LAYOUTS (Controller)
+   ============================================ */
+
+.tab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 5rem;
+}
+
+.tab-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.tab-title {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.tab-search {
+    margin-bottom: 1rem;
+}
+
+.tab-list-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+}
+
+.list-card-usage {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.tab-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tab-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+}
+
+/* Controller Tab Navigation (bottom tabs) */
+.controller-tabs {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    background: var(--color-bg-secondary);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 0;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0));
+    z-index: var(--z-sticky);
+}
+
+.tab-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    min-height: auto;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.tab-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.tab-btn.active {
+    color: var(--color-accent);
+}
+
+.tab-btn:hover {
+    color: var(--color-accent);
+}
+
+/* ============================================
+   5. SECTION PATTERNS (Settings/Forms)
+   ============================================ */
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.section-description {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0 0 1rem;
+    line-height: 1.4;
+}
+
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-secondary);
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+}
+
+.info-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.info-value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.info-value-small {
+    font-size: var(--font-size-sm);
+}
+
+/* Settings View */
+.settings-loading {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.settings-empty-state {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+}
+
+.settings-subsection-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: var(--spacing-lg) 0 var(--spacing-sm);
+}
+
+.settings-display-timezone {
+    margin-top: var(--spacing-lg);
+}
+
+.settings-invite-result {
+    padding: var(--spacing-lg);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
+.settings-invite-code {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    font-family: monospace;
+    letter-spacing: 0.2em;
+    color: var(--color-accent);
+    margin-bottom: var(--spacing-sm);
+}
+
+.settings-invite-expiry {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.settings-error {
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-sm);
+}
+
+/* Device List */
+.devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.device-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+/* Form Layout */
+.input-wrapper {
+    margin-top: var(--spacing-sm);
+}
+
+.input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+}
+
+.input-group .input {
+    flex: 1;
+}
+
+/* Device List */
+.device-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-bg-secondary);
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    margin-bottom: 0.75rem;
+}
+
+.device-name {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.device-meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+
+/* ============================================
+   6. SPECIFIC VIEWS
+   ============================================ */
+
+
+
+/* Controller Layout */
+.controller-view {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--color-bg-primary);
+}
+
+
+
+
+.error-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+    text-align: center;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}
+
+/* Board Tab (TV on Controller) */
+.board-preview {
+    flex: 1;
+    background: var(--color-bg-primary);
+    border: 2px solid var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+}
+
+.board-preview-content {
+    transform: scale(0.6);
+    transform-origin: top left;
+    width: 166.67%;
+    min-height: 100%;
+}
+
+@media (min-width: 768px) {
+    .board-preview-content {
+        transform: scale(0.7);
+        width: 142.86%;
+    }
+}
+
+.board-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    background: var(--color-bg-secondary);
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    margin-top: 1rem;
+}
+
+/* ============================================
+   BOARD TAB - TV Controls Drawer
+   ============================================ */
+
+/* Header Controls (Icon Buttons per ux.md) */
+.header-controls {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-left: auto;
+    /* Right-align */
+}
+
+.header-control-btn {
+    min-width: 48px;
+    min-height: var(--touch-target);
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    /* Dark text */
+    border-radius: var(--radius-full);
+    transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+.header-control-btn:hover {
+    background: var(--color-bg-primary);
+}
+
+.header-control-btn:active {
+    transform: scale(0.98);
+}
+
+/* Larger flip icon */
+.flip-icon {
+    font-size: var(--font-size-lg);
+}
+
+/* Tab Badge - Match header control style */
+.tab-badge {
+    min-height: var(--touch-target);
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+}
+
+/* Display Controls Container - Anchored to bottom */
+.board-display-controls {
+    position: sticky;
+    bottom: 0;
+    background: var(--color-bg-primary);
+    padding: var(--spacing-md) 0 0;
+    margin-top: auto;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* Drawer Toggle Button */
+.tv-controls-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 0.5rem 1rem;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    min-height: var(--touch-target);
+    transition: background-color 0.15s ease;
+}
+
+.tv-controls-toggle:hover {
+    background: var(--color-bg-primary);
+}
+
+.tv-controls-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Hero Pagination */
+.tv-pagination-hero {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.tv-page-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+/* Secondary Row */
+.tv-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+}
+
+/* Control Groups */
+.board-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.board-control-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Segmented Controls (per ux.md) */
+
+
+
+/* Match TV Toggle */
+.match-tv-control {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.match-tv-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+}
+
+
+/* Horse Detail */
+.horse-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.horse-detail-name {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    flex: 1;
+    margin: 0;
+}
+
+.horse-detail-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.horse-detail-note {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+}
+
+/* Feed Tiles Grid */
+.feed-tiles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.feed-tile {
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.feed-tile-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.feed-tile-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.feed-tile-unit {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: lowercase;
+}
+
+.feed-tile-values {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.value-button {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    min-height: var(--touch-target);
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.value-button:hover:not(:disabled) {
+    background: var(--color-text-primary);
+}
+
+.value-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.value-label {
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+}
+
+.value-amount {
+    font-variant-numeric: tabular-nums;
+}
+
+/* List Card Extras (appended) */
+.list-card-badge {
+    background: var(--color-bg-primary);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.list-card-note {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-left: 1rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-md);
+    max-width: 200px;
+}
+
+.list-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--color-bg-primary);
+    background: var(--color-accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.list-card-text {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.list-card-chevron {
+    margin-left: 0.5rem;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
+/* Board View - TV Board */
+
+.board-view {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-primary);
+    transition: background-color var(--transition-theme), color var(--transition-theme);
+}
+
+.board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+}
+
+.board-time-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1.5rem;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--color-bg-primary);
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    letter-spacing: 0.05em;
+}
+
+.board-content {
+    flex: 1;
+    padding: 0 1rem 1rem;
+    overflow: auto;
+}
+
+.board-pair-code {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--color-bg-secondary);
+    border-radius: 0.5rem;
+    font-family: monospace;
+}
+
+.board-pair-code-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.board-pair-code-value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: 0.1em;
+}
+
+.board-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.board-empty-content {
+    text-align: center;
+    max-width: 32rem;
+    padding: 2rem;
+}
+
+.board-empty-title {
+    font-size: var(--font-size-3xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 1rem;
+}
+
+.board-empty-text {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    margin: 0 0 2rem;
+}
+
+.board-empty-code {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 2rem;
+    background: var(--color-bg-secondary);
+    border-radius: 1rem;
+}
+
+.board-empty-code-label {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+}
+
+.board-empty-code-value {
+    font-size: 4rem;
+    font-weight: 700;
+    font-family: monospace;
+    color: var(--color-accent);
+    letter-spacing: 0.2em;
+}
+
+/* Large screen optimizations for TV */
+@media (min-width: 1200px) {
+    .board-header {
+        padding: 1.5rem 2rem;
+    }
+
+    .board-time-badge {
+        font-size: var(--font-size-xl);
+        padding: 0.75rem 2rem;
+    }
+
+    .board-content {
+        padding: 0 2rem 2rem;
+    }
+
+    .board-pair-code-value {
+        font-size: var(--font-size-xl);
+    }
+
+    .board-empty-title {
+        font-size: 3rem;
+    }
+
+    .board-empty-text {
+        font-size: var(--font-size-xl);
+    }
+
+    .board-empty-code-value {
+        font-size: 6rem;
+    }
+
+    .board-page-badge {
+        font-size: var(--font-size-lg);
+        padding: 0.75rem 1.5rem;
+    }
+}
+
+.board-badges {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.board-page-badge {
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-full);
+    letter-spacing: 0.05em;
+}
+
+/* Current value display */
+.feed-pad-current {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-lg);
+}
+
+.feed-pad-current-value {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.feed-pad-current-unit {
+    display: block;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Presets row */
+.feed-pad-presets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.feed-pad-preset {
+    min-height: 56px;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-accent);
+    border-radius: var(--radius-lg);
+}
+
+.feed-pad-preset:active {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+}
+
+/* Stepper row */
+.feed-pad-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.feed-pad-stepper-value {
+    min-width: 120px;
+    text-align: center;
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Confirm button */
+.feed-pad-confirm {
+    width: 100%;
+    min-height: 56px;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    border-radius: var(--radius-lg);
+}
+
+/* Auth Form missing styles (appended) */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.submit-btn {
+    width: 100%;
+}
+
+/* inherits generic button + block width */
+.auth-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Controller Layout Fix (appended) */
+.controller-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}

@@ -171,103 +171,101 @@ export function BoardTab() {
           {!showControls.value && <span class="tv-controls-label">TV Controls ▲</span>}
         </button>
 
-        {showControls.value && (
-          <div class="board-controls-drawer" data-testid="display-controls-drawer">
-            {/* Hero Pagination - Primary control */}
-            <div class="tv-pagination-hero" data-testid="tv-pagination">
-              <button
-                class="tv-page-btn"
-                onClick={() => changePage(-1)}
-                disabled={(current_page.value || 0) <= 0}
-                data-testid="tv-prev-page"
-              >◀</button>
-              <span class="tv-page-indicator" data-testid="page-indicator">{(current_page.value || 0) + 1}</span>
-              <button
-                class="tv-page-btn"
-                onClick={() => changePage(1)}
-                data-testid="tv-next-page"
-              >▶</button>
-            </div>
-
-            {/* Secondary Row: Time Mode + Match TV + Overflow */}
-            <div class="tv-controls-row">
-              <div class="board-control-buttons" data-testid="time-mode-selector">
-                {[TIME_MODE.AM, TIME_MODE.PM].map(mode => (
-                  <button
-                    key={mode}
-                    class={`board-control-option ${configured_mode.value === mode ? 'active' : ''}`}
-                    onClick={() => changeTimeMode(mode)}
-                    data-testid={`time-mode-${mode.toLowerCase()}`}
-                  >
-                    {TIME_MODE_CONFIG[mode].label}
-                  </button>
-                ))}
-              </div>
-
-              <div class="match-tv-control">
-                <label class="switch" data-testid="match-tv-toggle">
-                  <input
-                    type="checkbox"
-                    checked={matchTV.value}
-                    onChange={toggleMatchTV}
-                  />
-                  <span class="slider round"></span>
-                </label>
-                <span class="match-tv-label">Match</span>
-              </div>
-
-              <button
-                class="overflow-menu-btn"
-                onClick={() => showOverflow.value = !showOverflow.value}
-                data-testid="overflow-menu-btn"
-              >
-                ⚙
-              </button>
-            </div>
-
-            {/* Overflow: Orientation + Zoom */}
-            {showOverflow.value && (
-              <>
-                <div class="board-control-group" data-testid="orientation-toggle">
-                  <label class="board-control-label">Orientation</label>
-                  <div class="board-control-buttons">
-                    <button
-                      class={`board-control-option ${orientation.value === 'horse-major' ? 'active' : ''}`}
-                      onClick={() => changeOrientation('horse-major')}
-                      data-testid="orientation-horse-major"
-                    >Horses</button>
-                    <button
-                      class={`board-control-option ${orientation.value === 'feed-major' ? 'active' : ''}`}
-                      onClick={() => changeOrientation('feed-major')}
-                      data-testid="orientation-feed-major"
-                    >Feeds</button>
-                  </div>
-                </div>
-
-                <div class="board-control-group" data-testid="zoom-selector">
-                  <label class="board-control-label">Zoom</label>
-                  <div class="board-control-buttons">
-                    <button
-                      class={`board-control-option ${zoom_level.value === 1 ? 'active' : ''}`}
-                      onClick={() => changeZoom(1)}
-                      data-testid="zoom-level-1"
-                    >S</button>
-                    <button
-                      class={`board-control-option ${zoom_level.value === 2 ? 'active' : ''}`}
-                      onClick={() => changeZoom(2)}
-                      data-testid="zoom-level-2"
-                    >M</button>
-                    <button
-                      class={`board-control-option ${zoom_level.value === 3 ? 'active' : ''}`}
-                      onClick={() => changeZoom(3)}
-                      data-testid="zoom-level-3"
-                    >L</button>
-                  </div>
-                </div>
-              </>
-            )}
+        <div class={`bottom-drawer ${showControls.value ? 'bottom-drawer--open' : ''}`} data-testid="display-controls-drawer">
+          {/* Hero Pagination - Primary control */}
+          <div class="tv-pagination-hero" data-testid="tv-pagination">
+            <button
+              class="icon-btn icon-btn--xl"
+              onClick={() => changePage(-1)}
+              disabled={(current_page.value || 0) <= 0}
+              data-testid="tv-prev-page"
+            >◀</button>
+            <span class="tv-page-indicator" data-testid="page-indicator">{(current_page.value || 0) + 1}</span>
+            <button
+              class="icon-btn icon-btn--xl"
+              onClick={() => changePage(1)}
+              data-testid="tv-next-page"
+            >▶</button>
           </div>
-        )}
+
+          {/* Secondary Row: Time Mode + Match TV + Overflow */}
+          <div class="tv-controls-row">
+            <div class="segmented-control segmented-control--invert" data-testid="time-mode-selector">
+              {[TIME_MODE.AM, TIME_MODE.PM].map(mode => (
+                <button
+                  key={mode}
+                  class={`segment-btn ${configured_mode.value === mode ? 'active' : ''}`}
+                  onClick={() => changeTimeMode(mode)}
+                  data-testid={`time-mode-${mode.toLowerCase()}`}
+                >
+                  {TIME_MODE_CONFIG[mode].label}
+                </button>
+              ))}
+            </div>
+
+            <div class="match-tv-control">
+              <label class="switch" data-testid="match-tv-toggle">
+                <input
+                  type="checkbox"
+                  checked={matchTV.value}
+                  onChange={toggleMatchTV}
+                />
+                <span class="slider round"></span>
+              </label>
+              <span class="match-tv-label">Match</span>
+            </div>
+
+            <button
+              class="icon-btn icon-btn--ghost"
+              onClick={() => showOverflow.value = !showOverflow.value}
+              data-testid="overflow-menu-btn"
+            >
+              ⚙
+            </button>
+          </div>
+
+          {/* Overflow: Orientation + Zoom */}
+          {showOverflow.value && (
+            <>
+              <div class="board-control-group" data-testid="orientation-toggle">
+                <label class="board-control-label">Orientation</label>
+                <div class="segmented-control">
+                  <button
+                    class={`segment-btn ${orientation.value === 'horse-major' ? 'active' : ''}`}
+                    onClick={() => changeOrientation('horse-major')}
+                    data-testid="orientation-horse-major"
+                  >Horses</button>
+                  <button
+                    class={`segment-btn ${orientation.value === 'feed-major' ? 'active' : ''}`}
+                    onClick={() => changeOrientation('feed-major')}
+                    data-testid="orientation-feed-major"
+                  >Feeds</button>
+                </div>
+              </div>
+
+              <div class="board-control-group" data-testid="zoom-selector">
+                <label class="board-control-label">Zoom</label>
+                <div class="segmented-control">
+                  <button
+                    class={`segment-btn ${zoom_level.value === 1 ? 'active' : ''}`}
+                    onClick={() => changeZoom(1)}
+                    data-testid="zoom-level-1"
+                  >S</button>
+                  <button
+                    class={`segment-btn ${zoom_level.value === 2 ? 'active' : ''}`}
+                    onClick={() => changeZoom(2)}
+                    data-testid="zoom-level-2"
+                  >M</button>
+                  <button
+                    class={`segment-btn ${zoom_level.value === 3 ? 'active' : ''}`}
+                    onClick={() => changeZoom(3)}
+                    data-testid="zoom-level-3"
+                  >L</button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
