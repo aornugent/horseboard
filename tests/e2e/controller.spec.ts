@@ -38,7 +38,8 @@ test.describe('Controller Smoke Tests', () => {
     await expect(ownerPage.locator('[data-testid="orientation-toggle"]')).toBeVisible();
     await expect(ownerPage.locator(selectors.zoomSelector)).toBeVisible();
 
-    await toggleBtn.click();
+    // Close drawer by clicking board (toggle is hidden when drawer is open)
+    await ownerPage.locator('[data-testid="board-view-container"]').click();
     await expect(drawer).not.toBeVisible();
   });
 
@@ -70,7 +71,7 @@ test.describe('Controller Smoke Tests', () => {
     await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
 
     // Tap on grid area
-    await ownerPage.locator('[data-testid="board-preview"]').click();
+    await ownerPage.locator('[data-testid="board-view-container"]').click();
 
     // Drawer should close
     await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).not.toBeVisible();

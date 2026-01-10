@@ -120,4 +120,71 @@ test.describe('Unit Types & Formatting', () => {
         // Verify display shows "2" (no fraction)
         await expect(biscuitAmBtn.locator('.value-amount')).toHaveText('2');
     });
+
+    test('supports custom unit creation', async ({ ownerPage }) => {
+        await ownerPage.locator('[data-testid="tab-feeds"]').click();
+        await ownerPage.click('[data-testid="add-feed-btn"]');
+        await ownerPage.fill('[data-testid="new-feed-name"]', 'Supplements');
+
+        // Click Custom toggle
+        await ownerPage.click('[data-testid="unit-btn-custom"]');
+
+        // Select Integer type and enter label
+        await ownerPage.click('[data-testid="custom-type-int"]');
+        await ownerPage.fill('[data-testid="custom-label-input"]', 'tablets');
+
+        await ownerPage.click('[data-testid="confirm-add-feed"]');
+        await expect(ownerPage.locator('[data-testid="feed-list"]')).toContainText('Supplements');
+
+        // Verify feed card shows custom label
+        const feedCard = ownerPage.locator('.list-card').filter({ hasText: 'Supplements' });
+        await expect(feedCard.locator('.list-card-badge')).toHaveText('tablets');
+
+        // Create horse to test FeedPad uses correct type
+        await ownerPage.locator('[data-testid="tab-horses"]').click();
+        await ownerPage.click('[data-testid="add-horse-btn"]');
+        await ownerPage.fill('[data-testid="new-horse-name"]', 'Star');
+        await ownerPage.click('[data-testid="confirm-add-horse"]');
+
+        const horseCard = ownerPage.locator('.list-card').first();
+        await horseCard.click();
+
+        // Open FeedPad for Supplements - should be integer type
+        const suppTile = ownerPage.locator('.feed-tile').filter({ hasText: 'Supplements' });
+        const suppAmBtn = suppTile.locator('.value-button').first();
+        await suppAmBtn.click();
+
+        // Verify integer stepper (not decimal input)
+        await expect(ownerPage.locator('[data-testid="feed-pad-stepper"]')).toBeVisible();
+        await expect(ownerPage.locator('[data-testid="feed-pad-input"]')).not.toBeVisible();
+
+        await ownerPage.click('[data-testid="feed-pad-confirm"]');
+    });
+
+    test('can edit a feed with custom unit', async ({ ownerPage }) => {
+        // Create custom feed first
+        await ownerPage.locator('[data-testid="tab-feeds"]').click();
+        await ownerPage.click('[data-testid="add-feed-btn"]');
+        await ownerPage.fill('[data-testid="new-feed-name"]', 'Electrolytes');
+        await ownerPage.click('[data-testid="unit-btn-custom"]');
+        await ownerPage.click('[data-testid="custom-type-decimal"]');
+        await ownerPage.fill('[data-testid="custom-label-input"]', 'grams');
+        await ownerPage.click('[data-testid="confirm-add-feed"]');
+
+        // Edit the feed - click on the card content area
+        const feedCard = ownerPage.locator('.list-card').filter({ hasText: 'Electrolytes' });
+        await feedCard.locator('.list-card-content').click();
+
+        // Verify edit modal shows custom state correctly
+        await expect(ownerPage.locator('[data-testid="unit-btn-custom"]')).toHaveClass(/active/);
+        await expect(ownerPage.locator('[data-testid="custom-type-decimal"]')).toHaveClass(/active/);
+        await expect(ownerPage.locator('[data-testid="custom-label-input"]')).toHaveValue('grams');
+
+        // Change label
+        await ownerPage.fill('[data-testid="custom-label-input"]', 'g');
+        await ownerPage.click('[data-testid="confirm-edit-feed"]');
+
+        // Verify updated
+        await expect(feedCard.locator('.list-card-badge')).toHaveText('g');
+    });
 });

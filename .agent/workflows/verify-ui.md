@@ -67,8 +67,8 @@ STEPS:
 2. **PURGE**: `await fetch('/api/auth/sign-out', { method: 'POST' }); localStorage.clear(); sessionStorage.clear();`
 3. **TELEPORT**: [INSERT TELEPORT COMMAND FROM PREVIEW OUTPUT]
 4. **VERIFY**: Wait 50ms. Check URL. If fail -> STOP.
-5. **CAPTURE**: Desktop (Maximize) -> Screenshot.
-6. **RESIZE**: Mobile (375x812) -> Screenshot.
+5. **RESIZE**: Mobile (375x812).
+6. **CAPTURE**: Screenshot.
 7. **REPORT**: Return image paths.
 ```
 

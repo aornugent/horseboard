@@ -111,9 +111,10 @@ export const selectors = {
   confirmDeleteHorse: '[data-testid="confirm-delete-horse"]',
 
   // ============================================
-  // BoardTab (Mobile Controller - TV Preview)
+  // BoardTab (Mobile Controller - TV Remote)
   // ============================================
   boardTab: '[data-testid="board-tab"]',
+  boardViewContainer: '[data-testid="board-view-container"]',
 
   // Orientation
   orientationToggle: '[data-testid="orientation-toggle"]',

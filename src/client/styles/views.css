@@ -294,7 +294,7 @@
 }
 
 /* Board Tab (TV on Controller) */
-.board-preview {
+.board-view-container {
     flex: 1;
     background: var(--color-bg-primary);
     border: 2px solid var(--color-bg-secondary);
@@ -303,7 +303,7 @@
     position: relative;
 }
 
-.board-preview-content {
+.board-view-content {
     transform: scale(0.6);
     transform-origin: top left;
     width: 166.67%;
@@ -311,7 +311,7 @@
 }
 
 @media (min-width: 768px) {
-    .board-preview-content {
+    .board-view-content {
         transform: scale(0.7);
         width: 142.86%;
     }
@@ -377,24 +377,43 @@
     border-radius: var(--radius-full);
     display: flex;
     align-items: center;
+    margin-left: auto;
+    /* Right-align like header controls */
 }
 
-/* Display Controls Container - Anchored to bottom */
-.board-display-controls {
-    position: sticky;
+/* Fixed Display Controls Drawer - Like FeedPad but no overlay */
+.display-controls-drawer {
+    position: fixed;
     bottom: 0;
-    background: var(--color-bg-primary);
-    padding: var(--spacing-md) 0 0;
-    margin-top: auto;
-    margin-left: -1rem;
-    margin-right: -1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: var(--spacing-lg);
+    padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom, 0));
+    z-index: var(--z-overlay);
+
+    /* Hidden state - slide down */
+    transform: translateY(100%);
+    visibility: hidden;
+    transition: transform 0.3s ease, visibility 0.3s ease;
 }
 
-/* Drawer Toggle Button */
+.display-controls-drawer.open {
+    transform: translateY(0);
+    visibility: visible;
+}
+
+/* Drawer Toggle Button - Fixed to bottom */
 .tv-controls-toggle {
-    width: 100%;
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0));
+    /* Above tab bar */
+    left: 1rem;
+    right: 1rem;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -405,6 +424,7 @@
     font-weight: 600;
     min-height: var(--touch-target);
     transition: background-color 0.15s ease;
+    z-index: var(--z-sticky);
 }
 
 .tv-controls-toggle:hover {
