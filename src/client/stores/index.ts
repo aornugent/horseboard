@@ -166,6 +166,19 @@ export function updateDietAmount(
   }
 }
 
+/**
+ * Atomically clear all diet values for a horse/feed pair.
+ * Sets AM/PM amounts and variants to null in a single update.
+ */
+export function clearDietEntry(horseId: string, feedId: string) {
+  const now = new Date().toISOString();
+  diet.value = diet.value.map(e =>
+    e.horse_id === horseId && e.feed_id === feedId
+      ? { ...e, am_amount: null, pm_amount: null, am_variant: null, pm_variant: null, updated_at: now }
+      : e
+  );
+}
+
 // ============= Token Reactivity =============
 export * from './token';
 

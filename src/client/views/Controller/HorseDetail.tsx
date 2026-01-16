@@ -5,9 +5,10 @@ import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
 import {
   feeds, getHorse, updateHorse, removeHorse,
   getDiet, getDietByHorse, updateDietAmount,
-  getFeed
+  getFeed, clearDietEntry
 } from '../../stores';
 import { canEdit } from '../../hooks/useAppMode';
+import { useDietStepper } from '../../hooks/useDietStepper';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 
 
@@ -28,6 +29,8 @@ const isDeleting = signal(false);
 export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
   const canEditBoard = canEdit.value;
+  const [showFeedPicker, setShowFeedPicker] = useState(false);
+  const { increment, decrement } = useDietStepper(horseId);
 
   const horse = getHorse(horseId);
 
@@ -141,6 +144,40 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     isDeleting.value = false;
   };
 
+  const handleInlineIncrement = async (feedId: string, field: 'am_amount' | 'pm_amount') => {
+    const handled = await increment(feedId, field);
+    if (!handled) {
+      // No stepper for this unit type - open FeedPad instead
+      setSelectedFeed({ feed_id: feedId, field });
+    }
+  };
+
+  const handleInlineDecrement = async (feedId: string, field: 'am_amount' | 'pm_amount') => {
+    const handled = await decrement(feedId, field);
+    if (!handled) {
+      // No stepper for this unit type - open FeedPad instead
+      setSelectedFeed({ feed_id: feedId, field });
+    }
+  };
+
+  const handleRemoveFeed = async (feedId: string) => {
+    const entry = getDiet(horseId, feedId);
+
+    // Atomic optimistic update
+    clearDietEntry(horseId, feedId);
+
+    try {
+      await upsertDiet(horseId, feedId, null, null, null, null);
+    } catch (error) {
+      console.error('Failed to remove feed:', error);
+      // Rollback if we had previous values
+      if (entry) {
+        updateDietAmount(horseId, feedId, 'am_amount', entry.am_amount);
+        updateDietAmount(horseId, feedId, 'pm_amount', entry.pm_amount);
+      }
+    }
+  };
+
   const feedInfo = getSelectedFeedInfo();
 
   return (
@@ -226,45 +263,101 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
           const options = parseEntryOptions(feed.entry_options, feed.unit_type);
           const amDisplay = strategy.formatDisplay(amValue ?? null, entry?.am_variant ?? null, options, feed.unit_label) || '—';
           const pmDisplay = strategy.formatDisplay(pmValue ?? null, entry?.pm_variant ?? null, options, feed.unit_label) || '—';
+          const hasStepper = strategy.getStepSize() !== null;
 
           return (
             <div
               key={feed.id}
-              class="feed-tile"
+              class="feed-tile-row"
               data-testid={`feed-tile-${feed.id}`}
             >
-              <div class="feed-tile-header">
+              <div class="feed-tile-info">
                 <span class="feed-tile-name">{feed.name}</span>
                 <span class="feed-tile-unit">{feed.unit_label}</span>
               </div>
-              <div class="feed-tile-values">
+
+              <div class="feed-tile-stepper">
+                {canEditBoard && hasStepper && (
+                  <button
+                    class="stepper-btn"
+                    data-testid="am-decrement"
+                    onClick={() => handleInlineDecrement(feed.id, 'am_amount')}
+                    aria-label={`Decrease ${feed.name} AM`}
+                  >−</button>
+                )}
                 <button
-                  class="value-button"
-                  data-testid={`feed-tile-am-${feed.id}`}
+                  class="value-pill"
+                  data-testid="am-value"
                   onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'am_amount' })}
                   disabled={!canEditBoard}
                 >
                   <span class="value-label">AM</span>
-                  <span class="value-amount">
-                    {amDisplay}
-                  </span>
+                  <span class="value-amount">{amDisplay}</span>
                 </button>
+                {canEditBoard && hasStepper && (
+                  <button
+                    class="stepper-btn"
+                    data-testid="am-increment"
+                    onClick={() => handleInlineIncrement(feed.id, 'am_amount')}
+                    aria-label={`Increase ${feed.name} AM`}
+                  >+</button>
+                )}
+              </div>
 
+              <div class="feed-tile-stepper">
+                {canEditBoard && hasStepper && (
+                  <button
+                    class="stepper-btn"
+                    data-testid="pm-decrement"
+                    onClick={() => handleInlineDecrement(feed.id, 'pm_amount')}
+                    aria-label={`Decrease ${feed.name} PM`}
+                  >−</button>
+                )}
                 <button
-                  class="value-button"
-                  data-testid={`feed-tile-pm-${feed.id}`}
+                  class="value-pill"
+                  data-testid="pm-value"
                   onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'pm_amount' })}
                   disabled={!canEditBoard}
                 >
                   <span class="value-label">PM</span>
-                  <span class="value-amount">
-                    {pmDisplay}
-                  </span>
+                  <span class="value-amount">{pmDisplay}</span>
                 </button>
+                {canEditBoard && hasStepper && (
+                  <button
+                    class="stepper-btn"
+                    data-testid="pm-increment"
+                    onClick={() => handleInlineIncrement(feed.id, 'pm_amount')}
+                    aria-label={`Increase ${feed.name} PM`}
+                  >+</button>
+                )}
               </div>
+
+              {canEditBoard && (
+                <button
+                  class="feed-tile-remove"
+                  data-testid="remove-feed"
+                  onClick={() => handleRemoveFeed(feed.id)}
+                  aria-label={`Remove ${feed.name} from diet`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              )}
             </div>
           );
         })}
+
+        {canEditBoard && (
+          <button
+            class="add-feed-btn"
+            data-testid="add-feed-btn"
+            onClick={() => setShowFeedPicker(true)}
+          >
+            + Add to {horse.name}'s diet
+          </button>
+        )}
       </div>
 
       <FeedPad
@@ -278,6 +371,32 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         unitLabel={feedInfo.unitLabel}
         entryOptions={feedInfo.entryOptions}
       />
+
+      {showFeedPicker && (
+        <div class="overlay overlay--drawer overlay--open" onClick={() => setShowFeedPicker(false)}>
+          <div class="bottom-drawer bottom-drawer--open" data-testid="feed-picker" onClick={(e) => e.stopPropagation()}>
+            <div class="drawer-header">
+              <h3 class="drawer-title">Add Feed</h3>
+              <button class="icon-btn icon-btn--circular icon-btn--bordered" onClick={() => setShowFeedPicker(false)}>×</button>
+            </div>
+            <div class="feed-picker-list">
+              {feeds.value.map((feed) => (
+                <button
+                  key={feed.id}
+                  class="feed-picker-item"
+                  onClick={() => {
+                    setShowFeedPicker(false);
+                    setSelectedFeed({ feed_id: feed.id, field: 'am_amount' });
+                  }}
+                >
+                  <span class="feed-picker-name">{feed.name}</span>
+                  <span class="feed-picker-unit">{feed.unit_label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isEditing.value && (
         <div class="overlay overlay--darker overlay--modal overlay--open" data-testid="edit-horse-modal">

@@ -92,8 +92,8 @@ export const selectors = {
   horseDetailNote: '[data-testid="horse-detail-note"]',
   feedTiles: '[data-testid="feed-tiles"]',
   feedTile: (id: string) => `[data-testid="feed-tile-${id}"]`,
-  feedTileAM: (id: string) => `[data-testid="feed-tile-am-${id}"]`,
-  feedTilePM: (id: string) => `[data-testid="feed-tile-pm-${id}"]`,
+  feedTileAM: (id: string) => `[data-testid="feed-tile-${id}"] [data-testid="am-value"]`,
+  feedTilePM: (id: string) => `[data-testid="feed-tile-${id}"] [data-testid="pm-value"]`,
 
   // Horse Detail Actions
   editHorseBtn: '[data-testid="edit-horse-btn"]',
