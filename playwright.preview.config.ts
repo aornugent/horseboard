@@ -35,4 +35,13 @@ export default defineConfig({
         // Always collect trace for previews so we can see what happened if it fails
         trace: 'on',
     },
+
+    // Always start fresh server for previews - never reuse an existing dev server
+    // that may have been started without NODE_ENV=test
+    webServer: {
+        command: 'NODE_ENV=test npm run dev',
+        url: 'http://localhost:5173',
+        reuseExistingServer: false,
+        timeout: 120 * 1000,
+    },
 });
