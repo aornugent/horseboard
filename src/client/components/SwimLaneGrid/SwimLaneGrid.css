@@ -51,7 +51,21 @@
   font-weight: 500;
   color: var(--color-text-secondary);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.feed-name-text {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.feed-unit {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+  margin-top: 2px;
 }
 
 /* Grid cells */

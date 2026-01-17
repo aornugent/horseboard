@@ -37,7 +37,10 @@ export function SwimLaneGrid({
       {rows.map((row, rowIdx) => (
         <div key={row.id} class="feed-row" data-testid={`row-${row.id}`}>
           <div class="feed-name" data-testid={`row-header-${row.id}`}>
-            {row.name}
+            <span class="feed-name-text">{row.name}</span>
+            {row.unitConfig?.unit_label && (
+              <span class="feed-unit">{row.unitConfig.unit_label}</span>
+            )}
           </div>
           {columns.map((col, colIdx) => {
             const cell = cells[colIdx][rowIdx];
@@ -50,7 +53,7 @@ export function SwimLaneGrid({
             if (unitConfig) {
               const strategy = getStrategyForType(unitConfig.unit_type as any);
               const options = parseEntryOptions(unitConfig.entry_options, unitConfig.unit_type as any);
-              displayText = strategy.formatDisplay(cell.value, cell.variant, options, unitConfig.unit_label);
+              displayText = strategy.formatDisplay(cell.value, cell.variant, options);
             } else {
               // Fallback if no config (shouldn't happen for feeds)
               displayText = cell.variant || (cell.value?.toString() ?? '');

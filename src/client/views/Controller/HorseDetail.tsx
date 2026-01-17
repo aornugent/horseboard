@@ -8,7 +8,6 @@ import {
   getFeed, clearDietEntry
 } from '../../stores';
 import { canEdit } from '../../hooks/useAppMode';
-import { useDietStepper } from '../../hooks/useDietStepper';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
 
 
@@ -30,7 +29,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
   const canEditBoard = canEdit.value;
   const [showFeedPicker, setShowFeedPicker] = useState(false);
-  const { increment, decrement } = useDietStepper(horseId);
 
   const horse = getHorse(horseId);
 
@@ -144,22 +142,6 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     isDeleting.value = false;
   };
 
-  const handleInlineIncrement = async (feedId: string, field: 'am_amount' | 'pm_amount') => {
-    const handled = await increment(feedId, field);
-    if (!handled) {
-      // No stepper for this unit type - open FeedPad instead
-      setSelectedFeed({ feed_id: feedId, field });
-    }
-  };
-
-  const handleInlineDecrement = async (feedId: string, field: 'am_amount' | 'pm_amount') => {
-    const handled = await decrement(feedId, field);
-    if (!handled) {
-      // No stepper for this unit type - open FeedPad instead
-      setSelectedFeed({ feed_id: feedId, field });
-    }
-  };
-
   const handleRemoveFeed = async (feedId: string) => {
     const entry = getDiet(horseId, feedId);
 
@@ -181,79 +163,56 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const feedInfo = getSelectedFeedInfo();
 
   return (
-    <div class="horse-detail" data-testid="horse-detail">
-      <header class="horse-detail-header">
+    <div class="tab" data-testid="horse-detail">
+      <header class="tab-header">
         <button
           class="icon-btn icon-btn--ghost"
           data-testid="horse-detail-back"
           onClick={onBack}
           aria-label="Go back"
         >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h2 class="horse-detail-name" data-testid="horse-detail-name">
+        <h2 class="tab-title" data-testid="horse-detail-name">
           {horse.name}
         </h2>
-        <div class="horse-detail-actions">
-          {canEditBoard && (
-            <>
-              <button
-                class="icon-btn"
-                data-testid="edit-horse-btn"
-                onClick={handleOpenEdit}
-                aria-label="Edit horse"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-              <button
-                class="icon-btn icon-btn--danger"
-                data-testid="delete-horse-btn"
-                onClick={handleOpenDelete}
-                aria-label="Delete horse"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
+        {canEditBoard && (
+          <div class="header-controls">
+            <button
+              class="icon-btn"
+              data-testid="edit-horse-btn"
+              onClick={handleOpenEdit}
+              aria-label="Edit horse"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button
+              class="icon-btn icon-btn--danger"
+              data-testid="delete-horse-btn"
+              onClick={handleOpenDelete}
+              aria-label="Delete horse"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        )}
       </header>
 
       {horse.note && (
-        <div class="horse-detail-note" data-testid="horse-detail-note">
-          <span class="note-label">Note:</span> {horse.note}
-        </div>
+        <p class="tab-subtitle" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0 0 var(--spacing-lg) 0;" data-testid="horse-detail-note">
+          {horse.note}
+        </p>
       )}
 
-      <div class="feed-tiles" data-testid="feed-tiles">
+      <div class="tab-list" data-testid="feed-tiles">
         {activeFeeds.value.map((feed) => {
           const entry = getDiet(horseId, feed.id);
           const amValue = entry?.am_amount;
@@ -263,88 +222,49 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
           const options = parseEntryOptions(feed.entry_options, feed.unit_type);
           const amDisplay = strategy.formatDisplay(amValue ?? null, entry?.am_variant ?? null, options, feed.unit_label) || '—';
           const pmDisplay = strategy.formatDisplay(pmValue ?? null, entry?.pm_variant ?? null, options, feed.unit_label) || '—';
-          const hasStepper = strategy.getStepSize() !== null;
 
           return (
             <div
               key={feed.id}
-              class="feed-tile-row"
+              class="list-card"
               data-testid={`feed-tile-${feed.id}`}
             >
-              <div class="feed-tile-info">
-                <span class="feed-tile-name">{feed.name}</span>
-                <span class="feed-tile-unit">{feed.unit_label}</span>
+              <div class="list-card-content">
+                <span class="list-card-name">{feed.name}</span>
+                <span class="list-card-unit">{feed.unit_label}</span>
               </div>
 
-              <div class="feed-tile-stepper">
-                {canEditBoard && hasStepper && (
-                  <button
-                    class="stepper-btn"
-                    data-testid="am-decrement"
-                    onClick={() => handleInlineDecrement(feed.id, 'am_amount')}
-                    aria-label={`Decrease ${feed.name} AM`}
-                  >−</button>
-                )}
+              <div class="list-card-actions">
                 <button
-                  class="value-pill"
+                  class="diet-value-pill"
                   data-testid="am-value"
                   onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'am_amount' })}
                   disabled={!canEditBoard}
                 >
-                  <span class="value-label">AM</span>
-                  <span class="value-amount">{amDisplay}</span>
+                  <span class="label">AM</span>
+                  <span class="amount">{amDisplay}</span>
                 </button>
-                {canEditBoard && hasStepper && (
-                  <button
-                    class="stepper-btn"
-                    data-testid="am-increment"
-                    onClick={() => handleInlineIncrement(feed.id, 'am_amount')}
-                    aria-label={`Increase ${feed.name} AM`}
-                  >+</button>
-                )}
-              </div>
-
-              <div class="feed-tile-stepper">
-                {canEditBoard && hasStepper && (
-                  <button
-                    class="stepper-btn"
-                    data-testid="pm-decrement"
-                    onClick={() => handleInlineDecrement(feed.id, 'pm_amount')}
-                    aria-label={`Decrease ${feed.name} PM`}
-                  >−</button>
-                )}
                 <button
-                  class="value-pill"
+                  class="diet-value-pill"
                   data-testid="pm-value"
                   onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'pm_amount' })}
                   disabled={!canEditBoard}
                 >
-                  <span class="value-label">PM</span>
-                  <span class="value-amount">{pmDisplay}</span>
+                  <span class="label">PM</span>
+                  <span class="amount">{pmDisplay}</span>
                 </button>
-                {canEditBoard && hasStepper && (
+
+                {canEditBoard && (
                   <button
-                    class="stepper-btn"
-                    data-testid="pm-increment"
-                    onClick={() => handleInlineIncrement(feed.id, 'pm_amount')}
-                    aria-label={`Increase ${feed.name} PM`}
-                  >+</button>
+                    class="icon-btn icon-btn--sm icon-btn--ghost"
+                    data-testid="remove-feed"
+                    onClick={() => handleRemoveFeed(feed.id)}
+                    aria-label={`Remove ${feed.name} from diet`}
+                  >
+                    ×
+                  </button>
                 )}
               </div>
-
-              {canEditBoard && (
-                <button
-                  class="feed-tile-remove"
-                  data-testid="remove-feed"
-                  onClick={() => handleRemoveFeed(feed.id)}
-                  aria-label={`Remove ${feed.name} from diet`}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
-              )}
             </div>
           );
         })}

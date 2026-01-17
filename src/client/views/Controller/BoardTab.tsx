@@ -188,7 +188,6 @@ export function BoardTab() {
         })()}
       </div>
 
-      {/* Toggle button at bottom (when drawer closed) */}
       {!showControls.value && (
         <button
           class="tv-controls-toggle"
@@ -199,126 +198,146 @@ export function BoardTab() {
         </button>
       )}
 
-      {/* Inline drawer - in normal flow */}
       <div
-        class={`display-controls-drawer ${showControls.value ? 'open' : ''}`}
-        data-testid="display-controls-drawer"
+        class={`overlay overlay--drawer ${showControls.value ? 'overlay--open' : ''}`}
+        onClick={() => showControls.value = false}
+        data-testid="tv-controls-overlay"
       >
-        {/* Hero Pagination - Primary control */}
-        {(() => {
-          // Calculate total pages for pagination display and button state
-          const activeHorses = horses.value.filter(h => !h.archived);
-          const feedItems = feeds.value;
-          const currentPageSize = pageSize.value;
-          const currentRowPageSize = rowPageSize.value;
-          const currentOrientation = orientation.value;
+        <div
+          class={`bottom-drawer ${showControls.value ? 'bottom-drawer--open' : ''}`}
+          data-testid="display-controls-drawer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div class="drawer-header">
+            <h3 class="drawer-title">TV Controls</h3>
+            <button
+              class="icon-btn icon-btn--circular icon-btn--bordered"
+              onClick={() => showControls.value = false}
+              data-testid="close-tv-controls"
+              aria-label="Close TV Controls"
+            >
+              ×
+            </button>
+          </div>
 
-          const primaryCount = currentOrientation === 'horse-major' ? activeHorses.length : feedItems.length;
-          const secondaryCount = currentOrientation === 'horse-major' ? feedItems.length : activeHorses.length;
-          const totalRowPages = Math.ceil(secondaryCount / currentRowPageSize) || 1;
-          const totalColPages = Math.ceil(primaryCount / currentPageSize) || 1;
-          const totalPages = totalColPages * totalRowPages;
-          const currentPageNum = (current_page.value || 0) + 1;
-          const isLastPage = currentPageNum >= totalPages;
+          {/* Hero Pagination - Primary control */}
+          {(() => {
+            // Calculate total pages for pagination display and button state
+            const activeHorses = horses.value.filter(h => !h.archived);
+            const feedItems = feeds.value;
+            const currentPageSize = pageSize.value;
+            const currentRowPageSize = rowPageSize.value;
+            const currentOrientation = orientation.value;
 
-          return (
-            <div class="tv-pagination-hero" data-testid="tv-pagination">
-              <button
-                class="icon-btn icon-btn--xl"
-                onClick={() => changePage(-1)}
-                disabled={(current_page.value || 0) <= 0}
-                data-testid="tv-prev-page"
-              >◀</button>
-              <span class="tv-page-indicator" data-testid="page-indicator">
-                {currentPageNum} / {totalPages}
-              </span>
-              <button
-                class="icon-btn icon-btn--xl"
-                onClick={() => changePage(1)}
-                disabled={isLastPage}
-                data-testid="tv-next-page"
-              >▶</button>
+            const primaryCount = currentOrientation === 'horse-major' ? activeHorses.length : feedItems.length;
+            const secondaryCount = currentOrientation === 'horse-major' ? feedItems.length : activeHorses.length;
+            const totalRowPages = Math.ceil(secondaryCount / currentRowPageSize) || 1;
+            const totalColPages = Math.ceil(primaryCount / currentPageSize) || 1;
+            const totalPages = totalColPages * totalRowPages;
+            const currentPageNum = (current_page.value || 0) + 1;
+            const isLastPage = currentPageNum >= totalPages;
+
+            return (
+              <div class="drawer-stepper" data-testid="tv-pagination">
+                <button
+                  class="icon-btn icon-btn--xl"
+                  onClick={() => changePage(-1)}
+                  disabled={(current_page.value || 0) <= 0}
+                  data-testid="tv-prev-page"
+                >◀</button>
+                <div class="drawer-stepper-value">
+                  <span class="drawer-stepper-amount" data-testid="page-indicator">
+                    {currentPageNum} / {totalPages}
+                  </span>
+                </div>
+                <button
+                  class="icon-btn icon-btn--xl"
+                  onClick={() => changePage(1)}
+                  disabled={isLastPage}
+                  data-testid="tv-next-page"
+                >▶</button>
+              </div>
+            );
+          })()}
+
+          {/* Secondary Row: Time Mode + Match TV + Overflow */}
+          <div class="tv-controls-row">
+            <div class="segmented-control segmented-control--invert" data-testid="time-mode-selector">
+              {[TIME_MODE.AM, TIME_MODE.PM].map(mode => (
+                <button
+                  key={mode}
+                  class={`segment-btn ${configured_mode.value === mode ? 'active' : ''}`}
+                  onClick={() => changeTimeMode(mode)}
+                  data-testid={`time-mode-${mode.toLowerCase()}`}
+                >
+                  {TIME_MODE_CONFIG[mode].label}
+                </button>
+              ))}
             </div>
-          );
-        })()}
 
-        {/* Secondary Row: Time Mode + Match TV + Overflow */}
-        <div class="tv-controls-row">
-          <div class="segmented-control segmented-control--invert" data-testid="time-mode-selector">
-            {[TIME_MODE.AM, TIME_MODE.PM].map(mode => (
-              <button
-                key={mode}
-                class={`segment-btn ${configured_mode.value === mode ? 'active' : ''}`}
-                onClick={() => changeTimeMode(mode)}
-                data-testid={`time-mode-${mode.toLowerCase()}`}
-              >
-                {TIME_MODE_CONFIG[mode].label}
-              </button>
-            ))}
+            <div class="match-tv-control">
+              <label class="switch" data-testid="match-tv-toggle">
+                <input
+                  type="checkbox"
+                  checked={matchTV.value}
+                  onChange={toggleMatchTV}
+                />
+                <span class="slider round"></span>
+              </label>
+              <span class="match-tv-label">Match</span>
+            </div>
+
+            <button
+              class="icon-btn icon-btn--ghost"
+              onClick={() => showOverflow.value = !showOverflow.value}
+              data-testid="overflow-menu-btn"
+            >
+              ⚙
+            </button>
           </div>
 
-          <div class="match-tv-control">
-            <label class="switch" data-testid="match-tv-toggle">
-              <input
-                type="checkbox"
-                checked={matchTV.value}
-                onChange={toggleMatchTV}
-              />
-              <span class="slider round"></span>
-            </label>
-            <span class="match-tv-label">Match</span>
-          </div>
+          {/* Overflow: Orientation + Zoom */}
+          {showOverflow.value && (
+            <>
+              <div class="board-control-group" data-testid="orientation-toggle">
+                <label class="board-control-label">Orientation</label>
+                <div class="segmented-control">
+                  <button
+                    class={`segment-btn ${orientation.value === 'horse-major' ? 'active' : ''}`}
+                    onClick={() => changeOrientation('horse-major')}
+                    data-testid="orientation-horse-major"
+                  >Horses</button>
+                  <button
+                    class={`segment-btn ${orientation.value === 'feed-major' ? 'active' : ''}`}
+                    onClick={() => changeOrientation('feed-major')}
+                    data-testid="orientation-feed-major"
+                  >Feeds</button>
+                </div>
+              </div>
 
-          <button
-            class="icon-btn icon-btn--ghost"
-            onClick={() => showOverflow.value = !showOverflow.value}
-            data-testid="overflow-menu-btn"
-          >
-            ⚙
-          </button>
+              <div class="board-control-group" data-testid="zoom-selector">
+                <label class="board-control-label">Zoom</label>
+                <div class="segmented-control">
+                  <button
+                    class={`segment-btn ${zoom_level.value === 1 ? 'active' : ''}`}
+                    onClick={() => changeZoom(1)}
+                    data-testid="zoom-level-1"
+                  >S</button>
+                  <button
+                    class={`segment-btn ${zoom_level.value === 2 ? 'active' : ''}`}
+                    onClick={() => changeZoom(2)}
+                    data-testid="zoom-level-2"
+                  >M</button>
+                  <button
+                    class={`segment-btn ${zoom_level.value === 3 ? 'active' : ''}`}
+                    onClick={() => changeZoom(3)}
+                    data-testid="zoom-level-3"
+                  >L</button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-
-        {/* Overflow: Orientation + Zoom */}
-        {showOverflow.value && (
-          <>
-            <div class="board-control-group" data-testid="orientation-toggle">
-              <label class="board-control-label">Orientation</label>
-              <div class="segmented-control">
-                <button
-                  class={`segment-btn ${orientation.value === 'horse-major' ? 'active' : ''}`}
-                  onClick={() => changeOrientation('horse-major')}
-                  data-testid="orientation-horse-major"
-                >Horses</button>
-                <button
-                  class={`segment-btn ${orientation.value === 'feed-major' ? 'active' : ''}`}
-                  onClick={() => changeOrientation('feed-major')}
-                  data-testid="orientation-feed-major"
-                >Feeds</button>
-              </div>
-            </div>
-
-            <div class="board-control-group" data-testid="zoom-selector">
-              <label class="board-control-label">Zoom</label>
-              <div class="segmented-control">
-                <button
-                  class={`segment-btn ${zoom_level.value === 1 ? 'active' : ''}`}
-                  onClick={() => changeZoom(1)}
-                  data-testid="zoom-level-1"
-                >S</button>
-                <button
-                  class={`segment-btn ${zoom_level.value === 2 ? 'active' : ''}`}
-                  onClick={() => changeZoom(2)}
-                  data-testid="zoom-level-2"
-                >M</button>
-                <button
-                  class={`segment-btn ${zoom_level.value === 3 ? 'active' : ''}`}
-                  onClick={() => changeZoom(3)}
-                  data-testid="zoom-level-3"
-                >L</button>
-              </div>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

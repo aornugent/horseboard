@@ -37,7 +37,7 @@ test.describe('Diet Editing via FeedPad', () => {
    * Helper to get the value-amount span within a feed tile button
    */
   function getValueAmount(page: import('@playwright/test').Page, fId: string) {
-    return page.locator(selectors.feedTileAM(fId)).locator('.value-amount');
+    return page.locator(selectors.feedTileAM(fId)).locator('.amount');
   }
 
   test('should open FeedPad and set value via preset', async ({ ownerPage }) => {
@@ -211,39 +211,7 @@ test.describe('Diet Editing via FeedPad', () => {
     await expect(valueAmountAfterReload).toContainText('2');
   });
 
-  test('should increment AM dose inline without opening FeedPad', async ({ ownerPage, request }) => {
-    // Seed diet with AM = 1
-    await upsertDiet(request, { horse_id: horseId, feed_id: feedId, am_amount: 1 });
-    await ownerPage.reload();
-    await goToHorseDetail(ownerPage);
 
-    // Click inline increment button for AM
-    const incrementBtn = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="am-increment"]`);
-    await incrementBtn.click();
-
-    // FeedPad should NOT open
-    const feedPad = ownerPage.locator(selectors.feedPad);
-    await expect(feedPad).not.toBeVisible();
-
-    // Value should update to show incremented value (1 + 0.25 = 1.25 = "1¼")
-    const valueDisplay = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="am-value"] .value-amount`);
-    await expect(valueDisplay).toHaveText('1¼');
-  });
-
-  test('should clear value when decrementing to zero', async ({ ownerPage, request }) => {
-    // Seed diet with AM = 0.25 (single quarter step)
-    await upsertDiet(request, { horse_id: horseId, feed_id: feedId, am_amount: 0.25 });
-    await ownerPage.reload();
-    await goToHorseDetail(ownerPage);
-
-    // Click inline decrement button for AM
-    const decrementBtn = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="am-decrement"]`);
-    await decrementBtn.click();
-
-    // Value should now show dash (empty state)
-    const valueDisplay = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="am-value"] .value-amount`);
-    await expect(valueDisplay).toHaveText('—');
-  });
 
   test('should remove feed from diet when trash icon clicked', async ({ ownerPage, request }) => {
     // Seed diet with AM = 2, PM = 1
@@ -256,8 +224,8 @@ test.describe('Diet Editing via FeedPad', () => {
     await removeBtn.click();
 
     // Both values should now show dash
-    const amValue = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="am-value"] .value-amount`);
-    const pmValue = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="pm-value"] .value-amount`);
+    const amValue = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="am-value"] .amount`);
+    const pmValue = ownerPage.locator(`[data-testid="feed-tile-${feedId}"] [data-testid="pm-value"] .amount`);
     await expect(amValue).toHaveText('—');
     await expect(pmValue).toHaveText('—');
   });

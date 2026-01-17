@@ -101,29 +101,9 @@ export function FeedPad({
           </button>
         </div>
 
-        {/* Current value display */}
-        <div class="feed-pad-current" data-testid="feed-pad-current">
-          <span class="feed-pad-current-value">{displayValue || '—'}</span>
-          {unitType !== 'choice' && <span class="feed-pad-current-unit">{unitLabel}</span>}
-        </div>
-
-        {/* Presets */}
-        <div class="feed-pad-presets" data-testid="feed-pad-presets">
-          {presets.map((preset, index) => (
-            <button
-              key={index}
-              class="feed-pad-preset"
-              data-testid={`preset-${preset.value ?? 'empty'}`}
-              onClick={() => handlePreset(preset.value, preset.label)}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Stepper (only for fraction/int types) */}
-        {stepSize !== null && (
-          <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
+        {/* Hero Stepper - Consolidated value display with +/- */}
+        <div class="drawer-stepper" data-testid="feed-pad-stepper">
+          {stepSize !== null && (
             <button
               class="icon-btn icon-btn--lg icon-btn--circular"
               data-testid="stepper-decrement"
@@ -132,9 +112,14 @@ export function FeedPad({
             >
               −
             </button>
-            <div class="feed-pad-stepper-value" data-testid="stepper-value">
-              {displayValue || '0'}
-            </div>
+          )}
+
+          <div class="drawer-stepper-value">
+            <span class="drawer-stepper-amount" data-testid="stepper-value">{displayValue || '0'}</span>
+            {unitType !== 'choice' && <span class="drawer-stepper-unit">{unitLabel}</span>}
+          </div>
+
+          {stepSize !== null && (
             <button
               class="icon-btn icon-btn--lg icon-btn--circular"
               data-testid="stepper-increment"
@@ -143,8 +128,22 @@ export function FeedPad({
             >
               +
             </button>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Presets */}
+        <div class="drawer-presets" data-testid="feed-pad-presets">
+          {presets.map((preset, index) => (
+            <button
+              key={index}
+              class="segment-btn segment-btn--bordered"
+              data-testid={`preset-${preset.value ?? 'empty'}`}
+              onClick={() => handlePreset(preset.value, preset.label)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
         {/* Text input (for decimal type) */}
         {unitType === 'decimal' && (
@@ -164,7 +163,7 @@ export function FeedPad({
         )}
 
         <button
-          class="feed-pad-confirm"
+          class="drawer-confirm"
           data-testid="feed-pad-confirm"
           onClick={handleConfirm}
         >
