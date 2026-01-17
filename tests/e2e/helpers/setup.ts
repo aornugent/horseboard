@@ -194,6 +194,8 @@ export async function clearBoardFromStorage(page: Page): Promise<void> {
 
 // Storage key for permission (from api.ts)
 const PERMISSION_KEY = 'hb_permission';
+// Storage key for token (from constants.ts)
+const TOKEN_KEY = 'hb_token';
 
 /**
  * Navigate to a page with the board ID set in localStorage.
@@ -212,6 +214,14 @@ export async function navigateWithBoard(
 
   // Set the board ID in localStorage
   await injectBoardId(page, boardId);
+
+  // Set a mock token for reactive routing (required for appMode to detect authentication)
+  await page.evaluate(
+    ({ key, value }) => {
+      localStorage.setItem(key, value);
+    },
+    { key: TOKEN_KEY, value: 'test_token_mock' }
+  );
 
   // Set the permission in localStorage (admin for owner fixtures)
   await page.evaluate(
@@ -240,7 +250,7 @@ export async function waitForControllerReady(page: Page): Promise<void> {
   });
 
   // Wait for data hydration - either cards or empty state
-  await page.waitForSelector('.horse-card, [data-testid="horse-list-empty"]', {
+  await page.waitForSelector('.list-card, [data-testid="horse-list-empty"]', {
     state: 'visible',
     timeout: 5000,
   });

@@ -17,15 +17,21 @@ test.describe('TV Display View', () => {
     // Seed 2 horses, 2 feeds via API
     const horse1 = await createHorse(request, ownerBoardId, { name: 'Thunder' });
     const horse2 = await createHorse(request, ownerBoardId, { name: 'Lightning' });
-    const feed1 = await createFeed(request, ownerBoardId, { name: 'Oats', unit: 'scoop' });
-    const feed2 = await createFeed(request, ownerBoardId, { name: 'Hay', unit: 'biscuit' });
+    const feed1 = await createFeed(request, ownerBoardId, { name: 'Oats', unit_label: 'scoop' });
+    const feed2 = await createFeed(request, ownerBoardId, { name: 'Hay', unit_label: 'biscuit' });
 
-    // Seed diet entries
+    // Seed diet entries for BOTH feeds (sparse filtering only shows feeds with diet entries)
     await upsertDiet(request, {
       horse_id: horse1.id,
       feed_id: feed1.id,
       am_amount: 1,
       pm_amount: 1.5
+    });
+    await upsertDiet(request, {
+      horse_id: horse2.id,
+      feed_id: feed2.id,
+      am_amount: 2,
+      pm_amount: 2
     });
 
     // Navigate to /board (TV display)
@@ -38,15 +44,15 @@ test.describe('TV Display View', () => {
     const grid = ownerPage.locator(selectors.swimLaneGrid);
     await expect(grid).toBeVisible();
 
-    // Verify horse names appear in header
-    await expect(ownerPage.locator(selectors.horseHeader(horse1.id))).toContainText('Thunder');
-    await expect(ownerPage.locator(selectors.horseHeader(horse2.id))).toContainText('Lightning');
+    // Verify horse names appear in header (columns in horse-major orientation)
+    await expect(ownerPage.locator(selectors.columnHeader(horse1.id))).toContainText('Thunder');
+    await expect(ownerPage.locator(selectors.columnHeader(horse2.id))).toContainText('Lightning');
 
     // Verify feed names appear in rows
-    await expect(ownerPage.locator(selectors.feedName(feed1.id))).toContainText('Oats');
-    await expect(ownerPage.locator(selectors.feedName(feed2.id))).toContainText('Hay');
+    await expect(ownerPage.locator(selectors.rowHeader(feed1.id))).toContainText('Oats');
+    await expect(ownerPage.locator(selectors.rowHeader(feed2.id))).toContainText('Hay');
 
-    // Verify quantity badge
+    // Verify quantity badge (cell uses col,row order: horse,feed in horse-major)
     const badge = ownerPage.locator(selectors.badge(horse1.id, feed1.id));
     await expect(badge).toBeVisible();
   });
@@ -54,21 +60,30 @@ test.describe('TV Display View', () => {
   test('is read-only - FeedPad does not open on cell click', async ({ ownerPage, ownerBoardId, request }) => {
     // Seed 1 horse, 1 feed
     const horse = await createHorse(request, ownerBoardId, { name: 'Test Horse' });
-    const feed = await createFeed(request, ownerBoardId, { name: 'Test Feed', unit: 'scoop' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'Test Feed', unit_label: 'scoop' });
 
-    // Seed diet
+    // Seed diet (include both AM and PM to ensure visibility regardless of time mode)
     await upsertDiet(request, {
       horse_id: horse.id,
       feed_id: feed.id,
-      am_amount: 1
+      am_amount: 1,
+      pm_amount: 1
     });
 
-    // Navigate to /board
+    // Set board_id in localStorage and navigate to /board
+    await ownerPage.goto('/');
+    await ownerPage.evaluate(
+      ({ key, value }) => localStorage.setItem(key, value),
+      { key: 'hb_board_id', value: ownerBoardId }
+    );
     await ownerPage.goto('/board');
     await expect(ownerPage.locator(selectors.boardView)).toBeVisible();
 
-    // Click on a cell
-    const cell = ownerPage.locator(selectors.cell(horse.id, feed.id));
+    // Wait for data to load via SSE - grid should contain the horse name
+    await expect(ownerPage.locator(selectors.swimLaneGrid)).toContainText('Test Horse');
+
+    // Click on ANY grid cell (first one found)
+    const cell = ownerPage.locator('.grid-cell').first();
     await expect(cell).toBeVisible();
     await cell.click();
 
@@ -81,7 +96,7 @@ test.describe('Real-Time Sync', () => {
   test('diet change in controller syncs to display', async ({ ownerPage, ownerBoardId, request, browser }) => {
     // Seed data with initial values we'll change
     const horse = await createHorse(request, ownerBoardId, { name: 'Sync Horse' });
-    const feed = await createFeed(request, ownerBoardId, { name: 'Sync Feed', unit: 'scoop' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'Sync Feed', unit_label: 'scoop' });
     await upsertDiet(request, {
       horse_id: horse.id,
       feed_id: feed.id,
@@ -129,6 +144,7 @@ test.describe('Real-Time Sync', () => {
       await expect(ownerPage.locator(selectors.boardTab)).toBeVisible();
       await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
       await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+      await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
       await ownerPage.locator(timeModeSelectors.am).click();
 
       await expect(displayBadge).toContainText('2');
@@ -145,7 +161,7 @@ test.describe('Real-Time Sync', () => {
   test('time mode change in controller syncs to display', async ({ ownerPage, ownerBoardId, request, browser }) => {
     // Seed minimal data for grid to render
     const horse = await createHorse(request, ownerBoardId, { name: 'H' });
-    const feed = await createFeed(request, ownerBoardId, { name: 'F', unit: 'scoop' });
+    const feed = await createFeed(request, ownerBoardId, { name: 'F', unit_label: 'scoop' });
     await upsertDiet(request, { horse_id: horse.id, feed_id: feed.id, am_amount: 1 });
 
     const displayContext = await browser.newContext();
@@ -174,6 +190,9 @@ test.describe('Real-Time Sync', () => {
       // Expand the display controls drawer
       await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
       await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+      // Time mode is in overflow menu
+      await ownerPage.locator('[data-testid="overflow-menu-btn"]').click();
 
       // Determine new mode and click
       const newMode = initialMode?.includes('AM') ? 'PM' : 'AM';

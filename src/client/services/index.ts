@@ -11,10 +11,10 @@ export {
   deleteFeed,
   updateTimeMode,
   updateBoard,
+  updateOrientation,
+
 
   setControllerToken,
-  setPermission,
-  loadPermission,
   resolveToken,
   pollProvisioning,
   linkDevice,

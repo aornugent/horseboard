@@ -33,13 +33,14 @@ export const selectors = {
   gridHeader: '[data-testid="grid-header"]',
   gridFooter: '[data-testid="grid-footer"]',
 
-  // Dynamic grid selectors
-  horseHeader: (id: string) => `[data-testid="horse-header-${id}"]`,
-  feedRow: (id: string) => `[data-testid="feed-row-${id}"]`,
-  feedName: (id: string) => `[data-testid="feed-name-${id}"]`,
-  cell: (horseId: string, feedId: string) => `[data-testid="cell-${horseId}-${feedId}"]`,
-  badge: (horseId: string, feedId: string) => `[data-testid="badge-${horseId}-${feedId}"]`,
-  note: (id: string) => `[data-testid="note-${id}"]`,
+  // Dynamic grid selectors (updated for axis-agnostic grid)
+  // Note: colId/rowId depend on orientation - in horse-major: col=horse, row=feed
+  columnHeader: (colId: string) => `[data-testid="column-header-${colId}"]`,
+  rowHeader: (rowId: string) => `[data-testid="row-header-${rowId}"]`,
+  row: (rowId: string) => `[data-testid="row-${rowId}"]`,
+  cell: (colId: string, rowId: string) => `[data-testid="cell-${colId}-${rowId}"]`,
+  badge: (colId: string, rowId: string) => `[data-testid="badge-${colId}-${rowId}"]`,
+  note: (colId: string) => `[data-testid="note-${colId}"]`,
 
   // ============================================
   // FeedPad (Touch-Friendly Input Drawer)
@@ -91,8 +92,8 @@ export const selectors = {
   horseDetailNote: '[data-testid="horse-detail-note"]',
   feedTiles: '[data-testid="feed-tiles"]',
   feedTile: (id: string) => `[data-testid="feed-tile-${id}"]`,
-  feedTileAM: (id: string) => `[data-testid="feed-tile-am-${id}"]`,
-  feedTilePM: (id: string) => `[data-testid="feed-tile-pm-${id}"]`,
+  feedTileAM: (id: string) => `[data-testid="feed-tile-${id}"] [data-testid="am-value"]`,
+  feedTilePM: (id: string) => `[data-testid="feed-tile-${id}"] [data-testid="pm-value"]`,
 
   // Horse Detail Actions
   editHorseBtn: '[data-testid="edit-horse-btn"]',
@@ -110,9 +111,25 @@ export const selectors = {
   confirmDeleteHorse: '[data-testid="confirm-delete-horse"]',
 
   // ============================================
-  // BoardTab (Mobile Controller - TV Preview)
+  // BoardTab (Mobile Controller - TV Remote)
   // ============================================
   boardTab: '[data-testid="board-tab"]',
+  boardViewContainer: '[data-testid="board-view-container"]',
+
+  // Orientation
+  orientationToggle: '[data-testid="orientation-toggle"]',
+  orientationHorseMajor: '[data-testid="orientation-horse-major"]',
+  orientationFeedMajor: '[data-testid="orientation-feed-major"]',
+
+  // Pagination (new TV Controls drawer)
+  boardPageIndicator: '[data-testid="page-indicator"]',
+  tvPrevPage: '[data-testid="tv-prev-page"]',
+  tvNextPage: '[data-testid="tv-next-page"]',
+  // @deprecated - use tvPrevPage/tvNextPage
+  prevPageBtn: '[data-testid="prev-page-btn"]',
+  nextPageBtn: '[data-testid="next-page-btn"]',
+  breadcrumbMore: '[data-testid="breadcrumb-more"]',
+  boardReference: '[data-testid="board-reference"]',
 
   // ============================================
   // FeedsTab (Mobile Controller - Feeds List)

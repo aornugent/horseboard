@@ -1,587 +1,221 @@
-import { test, describe } from 'node:test';
+// Import browser mocks before any client code
+import '../setup.js';
+
+import { test, describe, beforeEach, before } from 'node:test';
 import assert from 'node:assert';
-import {
-  createResourceStore,
-  createDietStore,
-  createBoardStore,
-  createHorseStore,
-  createFeedStore,
-} from '../../src/client/lib/engine.js';
 
-function mockHorse(overrides = {}) {
-  const now = new Date().toISOString();
-  return {
-    id: `h_${Math.random().toString(36).slice(2)}`,
-    board_id: 'b_test',
-    name: 'Test Horse',
-    note: null,
-    note_expiry: null,
-    archived: false,
-    created_at: now,
-    updated_at: now,
-    ...overrides,
-  };
-}
+let stores;
 
-function mockFeed(overrides = {}) {
-  const now = new Date().toISOString();
-  return {
-    id: `f_${Math.random().toString(36).slice(2)}`,
-    board_id: 'b_test',
-    name: 'Test Feed',
-    unit: 'scoop',
-    rank: 1,
-    stock_level: 100,
-    low_stock_threshold: 10,
-    created_at: now,
-    updated_at: now,
-    ...overrides,
-  };
-}
-
-function mockDietEntry(overrides = {}) {
-  const now = new Date().toISOString();
-  return {
-    horse_id: 'h_test',
-    feed_id: 'f_test',
-    am_amount: null,
-    pm_amount: null,
-    created_at: now,
-    updated_at: now,
-    ...overrides,
-  };
-}
-
-function mockBoard(overrides = {}) {
-  const now = new Date().toISOString();
-  return {
-    id: 'b_test',
-    pair_code: '123456',
-    timezone: 'Australia/Sydney',
-    time_mode: 'AUTO',
-    override_until: null,
-    zoom_level: 2,
-    current_page: 0,
-    created_at: now,
-    updated_at: now,
-    ...overrides,
-  };
-}
-
-function timestamp(offsetMs = 0) {
-  return new Date(Date.now() + offsetMs).toISOString();
-}
-
-describe('createResourceStore', () => {
-  describe('basic operations', () => {
-    test('initializes with empty items', () => {
-      const store = createResourceStore();
-      assert.deepEqual(store.items.value, []);
-      assert.equal(store.byId.value.size, 0);
-      assert.equal(store.version.value, 0);
-    });
-
-    test('set() populates the store', () => {
-      const store = createResourceStore();
-      const horses = [mockHorse({ id: 'h_1' }), mockHorse({ id: 'h_2' })];
-
-      store.set(horses);
-
-      assert.equal(store.items.value.length, 2);
-      assert.equal(store.byId.value.size, 2);
-      assert.equal(store.version.value, 1);
-    });
-
-    test('add() inserts a new item', () => {
-      const store = createResourceStore();
-      const horse = mockHorse({ id: 'h_1' });
-
-      store.add(horse);
-
-      assert.equal(store.items.value.length, 1);
-      assert.equal(store.get('h_1').name, 'Test Horse');
-      assert.equal(store.version.value, 1);
-    });
-
-    test('update() modifies an existing item', () => {
-      const store = createResourceStore();
-      store.add(mockHorse({ id: 'h_1', name: 'Original' }));
-
-      store.update('h_1', { name: 'Updated' });
-
-      assert.equal(store.get('h_1').name, 'Updated');
-      assert.equal(store.version.value, 2);
-    });
-
-    test('update() does nothing for non-existent item', () => {
-      const store = createResourceStore();
-      const initialVersion = store.version.value;
-
-      store.update('non_existent', { name: 'Test' });
-
-      assert.equal(store.version.value, initialVersion);
-    });
-
-    test('remove() deletes an item', () => {
-      const store = createResourceStore();
-      store.add(mockHorse({ id: 'h_1' }));
-      store.add(mockHorse({ id: 'h_2' }));
-
-      store.remove('h_1');
-
-      assert.equal(store.items.value.length, 1);
-      assert.equal(store.get('h_1'), undefined);
-      assert.equal(store.get('h_2').id, 'h_2');
-    });
-
-    test('get() returns item by ID', () => {
-      const store = createResourceStore();
-      const horse = mockHorse({ id: 'h_1', name: 'Specific Horse' });
-      store.add(horse);
-
-      const retrieved = store.get('h_1');
-
-      assert.equal(retrieved.name, 'Specific Horse');
-    });
-
-    test('get() returns undefined for non-existent ID', () => {
-      const store = createResourceStore();
-
-      assert.equal(store.get('non_existent'), undefined);
-    });
-  });
-
-  describe('version reactivity', () => {
-    test('version increments on each mutation', () => {
-      const store = createResourceStore();
-      assert.equal(store.version.value, 0);
-
-      store.add(mockHorse({ id: 'h_1' }));
-      assert.equal(store.version.value, 1);
-
-      store.update('h_1', { name: 'Updated' });
-      assert.equal(store.version.value, 2);
-
-      store.remove('h_1');
-      assert.equal(store.version.value, 3);
-    });
-
-    test('version does not increment on no-op remove', () => {
-      const store = createResourceStore();
-      const initialVersion = store.version.value;
-
-      store.remove('non_existent');
-
-      assert.equal(store.version.value, initialVersion);
-    });
-  });
-
-  describe('reconciliation', () => {
-    test('SSE source always replaces existing items', () => {
-      const store = createResourceStore();
-      const oldHorse = mockHorse({
-        id: 'h_1',
-        name: 'Old Name',
-        updated_at: timestamp(1000),
-      });
-      store.add(oldHorse);
-
-      const sseHorse = mockHorse({
-        id: 'h_1',
-        name: 'SSE Name',
-        updated_at: timestamp(-1000),
-      });
-      store.add(sseHorse, 'sse');
-
-      assert.equal(store.get('h_1').name, 'SSE Name');
-    });
-
-    test('API source uses timestamp comparison', () => {
-      const store = createResourceStore();
-      const existingHorse = mockHorse({
-        id: 'h_1',
-        name: 'Existing',
-        updated_at: timestamp(0),
-      });
-      store.add(existingHorse);
-
-      const olderHorse = mockHorse({
-        id: 'h_1',
-        name: 'Older Update',
-        updated_at: timestamp(-1000),
-      });
-      store.add(olderHorse, 'api');
-
-      assert.equal(store.get('h_1').name, 'Existing');
-
-      const newerHorse = mockHorse({
-        id: 'h_1',
-        name: 'Newer Update',
-        updated_at: timestamp(1000),
-      });
-      store.add(newerHorse, 'api');
-
-      assert.equal(store.get('h_1').name, 'Newer Update');
-    });
-
-    test('set() with SSE source clears and replaces all items', () => {
-      const store = createResourceStore();
-      store.add(mockHorse({ id: 'h_1' }));
-      store.add(mockHorse({ id: 'h_2' }));
-      store.add(mockHorse({ id: 'h_3' }));
-
-      store.set([mockHorse({ id: 'h_1' }), mockHorse({ id: 'h_4' })], 'sse');
-
-      assert.equal(store.items.value.length, 2);
-      assert.notEqual(store.get('h_1'), undefined);
-      assert.equal(store.get('h_2'), undefined);
-      assert.equal(store.get('h_3'), undefined);
-      assert.notEqual(store.get('h_4'), undefined);
-    });
-
-    test('reconcile() merges items based on timestamps', () => {
-      const store = createResourceStore();
-      store.add(mockHorse({ id: 'h_1', name: 'Original', updated_at: timestamp(0) }));
-
-      store.reconcile(
-        [
-          mockHorse({ id: 'h_1', name: 'Updated', updated_at: timestamp(1000) }),
-          mockHorse({ id: 'h_2', name: 'New Horse', updated_at: timestamp(0) }),
-        ],
-        'api'
-      );
-
-      assert.equal(store.items.value.length, 2);
-      assert.equal(store.get('h_1').name, 'Updated');
-      assert.equal(store.get('h_2').name, 'New Horse');
-    });
-
-    test('reconcile() with SSE source removes items not in incoming set', () => {
-      const store = createResourceStore();
-      store.add(mockHorse({ id: 'h_1' }));
-      store.add(mockHorse({ id: 'h_2' }));
-
-      store.reconcile([mockHorse({ id: 'h_1' })], 'sse');
-
-      assert.equal(store.items.value.length, 1);
-      assert.notEqual(store.get('h_1'), undefined);
-      assert.equal(store.get('h_2'), undefined);
-    });
-  });
+// Load module dynamically to ensure globals are set
+before(async () => {
+  stores = await import('../../src/client/stores/index.ts');
 });
 
-describe('createDietStore', () => {
-  describe('composite key handling', () => {
-    test('uses horse_id:feed_id as composite key', () => {
-      const store = createDietStore();
-      const entry = mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' });
-
-      store.upsert(entry);
-
-      assert.notEqual(store.get('h_1', 'f_1'), undefined);
-      assert.equal(store.get('h_1', 'f_2'), undefined);
-    });
-
-    test('byHorse groups entries by horse', () => {
-      const store = createDietStore();
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
-      store.upsert(mockDietEntry({ horse_id: 'h_2', feed_id: 'f_1' }));
-
-      const horse1Entries = store.byHorse.value.get('h_1');
-      assert.equal(horse1Entries.length, 2);
-
-      const horse2Entries = store.byHorse.value.get('h_2');
-      assert.equal(horse2Entries.length, 1);
-    });
-
-    test('byFeed groups entries by feed', () => {
-      const store = createDietStore();
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
-      store.upsert(mockDietEntry({ horse_id: 'h_2', feed_id: 'f_1' }));
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
-
-      const feed1Entries = store.byFeed.value.get('f_1');
-      assert.equal(feed1Entries.length, 2);
-
-      const feed2Entries = store.byFeed.value.get('f_2');
-      assert.equal(feed2Entries.length, 1);
-    });
-  });
-
-  describe('updateAmount', () => {
-    test('updates existing entry amount', () => {
-      const store = createDietStore();
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 }));
-
-      store.updateAmount('h_1', 'f_1', 'am_amount', 2);
-
-      assert.equal(store.get('h_1', 'f_1').am_amount, 2);
-    });
-
-    test('creates new entry if not exists', () => {
-      const store = createDietStore();
-
-      store.updateAmount('h_1', 'f_1', 'pm_amount', 1.5);
-
-      const entry = store.get('h_1', 'f_1');
-      assert.notEqual(entry, undefined);
-      assert.equal(entry.pm_amount, 1.5);
-      assert.equal(entry.am_amount, null);
-    });
-
-    test('handles null values', () => {
-      const store = createDietStore();
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 2 }));
-
-      store.updateAmount('h_1', 'f_1', 'am_amount', null);
-
-      assert.equal(store.get('h_1', 'f_1').am_amount, null);
-    });
-
-    test('preserves existing variant when updating amount', () => {
-      const store = createDietStore();
-
-      // Set up an entry with a variant
-      store.upsert(mockDietEntry({
-        horse_id: 'h_1',
-        feed_id: 'f_1',
-        am_amount: 1,
-        pm_amount: null,
-        am_variant: 'Small',
-        pm_variant: null,
-      }));
-
-      // Update only the amount
-      store.updateAmount('h_1', 'f_1', 'am_amount', 2);
-
-      // Variant should still be preserved
-      const entry = store.get('h_1', 'f_1');
-      assert.equal(entry.am_amount, 2);
-      assert.equal(entry.am_variant, 'Small');
-    });
-  });
-
-  describe('countActiveFeeds', () => {
-    test('counts feeds with non-zero amounts', () => {
-      const store = createDietStore();
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 }));
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2', pm_amount: 2 }));
-      store.upsert(
-        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3', am_amount: null, pm_amount: null })
-      );
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_4', am_amount: 0, pm_amount: 0 }));
-
-      assert.equal(store.countActiveFeeds('h_1'), 2);
-    });
-
-    test('returns 0 for horse with no entries', () => {
-      const store = createDietStore();
-
-      assert.equal(store.countActiveFeeds('h_nonexistent'), 0);
-    });
-  });
-
-  describe('reconciliation', () => {
-    test('SSE source replaces all entries', () => {
-      const store = createDietStore();
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }));
-      store.upsert(mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }));
-
-      store.set([mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3' })], 'sse');
-
-      assert.equal(store.items.value.length, 1);
-      assert.equal(store.get('h_1', 'f_1'), undefined);
-      assert.notEqual(store.get('h_1', 'f_3'), undefined);
-    });
-  });
+// Reset stores before each test
+beforeEach(() => {
+  if (stores) {
+    stores.board.value = null;
+    stores.horses.value = [];
+    stores.feeds.value = [];
+    stores.diet.value = [];
+    stores.searchQuery.value = '';
+  }
 });
 
-describe('createBoardStore', () => {
-  describe('computed properties', () => {
-    test('derives configured_mode from board', () => {
-      const store = createBoardStore();
-      store.set(mockBoard({ time_mode: 'PM' }));
+// Helpers to create mock data
+const mockBoard = (overrides = {}) => ({
+  id: 'b_1',
+  pair_code: '123',
+  timezone: 'UTC',
+  time_mode: 'AUTO',
+  orientation: 'horse-major',
+  zoom_level: 2,
+  current_page: 0,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides
+});
 
-      assert.equal(store.configured_mode.value, 'PM');
-    });
+const mockHorse = (overrides = {}) => ({
+  id: 'h_1',
+  board_id: 'b_1',
+  name: 'Horse 1',
+  archived: false,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides
+});
 
-    test('derives timezone from board', () => {
-      const store = createBoardStore();
-      store.set(mockBoard({ timezone: 'America/New_York' }));
+const mockFeed = (overrides = {}) => ({
+  id: 'f_1',
+  board_id: 'b_1',
+  name: 'Feed 1',
+  unit_type: 'fraction',
+  unit_label: 'scoop',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides
+});
 
-      assert.equal(store.timezone.value, 'America/New_York');
-    });
+const mockDietEntry = (overrides = {}) => ({
+  horse_id: 'h_1',
+  feed_id: 'f_1',
+  am_amount: 1,
+  pm_amount: 1,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides
+});
 
-    test('defaults to AUTO when board is null', () => {
-      const store = createBoardStore();
+describe('Stores API', () => {
 
-      assert.equal(store.configured_mode.value, 'AUTO');
-    });
-
-    test('defaults timezone to UTC when board is null', () => {
-      const store = createBoardStore();
-
-      assert.equal(store.timezone.value, 'UTC');
-    });
-  });
-
-  describe('mutations', () => {
-    test('updateTimeMode changes mode and override', () => {
-      const store = createBoardStore();
-      store.set(mockBoard());
-      const overrideTime = timestamp(3600000);
-
-      store.updateTimeMode('AM', overrideTime);
-
-      assert.equal(store.board.value.time_mode, 'AM');
-      assert.equal(store.board.value.override_until, overrideTime);
+  describe('Board Helper', () => {
+    test('updateBoard updates board signal', () => {
+      stores.board.value = mockBoard();
+      stores.updateBoard({ timezone: 'Europe/London' });
+      assert.strictEqual(stores.board.value.timezone, 'Europe/London');
     });
 
     test('setZoomLevel updates zoom', () => {
-      const store = createBoardStore();
-      store.set(mockBoard({ zoom_level: 1 }));
+      stores.board.value = mockBoard({ zoom_level: 1 });
+      stores.setZoomLevel(3);
+      assert.strictEqual(stores.board.value.zoom_level, 3);
+    });
 
-      store.setZoomLevel(3);
-
-      assert.equal(store.board.value.zoom_level, 3);
-      assert.equal(store.zoom_level.value, 3);
+    test('setOrientation updates orientation', () => {
+      stores.board.value = mockBoard({ orientation: 'horse-major' });
+      stores.setOrientation('feed-major');
+      assert.strictEqual(stores.board.value.orientation, 'feed-major');
     });
 
     test('setCurrentPage updates page', () => {
-      const store = createBoardStore();
-      store.set(mockBoard({ current_page: 0 }));
+      stores.board.value = mockBoard({ current_page: 0 });
+      stores.setCurrentPage(2);
+      assert.strictEqual(stores.board.value.current_page, 2);
+    });
 
-      store.setCurrentPage(2);
-
-      assert.equal(store.board.value.current_page, 2);
-      assert.equal(store.current_page.value, 2);
+    test('setOrientation resets current_page to 0', () => {
+      stores.board.value = mockBoard({ orientation: 'horse-major', current_page: 5 });
+      stores.setOrientation('feed-major');
+      assert.strictEqual(stores.board.value.orientation, 'feed-major');
+      assert.strictEqual(stores.board.value.current_page, 0);
     });
   });
 
-  describe('reconciliation', () => {
-    test('SSE source always replaces board', () => {
-      const store = createBoardStore();
-      store.set(
-        mockBoard({
-          time_mode: 'AM',
-          updated_at: timestamp(1000),
-        })
-      );
-
-      store.set(
-        mockBoard({
-          time_mode: 'PM',
-          updated_at: timestamp(-1000),
-        }),
-        'sse'
-      );
-
-      assert.equal(store.board.value.time_mode, 'PM');
+  describe('Horse Helpers', () => {
+    test('addHorse adds to list', () => {
+      stores.addHorse(mockHorse({ id: 'h_1' }));
+      assert.strictEqual(stores.horses.value.length, 1);
+      assert.strictEqual(stores.horses.value[0].id, 'h_1');
     });
 
-    test('API source respects timestamps', () => {
-      const store = createBoardStore();
-      store.set(
-        mockBoard({
-          time_mode: 'AM',
-          updated_at: timestamp(0),
-        })
-      );
-
-      store.set(
-        mockBoard({
-          time_mode: 'PM',
-          updated_at: timestamp(-1000),
-        }),
-        'api'
-      );
-
-      assert.equal(store.board.value.time_mode, 'AM');
-
-      store.set(
-        mockBoard({
-          time_mode: 'PM',
-          updated_at: timestamp(1000),
-        }),
-        'api'
-      );
-
-      assert.equal(store.board.value.time_mode, 'PM');
-    });
-  });
-});
-
-describe('createHorseStore', () => {
-  describe('search filtering', () => {
-    test('filtered returns all when searchQuery is empty', () => {
-      const store = createHorseStore();
-      store.add(mockHorse({ id: 'h_1', name: 'Apollo' }));
-      store.add(mockHorse({ id: 'h_2', name: 'Zeus' }));
-
-      assert.equal(store.filtered.value.length, 2);
+    test('updateHorse updates existing', () => {
+      stores.addHorse(mockHorse({ id: 'h_1', name: 'Old' }));
+      stores.updateHorse('h_1', { name: 'New' });
+      assert.strictEqual(stores.horses.value[0].name, 'New');
     });
 
-    test('filtered filters by name', () => {
-      const store = createHorseStore();
-      store.add(mockHorse({ id: 'h_1', name: 'Apollo' }));
-      store.add(mockHorse({ id: 'h_2', name: 'Zeus' }));
-      store.add(mockHorse({ id: 'h_3', name: 'Apollonia' }));
-
-      store.searchQuery.value = 'apol';
-
-      assert.equal(store.filtered.value.length, 2);
-      assert.ok(store.filtered.value.every((h) => h.name.toLowerCase().includes('apol')));
+    test('removeHorse removes from list', () => {
+      stores.addHorse(mockHorse({ id: 'h_1' }));
+      stores.removeHorse('h_1');
+      assert.strictEqual(stores.horses.value.length, 0);
     });
 
-    test('filtered is case-insensitive', () => {
-      const store = createHorseStore();
-      store.add(mockHorse({ id: 'h_1', name: 'Apollo' }));
+    test('getHorse finds item', () => {
+      stores.addHorse(mockHorse({ id: 'h_1' }));
+      const found = stores.getHorse('h_1');
+      assert.strictEqual(found.id, 'h_1');
+    });
 
-      store.searchQuery.value = 'APOLLO';
+    test('filteredHorses respects searchQuery', () => {
+      stores.addHorse(mockHorse({ id: 'h_1', name: 'Alpha' }));
+      stores.addHorse(mockHorse({ id: 'h_2', name: 'Beta' }));
+      stores.searchQuery.value = 'al';
+      assert.strictEqual(stores.filteredHorses.value.length, 1);
+      assert.strictEqual(stores.filteredHorses.value[0].name, 'Alpha');
+    });
 
-      assert.equal(store.filtered.value.length, 1);
+    test('activeHorses excludes archived', () => {
+      stores.addHorse(mockHorse({ id: 'h_1', archived: false }));
+      stores.addHorse(mockHorse({ id: 'h_2', archived: true }));
+      assert.strictEqual(stores.activeHorses.value.length, 1);
+      assert.strictEqual(stores.activeHorses.value[0].id, 'h_1');
     });
   });
 
-  describe('active horses', () => {
-    test('active excludes archived horses', () => {
-      const store = createHorseStore();
-      store.add(mockHorse({ id: 'h_1', archived: false }));
-      store.add(mockHorse({ id: 'h_2', archived: true }));
-      store.add(mockHorse({ id: 'h_3', archived: false }));
+  describe('Feed Helpers', () => {
+    test('add/update/remove feed works', () => {
+      stores.addFeed(mockFeed({ id: 'f_1' }));
+      assert.strictEqual(stores.feeds.value.length, 1);
 
-      assert.equal(store.active.value.length, 2);
-      assert.ok(store.active.value.every((h) => !h.archived));
+      stores.updateFeed('f_1', { name: 'Updated' });
+      assert.strictEqual(stores.feeds.value[0].name, 'Updated');
+
+      stores.removeFeed('f_1');
+      assert.strictEqual(stores.feeds.value.length, 0);
     });
   });
-});
 
-describe('createFeedStore', () => {
-  describe('ranking', () => {
-    test('byRank sorts feeds by rank descending', () => {
-      const store = createFeedStore();
-      store.add(mockFeed({ id: 'f_1', name: 'Low Rank', rank: 1 }));
-      store.add(mockFeed({ id: 'f_2', name: 'High Rank', rank: 10 }));
-      store.add(mockFeed({ id: 'f_3', name: 'Mid Rank', rank: 5 }));
-
-      const ranked = store.byRank.value;
-
-      assert.equal(ranked[0].name, 'High Rank');
-      assert.equal(ranked[1].name, 'Mid Rank');
-      assert.equal(ranked[2].name, 'Low Rank');
+  describe('Diet Helpers', () => {
+    test('getDiet finds entry by composite key', () => {
+      stores.diet.value = [mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' })];
+      const entry = stores.getDiet('h_1', 'f_1');
+      assert.ok(entry);
+      assert.strictEqual(entry.horse_id, 'h_1');
     });
 
-    test('byRank updates when feeds change', () => {
-      const store = createFeedStore();
-      store.add(mockFeed({ id: 'f_1', rank: 1 }));
-      store.add(mockFeed({ id: 'f_2', rank: 2 }));
+    test('updateDietAmount updates local state (optimistic)', () => {
+      stores.diet.value = [mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 })];
+      stores.updateDietAmount('h_1', 'f_1', 'am_amount', 5);
+      const entry = stores.getDiet('h_1', 'f_1');
+      assert.strictEqual(entry.am_amount, 5);
+    });
 
-      assert.equal(store.byRank.value[0].id, 'f_2');
+    test('updateDietAmount creates entry if missing', () => {
+      stores.updateDietAmount('h_new', 'f_new', 'am_amount', 3);
+      const entry = stores.getDiet('h_new', 'f_new');
+      assert.ok(entry);
+      assert.strictEqual(entry.am_amount, 3);
+    });
 
-      store.update('f_1', { rank: 10 });
+    test('getDietByHorse returns entries for specific horse', () => {
+      stores.diet.value = [
+        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1' }),
+        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2' }),
+        mockDietEntry({ horse_id: 'h_2', feed_id: 'f_1' })
+      ];
+      const items = stores.getDietByHorse('h_1');
+      assert.strictEqual(items.length, 2);
+    });
 
-      assert.equal(store.byRank.value[0].id, 'f_1');
+    test('countActiveFeeds counts feeds with amounts', () => {
+      stores.diet.value = [
+        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_1', am_amount: 1 }),
+        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_2', am_amount: 0, pm_amount: 0 }), // not active
+        mockDietEntry({ horse_id: 'h_1', feed_id: 'f_3', pm_amount: 1 })
+      ];
+      assert.strictEqual(stores.countActiveFeeds('h_1'), 2);
+    });
+  });
+
+  describe('SSE Bulk Update', () => {
+    test('setFromSSE replaces all state', () => {
+      stores.horses.value = [mockHorse({ id: 'old' })];
+
+      const newData = {
+        board: mockBoard({ id: 'new_board' }),
+        horses: [mockHorse({ id: 'new_horse' })],
+        feeds: [mockFeed({ id: 'new_feed' })],
+        diet_entries: [mockDietEntry({ horse_id: 'new_horse', feed_id: 'new_feed' })]
+      };
+
+      stores.setFromSSE(newData);
+
+      assert.strictEqual(stores.board.value.id, 'new_board');
+      assert.strictEqual(stores.horses.value.length, 1);
+      assert.strictEqual(stores.horses.value[0].id, 'new_horse');
+      assert.strictEqual(stores.feeds.value.length, 1);
+      assert.strictEqual(stores.diet.value.length, 1);
     });
   });
 });

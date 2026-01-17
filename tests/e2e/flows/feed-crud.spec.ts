@@ -75,7 +75,7 @@ test.describe('Feed CRUD Operations', () => {
       await expect(ownerPage.locator(selectors.addFeedModal)).not.toBeVisible();
 
       // Verify new feed appears in list with correct name and unit
-      const feedCard = ownerPage.locator('.feed-card').filter({ hasText: feedName });
+      const feedCard = ownerPage.locator('.list-card').filter({ hasText: feedName });
       await expect(feedCard).toBeVisible();
       await expect(feedCard).toContainText('ml');
     });

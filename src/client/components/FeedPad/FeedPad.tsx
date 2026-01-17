@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
-import { getStrategyForType, parseEntryOptions, type UnitType, type EntryOptions } from '@shared/unit-strategies';
-import './FeedPad.css';
+import { getStrategyForType, parseEntryOptions, type UnitType } from '@shared/unit-strategies';
+
 
 interface FeedPadProps {
   isOpen: boolean;
@@ -79,20 +79,20 @@ export function FeedPad({
 
   return (
     <div
-      class={`feed-pad-overlay ${isOpen ? 'feed-pad-overlay--open' : ''}`}
+      class={`overlay overlay--drawer ${isOpen ? 'overlay--open' : ''}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleCancel();
       }}
     >
       <div
-        class={`feed-pad-drawer ${isOpen ? 'feed-pad-drawer--open' : ''}`}
+        class={`bottom-drawer ${isOpen ? 'bottom-drawer--open' : ''}`}
         data-testid="feed-pad"
         aria-hidden={!isOpen}
       >
-        <div class="feed-pad-header">
-          <h3 class="feed-pad-title">{feedName}</h3>
+        <div class="drawer-header">
+          <h3 class="drawer-title">{feedName}</h3>
           <button
-            class="feed-pad-close"
+            class="icon-btn icon-btn--circular icon-btn--bordered"
             data-testid="feed-pad-close"
             onClick={handleCancel}
             aria-label="Close"
@@ -101,18 +101,42 @@ export function FeedPad({
           </button>
         </div>
 
-        {/* Current value display */}
-        <div class="feed-pad-current" data-testid="feed-pad-current">
-          <span class="feed-pad-current-value">{displayValue || '—'}</span>
-          {unitType !== 'choice' && <span class="feed-pad-current-unit">{unitLabel}</span>}
+        {/* Hero Stepper - Consolidated value display with +/- */}
+        <div class="drawer-stepper" data-testid="feed-pad-stepper">
+          {stepSize !== null && (
+            <button
+              class="icon-btn icon-btn--lg icon-btn--circular"
+              data-testid="stepper-decrement"
+              onClick={handleDecrement}
+              aria-label={`Decrease by ${stepSize}`}
+            >
+              −
+            </button>
+          )}
+
+          <div class="drawer-stepper-value">
+            <span class="drawer-stepper-amount" data-testid="stepper-value">{displayValue || '0'}</span>
+            {unitType !== 'choice' && <span class="drawer-stepper-unit">{unitLabel}</span>}
+          </div>
+
+          {stepSize !== null && (
+            <button
+              class="icon-btn icon-btn--lg icon-btn--circular"
+              data-testid="stepper-increment"
+              onClick={handleIncrement}
+              aria-label={`Increase by ${stepSize}`}
+            >
+              +
+            </button>
+          )}
         </div>
 
         {/* Presets */}
-        <div class="feed-pad-presets" data-testid="feed-pad-presets">
+        <div class="drawer-presets" data-testid="feed-pad-presets">
           {presets.map((preset, index) => (
             <button
               key={index}
-              class="feed-pad-preset"
+              class="segment-btn segment-btn--bordered"
               data-testid={`preset-${preset.value ?? 'empty'}`}
               onClick={() => handlePreset(preset.value, preset.label)}
             >
@@ -120,31 +144,6 @@ export function FeedPad({
             </button>
           ))}
         </div>
-
-        {/* Stepper (only for fraction/int types) */}
-        {stepSize !== null && (
-          <div class="feed-pad-stepper" data-testid="feed-pad-stepper">
-            <button
-              class="feed-pad-stepper-btn"
-              data-testid="stepper-decrement"
-              onClick={handleDecrement}
-              aria-label={`Decrease by ${stepSize}`}
-            >
-              −
-            </button>
-            <div class="feed-pad-stepper-value" data-testid="stepper-value">
-              {displayValue || '0'}
-            </div>
-            <button
-              class="feed-pad-stepper-btn"
-              data-testid="stepper-increment"
-              onClick={handleIncrement}
-              aria-label={`Increase by ${stepSize}`}
-            >
-              +
-            </button>
-          </div>
-        )}
 
         {/* Text input (for decimal type) */}
         {unitType === 'decimal' && (
@@ -164,7 +163,7 @@ export function FeedPad({
         )}
 
         <button
-          class="feed-pad-confirm"
+          class="drawer-confirm"
           data-testid="feed-pad-confirm"
           onClick={handleConfirm}
         >

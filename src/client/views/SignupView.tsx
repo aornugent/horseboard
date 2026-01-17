@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { authClient } from '../stores';
 import { navigate } from '../router';
 import { STORAGE_KEY } from '../services/lifecycle';
-import './Auth.css';
+
 
 const name = signal('');
 const email = signal('');
@@ -28,7 +28,16 @@ export function SignupView() {
             } else if (data) {
                 // Successful signup
                 try {
-                    const { listUserBoards, createBoard, setPermission } = await import('../services');
+                    const { listUserBoards, createBoard } = await import('../services');
+                    const { setPermission } = await import('../stores');
+                    const { authState } = await import('../stores');
+                    if (data) {
+                        authState.value = {
+                            user: data.user,
+                            session: null,
+                            isLoading: false
+                        };
+                    }
                     const boards = await listUserBoards();
                     let boardId;
                     if (boards.length === 0) {
@@ -56,20 +65,20 @@ export function SignupView() {
     };
 
     return (
-        <div class="auth-container" data-testid="signup-view">
-            <div class="auth-card">
-                <div class="auth-header">
-                    <h1 class="auth-title">Create Account</h1>
-                    <p class="auth-subtitle">Get started with HorseBoard</p>
+        <div class="form-view" data-testid="signup-view">
+            <div class="form-card">
+                <div class="form-header">
+                    <h1 class="form-title">Create Account</h1>
+                    <p class="form-subtitle">Get started with HorseBoard</p>
                 </div>
 
-                <form class="auth-form" onSubmit={handleSignup}>
+                <form onSubmit={handleSignup}>
                     <div class="form-group">
                         <label class="form-label" for="name">Full Name</label>
                         <input
                             id="name"
                             type="text"
-                            class="form-input"
+                            class="input"
                             data-testid="name-input"
                             value={name.value}
                             onInput={(e) => (name.value = (e.target as HTMLInputElement).value)}
@@ -84,7 +93,7 @@ export function SignupView() {
                         <input
                             id="email"
                             type="email"
-                            class="form-input"
+                            class="input"
                             data-testid="email-input"
                             value={email.value}
                             onInput={(e) => (email.value = (e.target as HTMLInputElement).value)}
@@ -99,7 +108,7 @@ export function SignupView() {
                         <input
                             id="password"
                             type="password"
-                            class="form-input"
+                            class="input"
                             data-testid="password-input"
                             value={password.value}
                             onInput={(e) => (password.value = (e.target as HTMLInputElement).value)}
@@ -111,14 +120,14 @@ export function SignupView() {
                     </div>
 
                     {error.value && (
-                        <div class="auth-error">
+                        <div class="form-error">
                             {error.value}
                         </div>
                     )}
 
                     <button
                         type="submit"
-                        class="submit-btn"
+                        class="btn-block"
                         data-testid="submit-btn"
                         disabled={isLoading.value}
                     >
@@ -126,9 +135,9 @@ export function SignupView() {
                     </button>
                 </form>
 
-                <div class="auth-footer">
+                <div class="form-footer">
                     Already have an account?
-                    <a href="/login" class="auth-link" onClick={(e) => {
+                    <a href="/login" class="text-link" onClick={(e) => {
                         e.preventDefault();
                         navigate('/login');
                     }}>Log In</a>

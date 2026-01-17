@@ -11,6 +11,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Ignore preview files in standard test runs
+  testIgnore: '**/previews/**',
+
 
   // Global setup to clean database before tests
   globalSetup: './tests/e2e/global-setup.ts',
@@ -27,8 +30,8 @@ export default defineConfig({
   // Run tests serially - shared SQLite database prevents parallel execution
   workers: 1,
 
-  // Reporter to use
-  reporter: 'html',
+  // List reporter - console output only, no artifacts
+  reporter: 'list',
 
   // Stop after first failure for fast feedback
   maxFailures: 5,
@@ -62,11 +65,10 @@ export default defineConfig({
     // Mobile Chrome removed - only viewport difference, no touch-specific tests
   ],
 
-  // Run your local dev server before starting the tests
   webServer: {
     command: 'NODE_ENV=test npm run dev',
     url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120 * 1000,
   },
 });

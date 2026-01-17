@@ -76,6 +76,40 @@ export interface ApiResponse<T> {
 }
 
 // =============================================================================
+// PREVIEW AUTH HELPERS
+// =============================================================================
+
+/**
+ * Create a preview user via Better Auth signup.
+ * Used by owner preview specs for real session auth.
+ */
+export async function createPreviewUser(
+  request: APIRequestContext,
+  email = 'preview@test.local',
+  password = 'preview123'
+): Promise<{ email: string; password: string }> {
+  await request.post(`${BASE_URL}/api/auth/sign-up/email`, {
+    data: { email, password, name: 'Preview User' },
+  });
+  return { email, password };
+}
+
+/**
+ * Create a real controller token via /pair endpoint.
+ * Used by staff/display preview specs.
+ */
+export async function createPreviewToken(
+  request: APIRequestContext,
+  pairCode: string
+): Promise<{ token: string; permission: string }> {
+  const response = await request.post(`${BASE_URL}/api/pair`, {
+    data: { code: pairCode },
+  });
+  const json = await response.json();
+  return { token: json.data.token, permission: json.data.permission };
+}
+
+// =============================================================================
 // BOARD API
 // =============================================================================
 

@@ -1,5 +1,5 @@
 import type { Horse } from '@shared/types';
-import './HorseCard.css';
+
 
 interface HorseCardProps {
   horse: Horse;
@@ -15,25 +15,25 @@ export function HorseCard({ horse, feedCount, onClick }: HorseCardProps) {
 
   return (
     <div
-      class="horse-card"
+      class="list-card"
       data-testid={`horse-card-${horse.id}`}
       onClick={onClick}
     >
-      <div class="horse-card-main">
-        <div class="horse-card-name" data-testid={`horse-card-name-${horse.id}`}>
+      <div class="list-card-content">
+        <div class="list-card-name" data-testid={`horse-card-name-${horse.id}`}>
           {horse.name}
         </div>
-        <div class="horse-card-summary" data-testid={`horse-card-summary-${horse.id}`}>
+        <div class="list-card-meta" data-testid={`horse-card-meta-${horse.id}`}>
           <span class="feed-count-pill">{feedLabel}</span>
         </div>
       </div>
       {horse.note && (
-        <div class="horse-card-note" data-testid={`horse-card-note-${horse.id}`}>
-          <span class="note-icon">i</span>
-          <span class="note-text">{horse.note}</span>
+        <div class="list-card-note" data-testid={`horse-card-note-${horse.id}`}>
+          <span class="list-card-icon">i</span>
+          <span class="list-card-text">{horse.note}</span>
         </div>
       )}
-      <div class="horse-card-chevron">
+      <div class="list-card-chevron">
         <svg
           width="24"
           height="24"

@@ -86,7 +86,7 @@ test.describe('Permission Enforcement', () => {
       await visitorPage.locator(selectors.addHorseBtn).click();
       await visitorPage.locator(selectors.newHorseName).fill('Edit User Horse');
       await visitorPage.locator(selectors.confirmAddHorse).click();
-      await expect(visitorPage.locator('.horse-card').filter({ hasText: 'Edit User Horse' })).toBeVisible();
+      await expect(visitorPage.locator('.list-card').filter({ hasText: 'Edit User Horse' })).toBeVisible();
 
       // 4. Edit User CANNOT generate invite (Admin only)
       await visitorPage.locator(selectors.tabSettings).click();
@@ -140,9 +140,10 @@ test.describe('Permission Enforcement', () => {
       // Navigate to Board tab (remote control)
       await visitorPage.locator('[data-testid="tab-board"]').click();
 
-      // Pagination controls should be visible
-      await expect(visitorPage.locator('[data-testid="prev-page-btn"]')).toBeVisible();
-      await expect(visitorPage.locator('[data-testid="next-page-btn"]')).toBeVisible();
+      // Open drawer and verify pagination controls
+      await visitorPage.locator('[data-testid="toggle-display-controls"]').click();
+      await expect(visitorPage.locator('[data-testid="tv-prev-page"]')).toBeVisible();
+      await expect(visitorPage.locator('[data-testid="tv-next-page"]')).toBeVisible();
     });
   });
 });

@@ -2,9 +2,14 @@ import { useState } from 'preact/hooks';
 import { signal, computed } from '@preact/signals';
 import { FeedPad } from '../../components/FeedPad/FeedPad';
 import { getStrategyForType, parseEntryOptions } from '@shared/unit-strategies';
-import { horseStore, feedStore, dietStore, canEdit } from '../../stores';
+import {
+  feeds, getHorse, updateHorse, removeHorse,
+  getDiet, getDietByHorse, updateDietAmount,
+  getFeed, clearDietEntry
+} from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { updateHorse as apiUpdateHorse, deleteHorse as apiDeleteHorse, upsertDiet } from '../../services/api';
-import './HorseDetail.css';
+
 
 interface HorseDetailProps {
   horseId: string;
@@ -22,19 +27,20 @@ const isDeleting = signal(false);
 
 export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const [selectedFeed, setSelectedFeed] = useState<SelectedFeed | null>(null);
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
+  const [showFeedPicker, setShowFeedPicker] = useState(false);
 
-  const horse = horseStore.get(horseId);
+  const horse = getHorse(horseId);
 
   const activeFeeds = computed(() => {
-    const entries = dietStore.byHorse.value.get(horseId) ?? [];
+    const entries = getDietByHorse(horseId);
     const activeFeedIds = new Set(
       entries
         .filter((e) => e.am_amount !== null || e.pm_amount !== null || !!e.am_variant || !!e.pm_variant)
         .map((e) => e.feed_id)
     );
 
-    return feedStore.items.value.sort((a, b) => {
+    return feeds.value.sort((a, b) => {
       const aActive = activeFeedIds.has(a.id);
       const bActive = activeFeedIds.has(b.id);
       if (aActive && !bActive) return -1;
@@ -53,13 +59,13 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getCurrentValue = (): number | null => {
     if (!selectedFeed) return null;
-    const entry = dietStore.get(horseId, selectedFeed.feed_id);
+    const entry = getDiet(horseId, selectedFeed.feed_id);
     return entry?.[selectedFeed.field] ?? null;
   };
 
   const getCurrentVariant = (): string | null => {
     if (!selectedFeed) return null;
-    const entry = dietStore.get(horseId, selectedFeed.feed_id);
+    const entry = getDiet(horseId, selectedFeed.feed_id);
     return selectedFeed.field === 'am_amount' ? entry?.am_variant ?? null : entry?.pm_variant ?? null;
   };
 
@@ -67,9 +73,9 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     if (!selectedFeed) return;
 
 
-    dietStore.updateAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
+    updateDietAmount(horseId, selectedFeed.feed_id, selectedFeed.field, value);
 
-    const currentEntry = dietStore.get(horseId, selectedFeed.feed_id);
+    const currentEntry = getDiet(horseId, selectedFeed.feed_id);
     const am_amount = selectedFeed.field === 'am_amount' ? value : currentEntry?.am_amount;
     const pm_amount = selectedFeed.field === 'pm_amount' ? value : currentEntry?.pm_amount;
     const am_variant = selectedFeed.field === 'am_amount' ? variant : currentEntry?.am_variant;
@@ -85,7 +91,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
   const getSelectedFeedInfo = () => {
     if (!selectedFeed) return { name: '', unitType: 'fraction' as const, unitLabel: 'scoop', entryOptions: null };
-    const feed = feedStore.get(selectedFeed.feed_id);
+    const feed = getFeed(selectedFeed.feed_id);
     return {
       name: feed?.name ?? '',
       unitType: feed?.unit_type ?? 'fraction',
@@ -105,7 +111,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
 
     try {
       const updated = await apiUpdateHorse(horseId, { name: newName });
-      horseStore.update(horseId, updated);
+      updateHorse(horseId, updated);
       isEditing.value = false;
     } catch (err) {
       console.error('Failed to update horse:', err);
@@ -124,7 +130,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
   const handleConfirmDelete = async () => {
     try {
       await apiDeleteHorse(horseId);
-      horseStore.remove(horseId);
+      removeHorse(horseId);
       isDeleting.value = false;
       onBack();
     } catch (err) {
@@ -136,84 +142,79 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
     isDeleting.value = false;
   };
 
+  const handleRemoveFeed = async (feedId: string) => {
+    const entry = getDiet(horseId, feedId);
+
+    // Atomic optimistic update
+    clearDietEntry(horseId, feedId);
+
+    try {
+      await upsertDiet(horseId, feedId, null, null, null, null);
+    } catch (error) {
+      console.error('Failed to remove feed:', error);
+      // Rollback if we had previous values
+      if (entry) {
+        updateDietAmount(horseId, feedId, 'am_amount', entry.am_amount);
+        updateDietAmount(horseId, feedId, 'pm_amount', entry.pm_amount);
+      }
+    }
+  };
+
   const feedInfo = getSelectedFeedInfo();
 
   return (
-    <div class="horse-detail" data-testid="horse-detail">
-      <header class="horse-detail-header">
+    <div class="tab" data-testid="horse-detail">
+      <header class="tab-header">
         <button
-          class="horse-detail-back"
+          class="icon-btn icon-btn--ghost"
           data-testid="horse-detail-back"
           onClick={onBack}
           aria-label="Go back"
         >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h2 class="horse-detail-name" data-testid="horse-detail-name">
+        <h2 class="tab-title" data-testid="horse-detail-name">
           {horse.name}
         </h2>
-        <div class="horse-detail-actions">
-          {canEditBoard && (
-            <>
-              <button
-                class="horse-detail-action-btn"
-                data-testid="edit-horse-btn"
-                onClick={handleOpenEdit}
-                aria-label="Edit horse"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-              <button
-                class="horse-detail-action-btn horse-detail-action-btn-danger"
-                data-testid="delete-horse-btn"
-                onClick={handleOpenDelete}
-                aria-label="Delete horse"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
+        {canEditBoard && (
+          <div class="header-controls">
+            <button
+              class="icon-btn"
+              data-testid="edit-horse-btn"
+              onClick={handleOpenEdit}
+              aria-label="Edit horse"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button
+              class="icon-btn icon-btn--danger"
+              data-testid="delete-horse-btn"
+              onClick={handleOpenDelete}
+              aria-label="Delete horse"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        )}
       </header>
 
       {horse.note && (
-        <div class="horse-detail-note" data-testid="horse-detail-note">
-          <span class="note-label">Note:</span> {horse.note}
-        </div>
+        <p class="tab-subtitle" style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0 0 var(--spacing-lg) 0;" data-testid="horse-detail-note">
+          {horse.note}
+        </p>
       )}
 
-      <div class="feed-tiles" data-testid="feed-tiles">
+      <div class="tab-list" data-testid="feed-tiles">
         {activeFeeds.value.map((feed) => {
-          const entry = dietStore.get(horseId, feed.id);
+          const entry = getDiet(horseId, feed.id);
           const amValue = entry?.am_amount;
           const pmValue = entry?.pm_amount;
 
@@ -225,41 +226,58 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
           return (
             <div
               key={feed.id}
-              class="feed-tile"
+              class="list-card"
               data-testid={`feed-tile-${feed.id}`}
             >
-              <div class="feed-tile-header">
-                <span class="feed-tile-name">{feed.name}</span>
-                <span class="feed-tile-unit">{feed.unit_label}</span>
+              <div class="list-card-content">
+                <span class="list-card-name">{feed.name}</span>
+                <span class="list-card-unit">{feed.unit_label}</span>
               </div>
-              <div class="feed-tile-values">
+
+              <div class="list-card-actions">
                 <button
-                  class="value-button"
-                  data-testid={`feed-tile-am-${feed.id}`}
+                  class="diet-value-pill"
+                  data-testid="am-value"
                   onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'am_amount' })}
                   disabled={!canEditBoard}
                 >
-                  <span class="value-label">AM</span>
-                  <span class="value-amount">
-                    {amDisplay}
-                  </span>
+                  <span class="label">AM</span>
+                  <span class="amount">{amDisplay}</span>
                 </button>
-
                 <button
-                  class="value-button"
-                  data-testid={`feed-tile-pm-${feed.id}`}
+                  class="diet-value-pill"
+                  data-testid="pm-value"
                   onClick={() => canEditBoard && setSelectedFeed({ feed_id: feed.id, field: 'pm_amount' })}
                   disabled={!canEditBoard}
                 >
-                  <span class="value-label">PM</span>
-                  <span class="value-amount">
-                    {pmDisplay}
-                  </span>
+                  <span class="label">PM</span>
+                  <span class="amount">{pmDisplay}</span>
                 </button>
+
+                {canEditBoard && (
+                  <button
+                    class="icon-btn icon-btn--sm icon-btn--ghost"
+                    data-testid="remove-feed"
+                    onClick={() => handleRemoveFeed(feed.id)}
+                    aria-label={`Remove ${feed.name} from diet`}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
+
+        {canEditBoard && (
+          <button
+            class="add-feed-btn"
+            data-testid="add-feed-btn"
+            onClick={() => setShowFeedPicker(true)}
+          >
+            + Add to {horse.name}'s diet
+          </button>
+        )}
       </div>
 
       <FeedPad
@@ -274,15 +292,41 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
         entryOptions={feedInfo.entryOptions}
       />
 
+      {showFeedPicker && (
+        <div class="overlay overlay--drawer overlay--open" onClick={() => setShowFeedPicker(false)}>
+          <div class="bottom-drawer bottom-drawer--open" data-testid="feed-picker" onClick={(e) => e.stopPropagation()}>
+            <div class="drawer-header">
+              <h3 class="drawer-title">Add Feed</h3>
+              <button class="icon-btn icon-btn--circular icon-btn--bordered" onClick={() => setShowFeedPicker(false)}>×</button>
+            </div>
+            <div class="feed-picker-list">
+              {feeds.value.map((feed) => (
+                <button
+                  key={feed.id}
+                  class="feed-picker-item"
+                  onClick={() => {
+                    setShowFeedPicker(false);
+                    setSelectedFeed({ feed_id: feed.id, field: 'am_amount' });
+                  }}
+                >
+                  <span class="feed-picker-name">{feed.name}</span>
+                  <span class="feed-picker-unit">{feed.unit_label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isEditing.value && (
-        <div class="modal-overlay" data-testid="edit-horse-modal">
+        <div class="overlay overlay--darker overlay--modal overlay--open" data-testid="edit-horse-modal">
           <div class="modal-content">
             <h3 class="modal-title">Edit Horse</h3>
             <div class="modal-field">
               <label class="modal-label">Name</label>
               <input
                 type="text"
-                class="modal-input"
+                class="input"
                 data-testid="edit-horse-name"
                 value={editName.value}
                 onInput={(e) => {
@@ -312,7 +356,7 @@ export function HorseDetail({ horseId, onBack }: HorseDetailProps) {
       )}
 
       {isDeleting.value && (
-        <div class="modal-overlay" data-testid="delete-horse-modal">
+        <div class="overlay overlay--darker overlay--modal overlay--open" data-testid="delete-horse-modal">
           <div class="modal-content">
             <h3 class="modal-title">Delete Horse?</h3>
             <p class="modal-description">

@@ -6,7 +6,7 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+Write **test-led** implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Occams Razor. Deletion over addition. Frequent commits.
 
 Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
 
@@ -36,21 +36,68 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Goal:** [One sentence describing what this builds]
 
+**Design Invariants (Must Hold After Implementation):**
+- [Invariant 1]
+- [Invariant 2]
+- [Invariant 3]
+
 **Architecture:** [2-3 sentences about approach]
 
 **Tech Stack:** [Key technologies/libraries]
 
 ---
+## Invalidated or Removed Behavior
+
+List any existing behavior, code paths, or tests that are no longer valid under this design.
+
+For each:
+- What previously worked?
+- Why it is now incorrect or obsolete?
+- How this will be enforced (test removal or new failing test)
+
+## Coverage Matrix
+
+List all meaningful variants of the feature and where they are tested.
+
+| Variant / Case | Unit Test | Integration Test | E2E Test |
+|----------------|-----------|------------------|----------|
+| Case A         | ✅        | ✅               | ❌       |
+| Case B         | ✅        | ❌               | ❌       |
+
+All primary variants must have test coverage. Gaps must be explicitly justified.
 
 ## Task Structure
 
+Include this once per plan:
+**Specification Levels**
+
+- **Locked**  
+  The final shape is fully specified in the plan.  
+  Do not invent structure, behavior, or naming.  
+  Deviations require returning to /plan.
+
+- **Constrained**  
+  The plan intentionally leaves gaps.  
+  You must complete the implementation, but only to satisfy the stated constraints  
+  (tests, signatures, invariants). No new concepts or abstractions.
+
+- **Mechanical**  
+  Follow the steps exactly.  
+  No design or interpretation required.
+
+
 ### Task N: [Component / Feature Name]
 
-**Files:**
+**Specification Level:** [Final | Test-Specified | Procedural]
 
-* Create: `src/exact/path/to/file.ts`
-* Modify: `src/exact/path/to/existing.ts:123-145`
-* Test: `tests/exact/path/to/test.spec.ts`
+**Intent:** Why this task exists and what must not change.
+
+**Files:**
+* Create: ...
+* Modify: ...
+* Test: ...
+
+
 
 ---
 
@@ -133,14 +180,13 @@ npm run test:e2e -- -g "specific behavior"
 
 ---
 
-## Remember
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- DRY, YAGNI, TDD, frequent commits
+## Planning Rules
+
+- If uncertainty is discovered during execution, STOP and return to /plan.
+- Do not leave transitional comments (“simplified”, “moved”, “for now”).
+- Final code must read as inevitable, not evolutionary.
+- Do not plan commits, they will be handled as part of the /finishing workflow
 
 ## Execution Handoff
 
-After saving the plan, state:
-
-**"Plan complete and saved to `artifact:implementation-plan.md`. Ready for /executing workflow."**
+**"Plan complete. Ready for /executing workflow."**

@@ -31,12 +31,26 @@ test.describe('Controller Smoke Tests', () => {
     await toggleBtn.click();
     await expect(drawer).toBeVisible();
 
-    // Verify drawer contains expected controls
+    // Time mode now visible by default; Orientation/Zoom in overflow
     await expect(ownerPage.locator(selectors.timeModeSelector)).toBeVisible();
+    await expect(ownerPage.locator('[data-testid="orientation-toggle"]')).not.toBeVisible();
+    await ownerPage.click('[data-testid="overflow-menu-btn"]');
+    await expect(ownerPage.locator('[data-testid="orientation-toggle"]')).toBeVisible();
     await expect(ownerPage.locator(selectors.zoomSelector)).toBeVisible();
 
-    await toggleBtn.click();
+    // Close drawer using close button
+    await ownerPage.locator('[data-testid="close-tv-controls"]').click();
     await expect(drawer).not.toBeVisible();
+  });
+
+  test('settings tab shows display defaults for owner', async ({ ownerPage }) => {
+    await ownerPage.locator('[data-testid="tab-settings"]').click();
+    await expect(ownerPage.locator(selectors.settingsTab)).toBeVisible();
+
+    // Owner sees display defaults section
+    await expect(ownerPage.getByTestId('display-defaults-section')).toBeVisible();
+    await expect(ownerPage.getByTestId('default-orientation-selector')).toBeVisible();
+    await expect(ownerPage.getByTestId('default-zoom-selector')).toBeVisible();
   });
 
   test('settings tab shows board pair code and timezone selector', async ({ ownerPage }) => {
@@ -49,5 +63,17 @@ test.describe('Controller Smoke Tests', () => {
 
     // Verify time mode selector NOT on settings (moved to Board tab)
     await expect(ownerPage.locator(selectors.timeModeSelector)).not.toBeVisible();
+  });
+
+  test('tapping grid closes drawer', async ({ ownerPage }) => {
+    await ownerPage.locator('[data-testid="tab-board"]').click();
+    await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
+    await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
+
+    // Tap on overlay to close drawer
+    await ownerPage.locator('[data-testid="tv-controls-overlay"]').click();
+
+    // Drawer should close
+    await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).not.toBeVisible();
   });
 });

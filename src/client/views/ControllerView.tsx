@@ -109,3 +109,4 @@ function TabIcon({ type }: TabIconProps) {
 
     return icons[type];
 }
+

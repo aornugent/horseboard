@@ -1,11 +1,11 @@
 import { useEffect } from 'preact/hooks';
 import { Router } from './Router';
-import { pathname, navigate } from './router';
-import { initializeApp, isInitialized, connectionError, STORAGE_KEY } from './services/lifecycle';
+import { initializeApp, isInitialized, connectionError } from './services/lifecycle';
+import { STORAGE_KEY } from './constants';
 
 import { loadControllerToken, sseClient } from './services';
-import { boardStore, user, initAuth } from './stores';
-import './styles/theme.css';
+import { initAuth } from './stores';
+
 
 export function App() {
   useEffect(() => {
@@ -29,23 +29,7 @@ export function App() {
     };
   }, []);
 
-  // Sync theme to body
-  useEffect(() => {
-    // Controller always uses AM (light) theme
-    if (pathname.value.startsWith('/controller')) {
-      document.body.setAttribute('data-theme', 'am');
-      return;
-    }
 
-    const mode = boardStore.board.value?.time_mode === 'AUTO' ? boardStore.effective_time_mode.value : (boardStore.board.value?.time_mode || 'AM');
-    document.body.setAttribute('data-theme', mode.toLowerCase());
-  }, [boardStore.board.value, boardStore.effective_time_mode.value, pathname.value]);
-
-  useEffect(() => {
-    if (user.value && (pathname.value === '/login' || pathname.value === '/signup')) {
-      navigate('/controller');
-    }
-  }, [user.value, pathname.value]);
 
   const storedBoardId = localStorage.getItem(STORAGE_KEY);
 

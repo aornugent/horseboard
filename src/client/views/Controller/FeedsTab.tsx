@@ -1,69 +1,67 @@
 import { signal, computed } from '@preact/signals';
 import { FeedCard } from '../../components/FeedCard/FeedCard';
 import { Modal } from '../../components/Modal';
-import { feedStore, boardStore, dietStore, canEdit } from '../../stores';
+import {
+  feeds, addFeed, updateFeed, removeFeed,
+  diet, board
+} from '../../stores';
+import { canEdit } from '../../hooks/useAppMode';
 import { createFeed as apiCreateFeed, updateFeed as apiUpdateFeed, deleteFeed as apiDeleteFeed } from '../../services';
 import { type Feed } from '@shared/resources';
-import { type UnitType, UNIT_TYPE_OPTIONS, type UnitTypeOptionId } from '@shared/unit-strategies';
-import './FeedsTab.css';
-
-// Default unit definition for UI selection
-const DEFAULT_UNIT_ID: UnitTypeOptionId = 'scoop';
+import { UNIT_TYPE_OPTIONS, UNIT_TYPES, type UnitType } from '@shared/unit-strategies';
 
 
-
+// State signals for Add Feed modal
 const searchQuery = signal('');
 const isAddingFeed = signal(false);
 const newFeedName = signal('');
-const newFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID);
+const newFeedType = signal<UnitType>('fraction');
+const newFeedLabel = signal<string>('scoop');
+const newFeedIsCustom = signal<boolean>(false);
+
+// State signals for Edit Feed modal
 const editingFeed = signal<Feed | null>(null);
-const editingFeedUnitId = signal<UnitTypeOptionId>(DEFAULT_UNIT_ID); // Track unit selection during edit
+const editingFeedType = signal<UnitType>('fraction');
+const editingFeedLabel = signal<string>('scoop');
+const editingFeedIsCustom = signal<boolean>(false);
+
 const deletingFeed = signal<Feed | null>(null);
-
-const board = boardStore.board;
-const dietEntries = dietStore.items;
-
-const addFeed = (feed: Feed) => feedStore.add(feed);
-const updateFeed = (id: string, feed: Feed) => feedStore.update(id, feed);
 
 const filteredFeeds = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  if (!query) return feedStore.items.value;
-  return feedStore.items.value.filter(f => f.name.toLowerCase().includes(query));
+  if (!query) return feeds.value;
+  return feeds.value.filter(f => f.name.toLowerCase().includes(query));
 });
 
 function countHorsesUsingFeed(feedId: string): number {
-  return dietEntries.value.filter(
+  return diet.value.filter(
     entry => entry.feed_id === feedId && (entry.am_amount || entry.pm_amount || entry.am_variant || entry.pm_variant)
   ).length;
 }
 
-// Helper to find unit ID from feed properties
-function getUnitId(feed: Feed): UnitTypeOptionId {
-  // Simple heuristic mapping
-  if (feed.unit_type === 'fraction' && feed.unit_label === 'scoop') return 'scoop';
-  if (feed.unit_type === 'decimal' && feed.unit_label === 'ml') return 'ml';
-  if (feed.unit_type === 'int' && feed.unit_label === 'biscuit') return 'biscuit';
-  return 'scoop'; // Default fallback
+// Helper to check if type/label match a preset
+function isPresetUnit(type: UnitType, label: string): boolean {
+  return UNIT_TYPE_OPTIONS.some(u => u.type === type && u.unitLabel === label);
 }
 
-async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
+async function handleCreateFeed(name: string) {
   if (!board.value) return;
-
-  const unitConfig = UNIT_TYPE_OPTIONS.find(u => u.id === unitId) || UNIT_TYPE_OPTIONS[0];
 
   try {
     const feed = await apiCreateFeed(
       board.value.id,
       name,
-      unitConfig.type,
-      unitConfig.unitLabel,
+      newFeedType.value,
+      newFeedLabel.value,
       null
     );
     addFeed(feed);
+    // Reset state
     isAddingFeed.value = false;
     newFeedName.value = '';
-    newFeedUnitId.value = DEFAULT_UNIT_ID;
+    newFeedType.value = 'fraction';
+    newFeedLabel.value = 'scoop';
+    newFeedIsCustom.value = false;
   } catch (err) {
     console.error('Failed to create feed:', err);
   }
@@ -72,20 +70,19 @@ async function handleCreateFeed(name: string, unitId: UnitTypeOptionId) {
 async function handleDeleteFeed(id: string) {
   try {
     await apiDeleteFeed(id);
-    feedStore.remove(id);
+    removeFeed(id);
     deletingFeed.value = null;
   } catch (err) {
     console.error('Failed to delete feed:', err);
   }
 }
 
-async function handleSaveFeedEdit(feed: Feed, unitId: UnitTypeOptionId) {
-  const unitConfig = UNIT_TYPE_OPTIONS.find(u => u.id === unitId) || UNIT_TYPE_OPTIONS[0];
+async function handleSaveFeedEdit(feed: Feed) {
   try {
     const updated = await apiUpdateFeed(feed.id, {
       name: feed.name,
-      unit_type: unitConfig.type,
-      unit_label: unitConfig.unitLabel
+      unit_type: editingFeedType.value,
+      unit_label: editingFeedLabel.value
     });
     updateFeed(feed.id, updated);
     editingFeed.value = null;
@@ -94,16 +91,37 @@ async function handleSaveFeedEdit(feed: Feed, unitId: UnitTypeOptionId) {
   }
 }
 
+function resetAddFeedState() {
+  isAddingFeed.value = false;
+  newFeedName.value = '';
+  newFeedType.value = 'fraction';
+  newFeedLabel.value = 'scoop';
+  newFeedIsCustom.value = false;
+}
+
+function openEditFeed(feed: Feed) {
+  editingFeed.value = { ...feed };
+  editingFeedType.value = feed.unit_type;
+  editingFeedLabel.value = feed.unit_label;
+  editingFeedIsCustom.value = !isPresetUnit(feed.unit_type, feed.unit_label);
+}
+
 export function FeedsTab() {
-  const canEditBoard = canEdit();
+  const canEditBoard = canEdit.value;
+
+  // Determine if confirm button should be disabled
+  const isAddDisabled = !newFeedName.value.trim() ||
+    (newFeedIsCustom.value && !newFeedLabel.value.trim());
+  const isEditDisabled = !editingFeed.value?.name.trim() ||
+    (editingFeedIsCustom.value && !editingFeedLabel.value.trim());
 
   return (
-    <div class="feeds-tab" data-testid="feeds-tab">
-      <div class="feeds-tab-header">
-        <h2 class="feeds-tab-title">Feeds</h2>
+    <div class="tab" data-testid="feeds-tab">
+      <div class="tab-header">
+        <h2 class="tab-title">Feeds</h2>
         {canEditBoard && (
           <button
-            class="feeds-tab-add-btn"
+            class="btn"
             data-testid="add-feed-btn"
             onClick={() => { isAddingFeed.value = true; }}
           >
@@ -112,10 +130,10 @@ export function FeedsTab() {
         )}
       </div>
 
-      <div class="feeds-tab-search">
+      <div class="tab-search">
         <input
           type="search"
-          class="feed-search-input"
+          class="input"
           placeholder="Search feeds..."
           data-testid="feed-search"
           value={searchQuery.value}
@@ -125,9 +143,9 @@ export function FeedsTab() {
         />
       </div>
 
-      <div class="feed-list" data-testid="feed-list">
+      <div class="tab-list" data-testid="feed-list">
         {filteredFeeds.value.length === 0 ? (
-          <div class="feed-list-empty" data-testid="feed-list-empty">
+          <div class="tab-list-empty" data-testid="feed-list-empty">
             {searchQuery.value
               ? 'No feeds match your search'
               : 'No feeds yet. Add one to get started!'}
@@ -138,10 +156,7 @@ export function FeedsTab() {
               key={feed.id}
               feed={feed}
               horseCount={countHorsesUsingFeed(feed.id)}
-              onEdit={canEditBoard ? () => {
-                editingFeed.value = { ...feed };
-                editingFeedUnitId.value = getUnitId(feed);
-              } : undefined}
+              onEdit={canEditBoard ? () => openEditFeed(feed) : undefined}
               onDelete={canEditBoard ? () => { deletingFeed.value = feed; } : undefined}
             />
           ))
@@ -153,17 +168,13 @@ export function FeedsTab() {
         isOpen={isAddingFeed.value}
         title="Add New Feed"
         data-testid="add-feed-modal"
-        onClose={() => {
-          isAddingFeed.value = false;
-          newFeedName.value = '';
-          newFeedUnitId.value = DEFAULT_UNIT_ID;
-        }}
+        onClose={resetAddFeedState}
       >
         <div class="modal-field">
           <label class="modal-label">Name</label>
           <input
             type="text"
-            class="modal-input"
+            class="input"
             data-testid="new-feed-name"
             placeholder="Feed name..."
             value={newFeedName.value}
@@ -174,36 +185,80 @@ export function FeedsTab() {
         </div>
         <div class="modal-field">
           <label class="modal-label">Unit</label>
-          <div class="unit-selector" data-testid="new-feed-unit">
+          <div class="segmented-control" data-testid="new-feed-unit">
             {UNIT_TYPE_OPTIONS.map(u => (
               <button
                 key={u.id}
-                class={`unit-btn ${newFeedUnitId.value === u.id ? 'active' : ''}`}
+                class={`segment-btn ${!newFeedIsCustom.value && newFeedType.value === u.type && newFeedLabel.value === u.unitLabel ? 'active' : ''}`}
                 data-testid={`unit-btn-${u.id}`}
-                onClick={() => { newFeedUnitId.value = u.id as UnitTypeOptionId; }}
+                onClick={() => {
+                  newFeedType.value = u.type;
+                  newFeedLabel.value = u.unitLabel;
+                  newFeedIsCustom.value = false;
+                }}
               >
                 {u.label}
               </button>
             ))}
+            <button
+              class={`segment-btn ${newFeedIsCustom.value ? 'active' : ''}`}
+              data-testid="unit-btn-custom"
+              onClick={() => {
+                newFeedIsCustom.value = true;
+                // Reset to defaults for custom
+                newFeedType.value = 'fraction';
+                newFeedLabel.value = '';
+              }}
+            >
+              Custom
+            </button>
           </div>
         </div>
+        {newFeedIsCustom.value && (
+          <>
+            <div class="modal-field">
+              <label class="modal-label">Type</label>
+              <div class="segmented-control" data-testid="custom-type-selector">
+                {UNIT_TYPES.map(type => (
+                  <button
+                    key={type}
+                    class={`segment-btn ${newFeedType.value === type ? 'active' : ''}`}
+                    data-testid={`custom-type-${type}`}
+                    onClick={() => { newFeedType.value = type; }}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label">Label</label>
+              <input
+                type="text"
+                class="input"
+                data-testid="custom-label-input"
+                placeholder="e.g., grams, tablets..."
+                value={newFeedLabel.value}
+                onInput={(e) => {
+                  newFeedLabel.value = (e.target as HTMLInputElement).value;
+                }}
+              />
+            </div>
+          </>
+        )}
         <div class="modal-actions">
           <button
             class="modal-btn modal-btn-cancel"
             data-testid="cancel-add-feed"
-            onClick={() => {
-              isAddingFeed.value = false;
-              newFeedName.value = '';
-              newFeedUnitId.value = DEFAULT_UNIT_ID;
-            }}
+            onClick={resetAddFeedState}
           >
             Cancel
           </button>
           <button
             class="modal-btn modal-btn-confirm"
             data-testid="confirm-add-feed"
-            disabled={!newFeedName.value.trim()}
-            onClick={() => handleCreateFeed(newFeedName.value.trim(), newFeedUnitId.value)}
+            disabled={isAddDisabled}
+            onClick={() => handleCreateFeed(newFeedName.value.trim())}
           >
             Add Feed
           </button>
@@ -223,7 +278,7 @@ export function FeedsTab() {
               <label class="modal-label">Name</label>
               <input
                 type="text"
-                class="modal-input"
+                class="input"
                 data-testid="edit-feed-name"
                 value={editingFeed.value.name}
                 onInput={(e) => {
@@ -238,21 +293,64 @@ export function FeedsTab() {
             </div>
             <div class="modal-field">
               <label class="modal-label">Unit</label>
-              <div class="unit-selector" data-testid="edit-feed-unit">
+              <div class="segmented-control" data-testid="edit-feed-unit">
                 {UNIT_TYPE_OPTIONS.map(u => (
                   <button
                     key={u.id}
-                    class={`unit-btn ${editingFeedUnitId.value === u.id ? 'active' : ''}`}
+                    class={`segment-btn ${!editingFeedIsCustom.value && editingFeedType.value === u.type && editingFeedLabel.value === u.unitLabel ? 'active' : ''}`}
                     data-testid={`edit-unit-btn-${u.id}`}
                     onClick={() => {
-                      editingFeedUnitId.value = u.id as UnitTypeOptionId;
+                      editingFeedType.value = u.type;
+                      editingFeedLabel.value = u.unitLabel;
+                      editingFeedIsCustom.value = false;
                     }}
                   >
                     {u.label}
                   </button>
                 ))}
+                <button
+                  class={`segment-btn ${editingFeedIsCustom.value ? 'active' : ''}`}
+                  data-testid="unit-btn-custom"
+                  onClick={() => {
+                    editingFeedIsCustom.value = true;
+                  }}
+                >
+                  Custom
+                </button>
               </div>
             </div>
+            {editingFeedIsCustom.value && (
+              <>
+                <div class="modal-field">
+                  <label class="modal-label">Type</label>
+                  <div class="segmented-control" data-testid="edit-custom-type-selector">
+                    {UNIT_TYPES.map(type => (
+                      <button
+                        key={type}
+                        class={`segment-btn ${editingFeedType.value === type ? 'active' : ''}`}
+                        data-testid={`custom-type-${type}`}
+                        onClick={() => { editingFeedType.value = type; }}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div class="modal-field">
+                  <label class="modal-label">Label</label>
+                  <input
+                    type="text"
+                    class="input"
+                    data-testid="custom-label-input"
+                    placeholder="e.g., grams, tablets..."
+                    value={editingFeedLabel.value}
+                    onInput={(e) => {
+                      editingFeedLabel.value = (e.target as HTMLInputElement).value;
+                    }}
+                  />
+                </div>
+              </>
+            )}
             <div class="modal-actions">
               <button
                 class="modal-btn modal-btn-cancel"
@@ -264,8 +362,8 @@ export function FeedsTab() {
               <button
                 class="modal-btn modal-btn-confirm"
                 data-testid="confirm-edit-feed"
-                disabled={!editingFeed.value.name.trim()}
-                onClick={() => editingFeed.value && handleSaveFeedEdit(editingFeed.value, editingFeedUnitId.value)}
+                disabled={isEditDisabled}
+                onClick={() => editingFeed.value && handleSaveFeedEdit(editingFeed.value)}
               >
                 Save Changes
               </button>
