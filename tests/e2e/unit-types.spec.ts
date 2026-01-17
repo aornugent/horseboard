@@ -32,23 +32,23 @@ test.describe('Unit Types & Formatting', () => {
         await expect(ownerPage.locator('[data-testid="horse-detail-name"]')).toHaveText('Thunder');
 
         // Set Oats (Scoop) -> AM
-        const oatsTile = ownerPage.locator('.feed-tile').filter({ hasText: 'Oats' });
-        const oatsAmBtn = oatsTile.locator('.value-button').first();
+        const oatsTile = ownerPage.locator('.list-card').filter({ hasText: 'Oats' });
+        const oatsAmBtn = oatsTile.locator('.diet-value-pill').first();
         await oatsAmBtn.click();
 
         // FeedPad for Scoop - verify presets (fractional)
         await expect(ownerPage.locator('[data-testid="preset-0.5"]')).toBeVisible();
         await ownerPage.click('[data-testid="preset-0.5"]');
         // Check stepper value updates to ½
-        await expect(ownerPage.locator('[data-testid="feed-pad-current"]')).toContainText('½');
+        await expect(ownerPage.locator('[data-testid="stepper-value"]')).toContainText('½');
         await ownerPage.click('[data-testid="feed-pad-confirm"]');
 
         // Verify display on tile: "½" (no unit for scoop/fraction)
-        await expect(oatsAmBtn.locator('.value-amount')).toHaveText('½');
+        await expect(oatsAmBtn.locator('.amount')).toHaveText('½');
 
         // Set Oil (ML) -> PM
-        const oilTile = ownerPage.locator('.feed-tile').filter({ hasText: 'Oil' });
-        const oilPmBtn = oilTile.locator('.value-button').nth(1);
+        const oilTile = ownerPage.locator('.list-card').filter({ hasText: 'Oil' });
+        const oilPmBtn = oilTile.locator('.diet-value-pill').nth(1);
         await oilPmBtn.click();
 
         // FeedPad for ML - verify input field
@@ -60,15 +60,15 @@ test.describe('Unit Types & Formatting', () => {
         // (Note: FeedPad current display appends unit for non-choice types except fraction default? 
         // Wait, FeedPad.tsx: {unitType !== 'choice' && <span class="feed-pad-current-unit">{unitLabel}</span>}
         // So "15.5" in value, "ml" in unit span.
-        await expect(ownerPage.locator('[data-testid="feed-pad-current"] .feed-pad-current-value')).toHaveText('15.5');
-        await expect(ownerPage.locator('[data-testid="feed-pad-current"] .feed-pad-current-unit')).toHaveText('ml');
+        await expect(ownerPage.locator('[data-testid="stepper-value"]')).toHaveText('15.5');
+        await expect(ownerPage.locator('.drawer-stepper-unit')).toHaveText('ml');
 
         await ownerPage.click('[data-testid="feed-pad-confirm"]');
 
         // Verify display on tile: "15.5 ml" 
         // HorseDetail uses strategy.formatDisplay.
         // decimalStrategy.formatDisplay returns "15.5 ml" (appends label).
-        await expect(oilPmBtn.locator('.value-amount')).toHaveText('15.5 ml');
+        await expect(oilPmBtn.locator('.amount')).toHaveText('15.5 ml');
     });
     test('int type shows integer stepper with step=1', async ({ ownerPage }) => {
         // Create int-type feed
@@ -91,8 +91,8 @@ test.describe('Unit Types & Formatting', () => {
         await expect(ownerPage.locator('[data-testid="horse-detail-name"]')).toHaveText('Blaze');
 
         // Open FeedPad for Biscuits
-        const biscuitTile = ownerPage.locator('.feed-tile').filter({ hasText: 'Biscuits' });
-        const biscuitAmBtn = biscuitTile.locator('.value-button').first();
+        const biscuitTile = ownerPage.locator('.list-card').filter({ hasText: 'Biscuits' });
+        const biscuitAmBtn = biscuitTile.locator('.diet-value-pill').first();
         await biscuitAmBtn.click();
 
         // Verify stepper is visible (int type has stepper)
@@ -109,16 +109,16 @@ test.describe('Unit Types & Formatting', () => {
 
         // Click increment - should go from 0 to 1 (step=1)
         await ownerPage.click('[data-testid="stepper-increment"]');
-        await expect(ownerPage.locator('[data-testid="feed-pad-current"] .feed-pad-current-value')).toHaveText('1');
+        await expect(ownerPage.locator('[data-testid="stepper-value"]')).toHaveText('1');
 
         // Click increment again - should go to 2
         await ownerPage.click('[data-testid="stepper-increment"]');
-        await expect(ownerPage.locator('[data-testid="feed-pad-current"] .feed-pad-current-value')).toHaveText('2');
+        await expect(ownerPage.locator('[data-testid="stepper-value"]')).toHaveText('2');
 
         await ownerPage.click('[data-testid="feed-pad-confirm"]');
 
         // Verify display shows "2" (no fraction)
-        await expect(biscuitAmBtn.locator('.value-amount')).toHaveText('2');
+        await expect(biscuitAmBtn.locator('.amount')).toHaveText('2');
     });
 
     test('supports custom unit creation', async ({ ownerPage }) => {
@@ -150,8 +150,8 @@ test.describe('Unit Types & Formatting', () => {
         await horseCard.click();
 
         // Open FeedPad for Supplements - should be integer type
-        const suppTile = ownerPage.locator('.feed-tile').filter({ hasText: 'Supplements' });
-        const suppAmBtn = suppTile.locator('.value-button').first();
+        const suppTile = ownerPage.locator('.list-card').filter({ hasText: 'Supplements' });
+        const suppAmBtn = suppTile.locator('.diet-value-pill').first();
         await suppAmBtn.click();
 
         // Verify integer stepper (not decimal input)

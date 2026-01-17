@@ -38,8 +38,8 @@ test.describe('Controller Smoke Tests', () => {
     await expect(ownerPage.locator('[data-testid="orientation-toggle"]')).toBeVisible();
     await expect(ownerPage.locator(selectors.zoomSelector)).toBeVisible();
 
-    // Close drawer by clicking board (toggle is hidden when drawer is open)
-    await ownerPage.locator('[data-testid="board-view-container"]').click();
+    // Close drawer using close button
+    await ownerPage.locator('[data-testid="close-tv-controls"]').click();
     await expect(drawer).not.toBeVisible();
   });
 
@@ -70,8 +70,8 @@ test.describe('Controller Smoke Tests', () => {
     await ownerPage.locator('[data-testid="toggle-display-controls"]').click();
     await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).toBeVisible();
 
-    // Tap on grid area
-    await ownerPage.locator('[data-testid="board-view-container"]').click();
+    // Tap on overlay to close drawer
+    await ownerPage.locator('[data-testid="tv-controls-overlay"]').click();
 
     // Drawer should close
     await expect(ownerPage.locator('[data-testid="display-controls-drawer"]')).not.toBeVisible();
