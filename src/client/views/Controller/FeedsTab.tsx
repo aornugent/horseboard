@@ -106,6 +106,14 @@ function openEditFeed(feed: Feed) {
   editingFeedIsCustom.value = !isPresetUnit(feed.unit_type, feed.unit_label);
 }
 
+// Determine if confirm button should be disabled (computed signals for reactivity)
+const isAddDisabled = computed(() =>
+  !newFeedName.value.trim() ||
+  (newFeedIsCustom.value && !newFeedLabel.value.trim()));
+const isEditDisabled = computed(() =>
+  !editingFeed.value?.name.trim() ||
+  (editingFeedIsCustom.value && !editingFeedLabel.value.trim()));
+
 export function FeedsTab() {
   const canEditBoard = canEdit.value;
 
