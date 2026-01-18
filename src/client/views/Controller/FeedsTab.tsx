@@ -106,14 +106,6 @@ function openEditFeed(feed: Feed) {
   editingFeedIsCustom.value = !isPresetUnit(feed.unit_type, feed.unit_label);
 }
 
-// Determine if confirm button should be disabled (computed signals for reactivity)
-const isAddDisabled = computed(() =>
-  !newFeedName.value.trim() ||
-  (newFeedIsCustom.value && !newFeedLabel.value.trim()));
-const isEditDisabled = computed(() =>
-  !editingFeed.value?.name.trim() ||
-  (editingFeedIsCustom.value && !editingFeedLabel.value.trim()));
-
 export function FeedsTab() {
   const canEditBoard = canEdit.value;
 
@@ -260,7 +252,7 @@ export function FeedsTab() {
           <button
             class="modal-btn modal-btn-confirm"
             data-testid="confirm-add-feed"
-            disabled={isAddDisabled.value}
+            disabled={!newFeedName.value.trim() || (newFeedIsCustom.value && !newFeedLabel.value.trim())}
             onClick={() => handleCreateFeed(newFeedName.value.trim())}
           >
             Add Feed
@@ -365,7 +357,7 @@ export function FeedsTab() {
               <button
                 class="modal-btn modal-btn-confirm"
                 data-testid="confirm-edit-feed"
-                disabled={isEditDisabled.value}
+                disabled={!editingFeed.value?.name.trim() || (editingFeedIsCustom.value && !editingFeedLabel.value.trim())}
                 onClick={() => editingFeed.value && handleSaveFeedEdit(editingFeed.value)}
               >
                 Save Changes
