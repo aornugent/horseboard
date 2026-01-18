@@ -239,7 +239,7 @@ export function parseQuantity(input: string | null | undefined): number | null {
  */
 export const UNIT_TYPE_OPTIONS = [
     { id: 'scoop', label: 'Scoop', type: 'fraction' as UnitType, unitLabel: 'scoop' },
-    { id: 'ml', label: 'ML', type: 'decimal' as UnitType, unitLabel: 'ml' },
+    { id: 'ml', label: 'ml', type: 'decimal' as UnitType, unitLabel: 'ml' },
     { id: 'biscuit', label: 'Biscuit', type: 'int' as UnitType, unitLabel: 'biscuit' },
 ] as const;
 
