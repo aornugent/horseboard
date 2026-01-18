@@ -45,7 +45,10 @@ function isPresetUnit(type: UnitType, label: string): boolean {
 }
 
 async function handleCreateFeed(name: string) {
-  if (!board.value) return;
+  if (!board.value) {
+    alert('DEBUG: board.value is null/undefined');
+    return;
+  }
 
   try {
     const feed = await apiCreateFeed(
@@ -64,6 +67,7 @@ async function handleCreateFeed(name: string) {
     newFeedIsCustom.value = false;
   } catch (err) {
     console.error('Failed to create feed:', err);
+    alert(`DEBUG: Failed to create feed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
