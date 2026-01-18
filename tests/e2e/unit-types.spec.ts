@@ -55,7 +55,9 @@ test.describe('Unit Types & Formatting', () => {
         await expect(ownerPage.locator('[data-testid="feed-pad-input"]')).toBeVisible();
         await expect(ownerPage.locator('[data-testid="feed-pad-input"] input')).toBeVisible();
 
-        await ownerPage.fill('[data-testid="feed-pad-input"] input', '15.5');
+        // Clear and type value (type simulates keystrokes, ensuring onInput fires)
+        await ownerPage.locator('[data-testid="feed-pad-input"] input').fill('');
+        await ownerPage.locator('[data-testid="feed-pad-input"] input').type('15.5');
         // Wait for state update - display should show "15.5 ml"
         // (Note: FeedPad current display appends unit for non-choice types except fraction default? 
         // Wait, FeedPad.tsx: {unitType !== 'choice' && <span class="feed-pad-current-unit">{unitLabel}</span>}

@@ -168,44 +168,6 @@ export function authenticate() {
 }
 
 /**
- * Permission guard: requires edit or admin permission.
- * Must be used after authenticate().
- */
-export function requireEdit(req: Request, res: Response, next: NextFunction) {
-    if (!req.auth) {
-        return res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-
-    if (req.auth.permission === 'view' || req.auth.permission === 'none') {
-        return res.status(403).json({
-            success: false,
-            error: 'Edit permission required',
-        });
-    }
-
-    next();
-}
-
-/**
- * Permission guard: requires admin permission.
- * Must be used after authenticate().
- */
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-    if (!req.auth) {
-        return res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-
-    if (req.auth.permission !== 'admin') {
-        return res.status(403).json({
-            success: false,
-            error: 'Admin permission required',
-        });
-    }
-
-    next();
-}
-
-/**
  * Get the effective permission for a specific board.
  * Use in route handlers to check board-level access.
  *

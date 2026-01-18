@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { CreateFeedSchema, UpdateFeedSchema } from '@shared/resources';
 import { validate } from './middleware';
-import { authenticate, requireEdit, getBoardPermission } from '../lib/auth';
+import { authenticate, getBoardPermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -104,7 +104,7 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // PATCH /api/feeds/:id - update feed
-  standalone.patch('/:id', authenticate(), requireEdit, validate(UpdateFeedSchema), (req: Request, res: Response) => {
+  standalone.patch('/:id', authenticate(), validate(UpdateFeedSchema), (req: Request, res: Response) => {
     const existing = repos.feeds.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Feed not found' });
@@ -122,7 +122,7 @@ export function createFeedsRouter(ctx: RouteContext): { boardScoped: Router; sta
   });
 
   // DELETE /api/feeds/:id - delete feed
-  standalone.delete('/:id', authenticate(), requireEdit, (req: Request, res: Response) => {
+  standalone.delete('/:id', authenticate(), (req: Request, res: Response) => {
     const existing = repos.feeds.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Feed not found' });
