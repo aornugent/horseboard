@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { UpsertDietEntrySchema } from '@shared/resources';
 import { validate } from './middleware';
-import { authenticate, requireEdit, getBoardPermission } from '../lib/auth';
+import { authenticate, getBoardPermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -39,7 +39,7 @@ export function createDietRouter(ctx: RouteContext): Router {
   });
 
   // PUT /api/diet - upsert diet entry
-  router.put('/', authenticate(), requireEdit, validate(UpsertDietEntrySchema), (req: Request, res: Response) => {
+  router.put('/', authenticate(), validate(UpsertDietEntrySchema), (req: Request, res: Response) => {
     const horse = repos.horses.getById(req.body.horse_id);
     if (!horse) {
       return res.status(404).json({ success: false, error: 'Horse not found' });
@@ -65,7 +65,7 @@ export function createDietRouter(ctx: RouteContext): Router {
   });
 
   // DELETE /api/diet/:horse_id/:feed_id - delete diet entry
-  router.delete('/:horse_id/:feed_id', authenticate(), requireEdit, (req: Request, res: Response) => {
+  router.delete('/:horse_id/:feed_id', authenticate(), (req: Request, res: Response) => {
     const horse = repos.horses.getById(req.params.horse_id);
     if (!horse) {
       return res.status(404).json({ success: false, error: 'Horse not found' });

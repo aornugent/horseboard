@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { CreateHorseSchema, UpdateHorseSchema } from '@shared/resources';
 import { validate } from './middleware';
-import { authenticate, requireEdit, getBoardPermission } from '../lib/auth';
+import { authenticate, getBoardPermission } from '../lib/auth';
 import type { RouteContext } from './types';
 
 /**
@@ -81,7 +81,7 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
   });
 
   // PATCH /api/horses/:id - update horse
-  standalone.patch('/:id', authenticate(), requireEdit, validate(UpdateHorseSchema), (req: Request, res: Response) => {
+  standalone.patch('/:id', authenticate(), validate(UpdateHorseSchema), (req: Request, res: Response) => {
     const existing = repos.horses.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Horse not found' });
@@ -99,7 +99,7 @@ export function createHorsesRouter(ctx: RouteContext): { boardScoped: Router; st
   });
 
   // DELETE /api/horses/:id - delete horse
-  standalone.delete('/:id', authenticate(), requireEdit, (req: Request, res: Response) => {
+  standalone.delete('/:id', authenticate(), (req: Request, res: Response) => {
     const existing = repos.horses.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Horse not found' });
